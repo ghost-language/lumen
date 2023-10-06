@@ -1,0 +1,6 @@
+ghostlang.org/x/ghost v0.18.0 h1:fK9vt4kgrVlTABqqe7pZqvLyr47GtAwHZkGNl+otoYk=
+ghostlang.org/x/ghost v0.18.0/go.mod h1:ZHkaQCPgPsvceD0nZJv4b1C0UiErOUypWqAV1GuRiMk=
+github.com/shopspring/decimal v1.3.1 h1:2Usl1nmF/WZucqkFZhnfFYxxxu8LG21F6nPQBE5gKV8=
+github.com/shopspring/decimal v1.3.1/go.mod h1:DKyhrW/HYNuLGql+MJL6WCR6knT2jwCFRcu2hWCYk4o=
+github.com/veandco/go-sdl2 v0.4.35 h1:NohzsfageDWGtCd9nf7Pc3sokMK/MOK+UA2QMJARWzQ=
+github.com/veandco/go-sdl2 v0.4.35/go.mod h1:OROqMhHD43nT4/i9crJukyVecjPNYYuCofep6SNiAjY=
