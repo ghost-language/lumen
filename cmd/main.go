@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"ghostlang.org/x/ghost/ghost"
+	"ghostlang.org/x/lumen/graphics"
 	"ghostlang.org/x/lumen/lumen"
 )
 
@@ -92,6 +93,9 @@ func main() {
 	}
 
 	lumen := lumen.New("Lumen")
+
+	// Register ghost modules
+	ghost.RegisterModule("graphics", graphics.GraphicsMethods, graphics.GraphicsProperties)
 
 	ghost := ghost.New()
 	ghost.SetSource(string(b))

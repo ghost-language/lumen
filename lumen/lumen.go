@@ -4,6 +4,9 @@ import (
 	"fmt"
 
 	"ghostlang.org/x/ghost/ghost"
+	"ghostlang.org/x/ghost/object"
+	"ghostlang.org/x/lumen/renderer"
+	"ghostlang.org/x/lumen/window"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -14,24 +17,24 @@ var (
 )
 
 type Lumen struct {
-	title  string
-	width  int32
-	height int32
-	fps    uint64
+	Title  string
+	Width  int32
+	Height int32
+	Fps    uint64
 
-	window   *sdl.Window
-	renderer *sdl.Renderer
+	GraphicsMethods    map[string]*object.LibraryFunction
+	GraphicsProperties map[string]*object.LibraryProperty
 }
 
 func New(title string) (lumen *Lumen) {
 	lumen = new(Lumen)
 
-	lumen.title = title
-	lumen.fps = 60
-	lumen.width = 800
-	lumen.height = 600
+	lumen.Title = title
+	lumen.Fps = 60
+	lumen.Width = 800
+	lumen.Height = 600
 
-	frameDelay = 1000 / lumen.fps
+	frameDelay = 1000 / lumen.Fps
 
 	return lumen
 }
@@ -43,20 +46,13 @@ func (lumen *Lumen) initialize(ghost *ghost.Ghost) {
 		panic(err)
 	}
 
-	lumen.window, err = sdl.CreateWindow(
-		lumen.title,
-		sdl.WINDOWPOS_UNDEFINED,
-		sdl.WINDOWPOS_UNDEFINED,
-		lumen.width,
-		lumen.height,
-		sdl.WINDOW_SHOWN,
-	)
+	window.New(lumen.Title, lumen.Width, lumen.Height)
 
 	if err != nil {
 		panic(err)
 	}
 
-	lumen.renderer, err = sdl.CreateRenderer(lumen.window, -1, sdl.RENDERER_ACCELERATED)
+	renderer.New()
 
 	if err != nil {
 		panic(err)
@@ -90,6 +86,8 @@ func (lumen *Lumen) Run(ghost *ghost.Ghost) {
 		if frameDelay > frameTime {
 			sdl.Delay(uint32(frameDelay - frameTime))
 		}
+
+		fmt.Println("FPS:", 1000.0/float64(sdl.GetTicks64()-frameStart))
 	}
 }
 
@@ -98,10 +96,10 @@ func (lumen *Lumen) update(ghost *ghost.Ghost) {
 }
 
 func (lumen *Lumen) draw(ghost *ghost.Ghost) {
-	lumen.renderer.SetDrawColor(26, 32, 44, 255)
-	lumen.renderer.Clear()
+	renderer.Renderer.SetDrawColor(26, 32, 44, 255)
+	renderer.Renderer.Clear()
 
 	ghost.Call("draw", nil)
 
-	lumen.renderer.Present()
+	renderer.Renderer.Present()
 }
