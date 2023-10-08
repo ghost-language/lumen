@@ -53,6 +53,7 @@ func main() {
 
 	var f *os.File
 	var err error
+	var rootDirectory string
 
 	if len(console.args) == 0 {
 		// Do we have a main.ghost file present?
@@ -62,9 +63,9 @@ func main() {
 			panic(err)
 		}
 
-		exPath := filepath.Dir(ex)
+		rootDirectory = filepath.Dir(ex)
 
-		mainFile, err := filepath.Abs(exPath + "/main.ghost")
+		mainFile, err := filepath.Abs(rootDirectory + "/main.ghost")
 
 		if err != nil {
 			panic(err)
@@ -79,6 +80,8 @@ func main() {
 		}
 	} else {
 		f, err = os.Open(console.args[0])
+
+		rootDirectory = filepath.Dir(console.args[0])
 
 		if err != nil {
 			log.Fatalf("could not open file: %s: %s", err, console.args[0])
@@ -97,8 +100,11 @@ func main() {
 	// Register ghost modules
 	ghost.RegisterModule("graphics", graphics.GraphicsMethods, graphics.GraphicsProperties)
 
+	fmt.Println("root directory: " + rootDirectory)
+
 	ghost := ghost.New()
 	ghost.SetSource(string(b))
+	ghost.SetDirectory(rootDirectory)
 	ghost.Execute()
 
 	lumen.Run(ghost)

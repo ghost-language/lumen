@@ -87,7 +87,7 @@ func (lumen *Lumen) Run(ghost *ghost.Ghost) {
 			sdl.Delay(uint32(frameDelay - frameTime))
 		}
 
-		fmt.Println("FPS:", 1000.0/float64(sdl.GetTicks64()-frameStart))
+		// fmt.Println("FPS:", 1000.0/float64(sdl.GetTicks64()-frameStart))
 	}
 }
 
@@ -96,7 +96,7 @@ func (lumen *Lumen) update(ghost *ghost.Ghost) {
 }
 
 func (lumen *Lumen) draw(ghost *ghost.Ghost) {
-	renderer.Renderer.SetDrawColor(26, 32, 44, 255)
+	renderer.Renderer.SetDrawColor(0, 0, 0, 255)
 	renderer.Renderer.Clear()
 
 	ghost.Call("draw", nil)
