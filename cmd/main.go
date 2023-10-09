@@ -10,8 +10,10 @@ import (
 	"path/filepath"
 
 	"ghostlang.org/x/ghost/ghost"
+	"ghostlang.org/x/ghost/object"
 	"ghostlang.org/x/lumen/graphics"
 	"ghostlang.org/x/lumen/lumen"
+	"ghostlang.org/x/lumen/window"
 )
 
 var (
@@ -99,13 +101,18 @@ func main() {
 
 	// Register ghost modules
 	ghost.RegisterModule("graphics", graphics.GraphicsMethods, graphics.GraphicsProperties)
-
-	fmt.Println("root directory: " + rootDirectory)
+	ghost.RegisterModule("window", window.WindowMethods, window.WindowProperties)
 
 	ghost := ghost.New()
 	ghost.SetSource(string(b))
 	ghost.SetDirectory(rootDirectory)
-	ghost.Execute()
+	result := ghost.Execute()
+
+	// fmt.Printf("Result Type: %T", result)
+
+	if _, ok := result.(*object.Error); ok {
+		os.Exit(1)
+	}
 
 	lumen.Run(ghost)
 }
