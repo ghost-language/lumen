@@ -18,7 +18,7 @@ func init() {
 	modules.RegisterMethod(GraphicsMethods, "filledRectangle", graphicsFilledRectangle)
 	modules.RegisterMethod(GraphicsMethods, "line", graphicsLine)
 	modules.RegisterMethod(GraphicsMethods, "clear", graphicsClear)
-	modules.RegisterMethod(GraphicsMethods, "pixel", graphicsPixel)
+	modules.RegisterMethod(GraphicsMethods, "point", graphicsPoint)
 }
 
 func graphicsScale(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
@@ -113,7 +113,7 @@ func graphicsClear(scope *object.Scope, tok token.Token, args ...object.Object) 
 	return nil
 }
 
-func graphicsPixel(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+func graphicsPoint(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
 	if len(args) != 2 {
 		panic("wrong number of arguments. expected=2")
 		// return object.NewError("wrong number of arguments. got=%d, expected=2", len(args))

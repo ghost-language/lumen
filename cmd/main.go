@@ -12,6 +12,7 @@ import (
 	"ghostlang.org/x/ghost/ghost"
 	"ghostlang.org/x/ghost/object"
 	"ghostlang.org/x/lumen/graphics"
+	"ghostlang.org/x/lumen/keyboard"
 	"ghostlang.org/x/lumen/lumen"
 	"ghostlang.org/x/lumen/window"
 )
@@ -102,6 +103,7 @@ func main() {
 	// Register ghost modules
 	ghost.RegisterModule("graphics", graphics.GraphicsMethods, graphics.GraphicsProperties)
 	ghost.RegisterModule("window", window.WindowMethods, window.WindowProperties)
+	ghost.RegisterModule("keyboard", keyboard.KeyboardMethods, keyboard.KeyboardProperties)
 
 	ghost := ghost.New()
 	ghost.SetSource(string(b))

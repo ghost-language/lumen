@@ -5,6 +5,7 @@ import (
 
 	"ghostlang.org/x/ghost/ghost"
 	"ghostlang.org/x/ghost/object"
+	"ghostlang.org/x/lumen/keyboard"
 	"ghostlang.org/x/lumen/renderer"
 	"ghostlang.org/x/lumen/window"
 	"github.com/veandco/go-sdl2/sdl"
@@ -66,13 +67,20 @@ func (lumen *Lumen) initialize(ghost *ghost.Ghost) {
 func (lumen *Lumen) Run(ghost *ghost.Ghost) {
 	lumen.initialize(ghost)
 
+	keyboard.State = sdl.GetKeyboardState()
+	keyboard.PreviousState = make([]uint8, len(keyboard.State))
+
 	for gameRunning {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch event.(type) {
 			case *sdl.QuitEvent:
 				fmt.Println("Quitting Lumen...")
 				gameRunning = false
+			case *sdl.KeyboardEvent:
+				keyboard.State = sdl.GetKeyboardState()
 			}
+
+			keyboard.UpdateState()
 		}
 
 		frameStart := sdl.GetTicks64()
