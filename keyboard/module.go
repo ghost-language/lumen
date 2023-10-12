@@ -14,8 +14,8 @@ var KeyboardProperties = map[string]*object.LibraryProperty{}
 func init() {
 	modules.RegisterMethod(KeyboardMethods, "isDown", keyboardIsDown)
 	modules.RegisterMethod(KeyboardMethods, "isUp", keyboardIsUp)
-	modules.RegisterMethod(KeyboardMethods, "isPressed", keyboardIsPressed)
-	modules.RegisterMethod(KeyboardMethods, "isReleased", keyboardIsReleased)
+	modules.RegisterMethod(KeyboardMethods, "wasPressed", keyboardWasPressed)
+	modules.RegisterMethod(KeyboardMethods, "wasReleased", keyboardWasReleased)
 }
 
 func keyboardIsDown(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
@@ -48,7 +48,7 @@ func keyboardIsUp(scope *object.Scope, tok token.Token, args ...object.Object) o
 	return value.FALSE
 }
 
-func keyboardIsPressed(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+func keyboardWasPressed(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
 	if len(args) != 1 {
 		panic("wrong number of arguments. expected=1")
 		// return object.NewError("wrong number of arguments. got=%d, expected=2", len(args))
@@ -56,14 +56,14 @@ func keyboardIsPressed(scope *object.Scope, tok token.Token, args ...object.Obje
 
 	scancode := sdl.GetScancodeFromName(args[0].String())
 
-	if IsPressed(scancode) {
+	if WasPressed(scancode) {
 		return value.TRUE
 	}
 
 	return value.FALSE
 }
 
-func keyboardIsReleased(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+func keyboardWasReleased(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
 	if len(args) != 1 {
 		panic("wrong number of arguments. expected=1")
 		// return object.NewError("wrong number of arguments. got=%d, expected=2", len(args))
@@ -71,7 +71,7 @@ func keyboardIsReleased(scope *object.Scope, tok token.Token, args ...object.Obj
 
 	scancode := sdl.GetScancodeFromName(args[0].String())
 
-	if IsReleased(scancode) {
+	if WasReleased(scancode) {
 		return value.TRUE
 	}
 

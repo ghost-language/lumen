@@ -79,8 +79,6 @@ func (lumen *Lumen) Run(ghost *ghost.Ghost) {
 			case *sdl.KeyboardEvent:
 				keyboard.State = sdl.GetKeyboardState()
 			}
-
-			keyboard.UpdateState()
 		}
 
 		frameStart := sdl.GetTicks64()
@@ -94,6 +92,8 @@ func (lumen *Lumen) Run(ghost *ghost.Ghost) {
 		if frameDelay > frameTime {
 			sdl.Delay(uint32(frameDelay - frameTime))
 		}
+
+		keyboard.UpdateState()
 
 		// fmt.Println("FPS:", 1000.0/float64(sdl.GetTicks64()-frameStart))
 	}

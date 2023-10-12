@@ -15,15 +15,14 @@ func IsUp(scancode sdl.Scancode) bool {
 	return !IsDown(scancode)
 }
 
-func IsPressed(scancode sdl.Scancode) bool {
+func WasPressed(scancode sdl.Scancode) bool {
 	return State[scancode] == 1 && PreviousState[scancode] == 0
 }
 
-func IsReleased(scancode sdl.Scancode) bool {
+func WasReleased(scancode sdl.Scancode) bool {
 	return State[scancode] == 0 && PreviousState[scancode] == 1
 }
 
 func UpdateState() {
-	PreviousState = State
-	// copy(PreviousState, State)
+	copy(PreviousState, State)
 }
