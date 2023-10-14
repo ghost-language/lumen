@@ -11,7 +11,9 @@ import (
 
 	"ghostlang.org/x/ghost/ghost"
 	"ghostlang.org/x/ghost/object"
-	"ghostlang.org/x/lumen/graphics"
+	"ghostlang.org/x/lumen/environment"
+	"ghostlang.org/x/lumen/graphic"
+	"ghostlang.org/x/lumen/image"
 	"ghostlang.org/x/lumen/keyboard"
 	"ghostlang.org/x/lumen/lumen"
 	"ghostlang.org/x/lumen/window"
@@ -25,6 +27,8 @@ var (
 type Console struct {
 	args []string
 }
+
+type Ghost *ghost.Ghost
 
 func init() {
 	flag.Usage = func() {
@@ -101,14 +105,15 @@ func main() {
 	lumen := lumen.New("Lumen")
 
 	// Register ghost modules
-	ghost.RegisterModule("graphics", graphics.GraphicsMethods, graphics.GraphicsProperties)
+	ghost.RegisterModule("graphics", graphic.GraphicsMethods, graphic.GraphicsProperties)
 	ghost.RegisterModule("window", window.WindowMethods, window.WindowProperties)
 	ghost.RegisterModule("keyboard", keyboard.KeyboardMethods, keyboard.KeyboardProperties)
+	ghost.RegisterModule("image", image.ImageMethods, image.ImageProperties)
 
-	ghost := ghost.New()
-	ghost.SetSource(string(b))
-	ghost.SetDirectory(rootDirectory)
-	result := ghost.Execute()
+	environment.Ghost = ghost.New()
+	environment.Ghost.SetSource(string(b))
+	environment.Ghost.SetDirectory(rootDirectory)
+	result := environment.Ghost.Execute()
 
 	// fmt.Printf("Result Type: %T", result)
 
@@ -116,7 +121,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	lumen.Run(ghost)
+	lumen.Run(environment.Ghost)
 }
 
 func showHelp() {

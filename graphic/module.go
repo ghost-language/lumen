@@ -1,9 +1,10 @@
-package graphics
+package graphic
 
 import (
 	"ghostlang.org/x/ghost/library/modules"
 	"ghostlang.org/x/ghost/object"
 	"ghostlang.org/x/ghost/token"
+	"ghostlang.org/x/lumen/image"
 	"ghostlang.org/x/lumen/renderer"
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -19,6 +20,7 @@ func init() {
 	modules.RegisterMethod(GraphicsMethods, "line", graphicsLine)
 	modules.RegisterMethod(GraphicsMethods, "clear", graphicsClear)
 	modules.RegisterMethod(GraphicsMethods, "point", graphicsPoint)
+	modules.RegisterMethod(GraphicsMethods, "draw", graphicsDraw)
 }
 
 func graphicsScale(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
@@ -123,6 +125,21 @@ func graphicsPoint(scope *object.Scope, tok token.Token, args ...object.Object) 
 	y := int32(args[1].(*object.Number).Value.IntPart())
 
 	renderer.Renderer.DrawPoint(x, y)
+
+	return nil
+}
+
+func graphicsDraw(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if len(args) != 3 {
+		panic("wrong number of arguments. expected=3")
+		// return object.NewError("wrong number of arguments. got=%d, expected=2", len(args))
+	}
+
+	image := args[0].(*image.Image)
+	x := args[1].(*object.Number)
+	y := args[2].(*object.Number)
+
+	image.Method("draw", []object.Object{x, y})
 
 	return nil
 }

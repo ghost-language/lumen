@@ -8,6 +8,7 @@ import (
 	"ghostlang.org/x/lumen/keyboard"
 	"ghostlang.org/x/lumen/renderer"
 	"ghostlang.org/x/lumen/window"
+	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -37,10 +38,6 @@ func New(title string) (lumen *Lumen) {
 
 	frameDelay = 1000 / lumen.Fps
 
-	return lumen
-}
-
-func (lumen *Lumen) initialize(ghost *ghost.Ghost) {
 	err = sdl.Init(sdl.INIT_EVERYTHING)
 
 	if err != nil {
@@ -59,13 +56,15 @@ func (lumen *Lumen) initialize(ghost *ghost.Ghost) {
 		panic(err)
 	}
 
-	ghost.Call("load", nil)
+	img.Init(img.INIT_JPG | img.INIT_PNG)
 
-	gameRunning = true
+	return lumen
 }
 
 func (lumen *Lumen) Run(ghost *ghost.Ghost) {
-	lumen.initialize(ghost)
+	ghost.Call("load", nil)
+
+	gameRunning = true
 
 	keyboard.State = sdl.GetKeyboardState()
 	keyboard.PreviousState = make([]uint8, len(keyboard.State))
