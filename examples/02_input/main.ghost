@@ -1,0 +1,29 @@
+player = {
+  'x': 0,
+  'y': 0,
+  'size': 25,
+  'speed': 6
+}
+
+function update() {
+  if (keyboard.isDown('down')) {
+    player.y = player.y + player.speed
+  }
+
+  if (keyboard.isDown('up')) {
+    player.y = player.y - player.speed
+  }
+
+  if (keyboard.isDown('left')) {
+    player.x = player.x - player.speed
+  }
+
+  if (keyboard.isDown('right')) {
+    player.x = player.x + player.speed
+  }
+}
+
+function draw() {
+  graphics.setColor(255, 255, 255)
+  graphics.filledRectangle(player.x, player.y, player.size, player.size)
+}

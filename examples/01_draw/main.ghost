@@ -1,0 +1,13 @@
+function draw() {
+  graphics.setColor(255, 255, 255)
+  graphics.filledRectangle(100, 215, 500, 25)
+
+  graphics.setColor(128, 255, 128)
+  graphics.filledRectangle(100, 100, 100, 100)
+
+  graphics.setColor(255, 255, 128)
+  graphics.filledRectangle(300, 150, 100, 50)
+
+  graphics.setColor(255, 128, 128)
+  graphics.filledRectangle(500, 185, 100, 15)
+}
