@@ -1,0 +1,48 @@
+import Object from 'object'
+
+class Player extends Object {
+  function constructor() {
+    this.x = 0
+    this.y = 0
+    this.width = 16
+    this.height = 16
+    this.speed = 8
+    this.damaged = false
+  }
+
+  function update() {
+    if (keyboard.isDown('left')) {
+      this.x = this.x - this.speed
+    }
+
+    if (keyboard.isDown('right')) {
+      this.x = this.x + this.speed
+    }
+
+    if (keyboard.isDown('up')) {
+      this.y = this.y - this.speed
+    }
+
+    if (keyboard.isDown('down')) {
+      this.y = this.y + this.speed
+    }
+  }
+
+  function onCollision(other) {
+    if (this.overlaps(other)) {
+      this.damaged = true
+    } else {
+      this.damaged = false
+    }
+  }
+
+  function draw() {
+    graphics.setColor(255, 255, 255)
+
+    if (this.damaged) {
+      graphics.setColor(255, 0, 0)
+    }
+
+    graphics.filledRectangle(this.x, this.y, this.width, this.height)
+  }
+}
