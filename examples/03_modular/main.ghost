@@ -1,0 +1,11 @@
+import Player from './player'
+
+player = Player.new()
+
+function update() {
+  player.update()
+}
+
+function draw() {
+  player.draw()
+}
