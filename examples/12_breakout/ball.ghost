@@ -1,0 +1,25 @@
+class Ball {
+  function constructor() {
+    this.position = {
+      'x': 100,
+      'y': 100,
+    }
+
+    this.speed = {
+      'x': 3,
+      'y': 3,
+    }
+
+    this.radius = 8
+  }
+
+  function update() {
+    this.position.x = this.position.x + this.speed.x
+    this.position.y = this.position.y + this.speed.y
+  }
+
+  function draw() {
+    graphics.setColor(255, 255, 255)
+    graphics.filledCircle(this.position.x, this.position.y, this.radius)
+  }
+}

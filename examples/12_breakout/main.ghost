@@ -1,0 +1,82 @@
+import Ball from './ball'
+import Brick from './brick'
+import Platform from './platform'
+import Wall from './wall'
+import Collisions from './collisions'
+
+thickness = 5
+
+ball = Ball.new()
+platform = Platform.new()
+
+bricks = {
+  'rows': 8,
+  'columns': 15,
+  'instances': []
+}
+
+walls = []
+collisions = Collisions.new(platform, ball)
+
+function load() {
+  loadBricks()
+  loadWalls()
+
+  collisions.setBricks(bricks.instances)
+  collisions.setWalls(walls)
+}
+
+function update() {
+  for (brick in bricks.instances) {
+    brick.update()
+  }
+
+  for (wall in walls) {
+    wall.update()
+  }
+
+  ball.update()
+  platform.update()
+
+  collisions.update()
+}
+
+function draw() {
+  for (brick in bricks.instances) {
+    brick.draw()
+  }
+
+  for (wall in walls) {
+    wall.draw()
+  }
+
+  ball.draw()
+  platform.draw()
+}
+
+function loadBricks() {
+  for (i = 0; i < bricks.rows; i = i + 1) {
+    for (j = 0; j < bricks.columns; j = j + 1) {
+      brickX = (j * 50) + 25
+      brickY = (i * 25) + 25
+
+      bricks.instances.push(Brick.new(brickX, brickY))
+    }
+  }
+}
+
+function loadWalls() {
+  leftWall = Wall.new(0, 0, thickness, window.height)
+  rightWall = Wall.new(window.width - thickness, 0, thickness, window.height)
+  topWall = Wall.new(0, 0, window.width, thickness)
+  bottomWall = Wall.new(0, window.height - thickness, window.width, thickness)
+
+  walls.push(leftWall)
+  walls.push(rightWall)
+  walls.push(topWall)
+  walls.push(bottomWall)
+  // walls.instances.push()
+  // walls.instances.push(Wall.new(window.width - thickness, 0, thickness, window.height))
+  // walls.instances.push(Wall.new(0, 0, window.width, thickness))
+  // walls.instances.push(Wall.new(0, window.height - thickness, window.width, Wall.thickness))
+}

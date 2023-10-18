@@ -1,0 +1,121 @@
+class Collisions {
+  function constructor(platform, ball) {
+    this.platform = platform
+    this.ball = ball
+    this.bricks = []
+    this.walls = []
+  }
+
+  function setBricks(bricks) {
+    this.bricks = bricks
+  }
+
+  function setWalls(walls) {
+    this.walls = walls
+  }
+
+  function update() {
+    this.checkBallPlatformCollision()
+    this.checkBallBricksCollision()
+    this.checkBallWallsCollision()
+    this.checkPlatformWallsCollision()
+  }
+
+  function aabb(a, b) {
+    if ((a.x + a.width < b.x) or (a.x > b.x + b.width)) {
+      return false
+    }
+
+    if ((a.y + a.height < b.y) or (a.y > b.y + b.height)) {
+      return false
+    }
+
+    return true
+  }
+
+  function checkBallPlatformCollision() {
+    a = {
+      'x': this.platform.position.x,
+      'y': this.platform.position.y,
+      'width': this.platform.width,
+      'height': this.platform.height
+    }
+
+    b = {
+      'x': this.ball.position.x - this.ball.radius,
+      'y': this.ball.position.y - this.ball.radius,
+      'width': this.ball.radius * 2,
+      'height': this.ball.radius * 2
+    }
+
+    if (this.aabb(a, b)) {
+      print('ball-platform collision')
+    }
+  }
+
+  function checkBallBricksCollision() {
+    b = {
+      'x': this.ball.position.x - this.ball.radius,
+      'y': this.ball.position.y - this.ball.radius,
+      'width': this.ball.radius * 2,
+      'height': this.ball.radius * 2
+    }
+
+    for (brick in this.bricks) {
+      a = {
+        'x': brick.position.x,
+        'y': brick.position.y,
+        'width': brick.width,
+        'height': brick.height
+      }
+
+      if (this.aabb(a, b)) {
+        print('ball-brick collision')
+      }
+    }
+  }
+
+  function checkBallWallsCollision() {
+    b = {
+      'x': this.ball.position.x - this.ball.radius,
+      'y': this.ball.position.y - this.ball.radius,
+      'width': this.ball.radius * 2,
+      'height': this.ball.radius * 2
+    }
+
+    for (wall in this.walls) {
+      a = {
+        'x': wall.x,
+        'y': wall.y,
+        'width': wall.width,
+        'height': wall.height
+      }
+
+      if (this.aabb(a, b)) {
+        print('ball-wall collision')
+      }
+    }
+  }
+
+  function checkPlatformWallsCollision() {
+    b = {
+      'x': this.platform.position.x,
+      'y': this.platform.position.y,
+      'width': this.platform.width,
+      'height': this.platform.height,
+    }
+
+    for (wall in this.walls) {
+      a = {
+        'x': wall.x,
+        'y': wall.y,
+        'width': wall.width,
+        'height': wall.height
+      }
+
+      if (this.aabb(a, b)) {
+        print('platform-wall collision')
+      }
+    }
+  }
+}
