@@ -1,0 +1,17 @@
+import World from './world'
+
+world = World.new()
+
+function load() {
+  window.setTitle("Conway's Game of Life")
+  
+  world.load()
+}
+
+function update() {
+  world.update()
+}
+
+function draw() {
+  world.draw()
+}
