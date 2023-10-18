@@ -12,5 +12,7 @@ function draw() {
   graphics.filledRectangle(500, 185, 100, 15)
 
   graphics.setColor(255, 255, 255)
-  graphics.circle(100, 400, 12)
+  graphics.circle(100, 400, 25)
+
+  graphics.filledCircle(200, 400, 25)
 }

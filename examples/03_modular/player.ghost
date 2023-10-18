@@ -2,7 +2,7 @@ class Player {
   function constructor(x = 0, y = 0) {
     this.x = x
     this.y = y
-    this.size = 25
+    this.size = 10
     this.speed = 8
   }
 
@@ -26,6 +26,6 @@ class Player {
 
   function draw() {
     graphics.setColor(255, 255, 255)
-    graphics.filledRectangle(this.x, this.y, this.size, this.size)
+    graphics.filledCircle(this.x, this.y, this.size)
   }
 }

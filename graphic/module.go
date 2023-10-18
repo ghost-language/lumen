@@ -20,6 +20,7 @@ func init() {
 	modules.RegisterMethod(GraphicsMethods, "rectangle", graphicsRectangle)
 	modules.RegisterMethod(GraphicsMethods, "filledRectangle", graphicsFilledRectangle)
 	modules.RegisterMethod(GraphicsMethods, "circle", graphicsCircle)
+	modules.RegisterMethod(GraphicsMethods, "filledCircle", graphicsFilledCircle)
 	modules.RegisterMethod(GraphicsMethods, "line", graphicsLine)
 	modules.RegisterMethod(GraphicsMethods, "clear", graphicsClear)
 	modules.RegisterMethod(GraphicsMethods, "point", graphicsPoint)
@@ -120,6 +121,39 @@ func graphicsCircle(scope *object.Scope, tok token.Token, args ...object.Object)
 		renderer.Renderer.DrawPoint(x-y0, y-x0)
 		renderer.Renderer.DrawPoint(x-y0, y+x0)
 		renderer.Renderer.DrawPoint(x+y0, y-x0)
+
+		if d < 0 {
+			d = d + int32((math.Pi*float64(x0))+(math.Pi*2))
+		} else {
+			d = d + int32((math.Pi*float64(x0-y0))+(math.Pi*3))
+			y0--
+		}
+		x0++
+	}
+
+	return nil
+}
+
+func graphicsFilledCircle(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if len(args) != 3 {
+		panic("wrong number of arguments. expected=3")
+		// return object.NewError("wrong number of arguments. got=%d, expected=3", len(args))
+	}
+
+	x := int32(args[0].(*object.Number).Value.IntPart())
+	y := int32(args[1].(*object.Number).Value.IntPart())
+	r := int32(args[2].(*object.Number).Value.IntPart())
+
+	d := int32(math.Pi - float64(2*r))
+
+	x0 := int32(0)
+	y0 := int32(r)
+
+	for x0 <= y0 {
+		renderer.Renderer.DrawLine(x-x0, y-y0, x+x0, y-y0)
+		renderer.Renderer.DrawLine(x-x0, y+y0, x+x0, y+y0)
+		renderer.Renderer.DrawLine(x-y0, y-x0, x+y0, y-x0)
+		renderer.Renderer.DrawLine(x-y0, y+x0, x+y0, y+x0)
 
 		if d < 0 {
 			d = d + int32((math.Pi*float64(x0))+(math.Pi*2))
