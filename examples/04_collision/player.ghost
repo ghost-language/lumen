@@ -6,7 +6,7 @@ class Player extends Object {
     this.y = 0
     this.width = 16
     this.height = 16
-    this.speed = 8
+    this.speed = 4
     this.damaged = false
   }
 

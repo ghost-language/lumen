@@ -1,0 +1,10 @@
+class SceneOne {
+  function update() {
+    // 
+  }
+
+  function draw() {
+    graphics.setColor(255, 255, 255)
+    graphics.filledRectangle(100, 300, 25, 25)
+  }
+}

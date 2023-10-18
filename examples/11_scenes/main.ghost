@@ -1,0 +1,27 @@
+import SceneOne from './scenes/sceneOne'
+import SceneTwo from './scenes/sceneTwo'
+import SceneManager from './sceneManager'
+
+manager = SceneManager.new()
+one = SceneOne.new()
+two = SceneTwo.new()
+
+function load() {
+  manager.changeTo(one)
+}
+
+function update() {
+  if (keyboard.wasPressed('1')) {
+    manager.changeTo(one)
+  }
+
+  if (keyboard.wasPressed('2')) {
+    manager.changeTo(two)
+  }
+
+  manager.update()
+}
+
+function draw() {
+  manager.draw()
+}

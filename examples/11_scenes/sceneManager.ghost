@@ -1,0 +1,17 @@
+class SceneManager {
+  function changeTo(scene) {
+    this.currentScene = scene
+  }
+
+  function update() {
+    if (this.currentScene) {
+      this.currentScene.update()
+    }
+  }
+
+  function draw() {
+    if (this.currentScene) {
+      this.currentScene.draw()
+    }
+  }
+}
