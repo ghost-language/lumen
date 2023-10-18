@@ -3,7 +3,8 @@ import World from './world'
 world = World.new()
 
 function load() {
-  window.setTitle("Conway's Game of Life")
+  window.title("Conway's Game of Life")
+  window.resize(800, 600)
   
   world.load()
 }

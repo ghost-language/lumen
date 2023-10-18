@@ -1,11 +1,9 @@
 class World {
-  function constructor() {
-    this.resolution = 20
+  function load() {
+    this.resolution = 16
     this.rows = (window.height / this.resolution)
     this.columns = (window.width / this.resolution)
-  }
 
-  function load() {
     this.grid = this.generateGrid()
 
     this.grid = this.spawnLife(this.grid)
