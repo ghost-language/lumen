@@ -1,0 +1,27 @@
+class StateMachine {
+  function constructor(states = {}) {
+    this.emptyState = {
+      'enter': function() {},
+      'update': function() {},
+      'draw': function() {},
+      'exit': function() {}
+    }
+
+    this.states = states
+    this.currentState = this.emptyState
+  }
+
+  function change(name, data = {}) {
+    this.currentState.exit()
+    this.currentState = this.states[name]
+    this.currentState.enter(data)
+  }
+
+  function update() {
+    this.currentState.update()
+  }
+
+  function draw() {
+    this.currentState.draw()
+  }
+}

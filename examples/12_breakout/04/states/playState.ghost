@@ -1,0 +1,75 @@
+import Ball from 'ball'
+import Paddle from 'paddle'
+import LevelMaker from 'levelMaker'
+import BaseState from 'states/baseState'
+
+class PlayState extends BaseState {
+  function constructor() {
+    this.ball = Ball.new()
+    this.paddle = Paddle.new()
+    this.levelMaker = LevelMaker.new()
+    this.bricks = this.levelMaker.createMap()
+  }
+
+  function update() {
+    this.paddle.update()
+    this.ball.update()
+
+    // reverse the Y velocity if the collision is detected between the paddle and ball
+    if (this.ball.collides(this.paddle)) {
+      // raise ball above paddle in case it goes below it, then reverse dy
+      this.ball.y = this.paddle.y - this.ball.height
+      this.ball.dy = -this.ball.dy
+
+      // tweak andle of bounce based on where it hits the paddle
+
+      if (this.ball.x < this.paddle.x + (this.paddle.width / 2) and this.paddle.dx < 0) {
+        // if we hit the paddle on its left side while moving left...
+        this.ball.dx = -this.ball.speed + - (0.075 * (this.paddle.x + this.paddle.width / 2 - this.ball.x))
+      } else if (this.ball.x > this.paddle.x + (this.paddle.width / 2) and this.paddle.dx > 0) {
+        // else if we hit the paddle on its right side while moving right...
+        this.ball.dx = this.ball.speed + (0.075 * math.abs(this.paddle.x + this.paddle.width / 2 - this.ball.x))
+      }
+    }
+
+    // detect collision across all bricks with the ball
+    for (brick in this.bricks) {
+      if (brick.inPlay and this.ball.collides(brick)) {
+        brick.hit()
+
+        // collision code for bricks
+
+        if (this.ball.x + 2 < brick.x and this.ball.dx > 0) {
+          // left edge
+          this.ball.dx = -this.ball.dx
+          this.ball.x = brick.x - 8
+        } else if (this.ball.x + 6 > brick.x + brick.width and this.ball.dx < 0) {
+          // right edge
+          this.ball.dx = -this.ball.dx
+          this.ball.x = brick.x + 32
+        } else if (this.ball.y < brick.y) {
+          // top edge
+          this.ball.dy = -this.ball.dy
+          this.ball.y = brick.y - 8
+        } else {
+          // bottom edge
+          this.ball.dy = -this.ball.dy
+          this.ball.y = brick.y + 16
+        }
+
+        this.ball.dy = this.ball.dy * 1.02
+        break
+      }
+    }
+  }
+
+  function draw() {
+    // render bricks
+    for (brick in this.bricks) {
+      brick.draw()
+    }
+
+    this.paddle.draw()
+    this.ball.draw()
+  }
+}
