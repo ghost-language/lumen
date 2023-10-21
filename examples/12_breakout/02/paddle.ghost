@@ -1,0 +1,31 @@
+class Paddle {
+  function constructor() {
+    this.x = window.width / 2
+    this.y = window.height - 32
+    this.dx = 0
+    this.width = 64
+    this.height = 16
+    this.speed = 10
+  }
+
+  function update() {
+    if (keyboard.isDown('left')) {
+      this.dx = -this.speed
+    } else if (keyboard.isDown('right')) {
+      this.dx = this.speed
+    } else {
+      this.dx = 0
+    }
+
+    if (this.dx < 0) {
+      this.x = math.max(0, this.x + this.dx)
+    } else {
+      this.x = math.min(window.width - this.width, this.x + this.dx)
+    }
+  }
+
+  function draw() {
+    graphics.setColor(255, 255, 255)
+    graphics.filledRectangle(this.x, this.y, this.width, this.height)
+  }
+}
