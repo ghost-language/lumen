@@ -1,0 +1,19 @@
+import StateMachine from 'stateMachine'
+import PlayState from 'states/playState'
+
+stateMachine = StateMachine.new({
+  'play': PlayState.new(),
+})
+
+function load() {
+  window.title("Breakout 03")
+  stateMachine.change('play')
+}
+
+function update() {
+  stateMachine.update()
+}
+
+function draw() {
+  stateMachine.draw()
+}

@@ -1,0 +1,24 @@
+class Brick {
+  function constructor(x, y) {
+    this.x = x
+    this.y = y
+    this.width = 50
+    this.height = 25
+
+    this.inPlay = true
+  }
+
+  function draw() {
+    if (this.inPlay) {
+      graphics.setColor(255, 255, 255)
+      graphics.filledRectangle(this.x, this.y, this.width, this.height)
+
+      graphics.setColor(0, 0, 0)
+      graphics.rectangle(this.x, this.y, this.width, this.height)
+    }
+  }
+
+  function hit() {
+    this.inPlay = false
+  }
+}
