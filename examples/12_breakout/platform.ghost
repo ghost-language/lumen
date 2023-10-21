@@ -1,12 +1,12 @@
 class Platform {
   function constructor() {
     this.position = {
-      'x': 500,
-      'y': 500,
+      'x': 400,
+      'y': 550,
     }
 
     this.speed = {
-      'x': 4,
+      'x': 8,
     }
 
     this.width = 80

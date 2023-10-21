@@ -22,15 +22,33 @@ class Collisions {
   }
 
   function aabb(a, b) {
+    overlaps = true
+
     if ((a.x + a.width < b.x) or (a.x > b.x + b.width)) {
-      return false
+      overlaps = false
     }
 
     if ((a.y + a.height < b.y) or (a.y > b.y + b.height)) {
-      return false
+      overlaps = false
     }
 
-    return true
+    if ((a.x + a.width / 2) < (b.x + b.width / 2)) {
+      shiftX = (a.x + a.width) - b.x
+    } else {
+      shiftX = a.x - (b.x - b.width)
+    }
+
+    if ((a.y + a.height / 2) < (b.y + b.height / 2)) {
+      shiftY = (a.y + a.height) - b.y
+    } else {
+      shiftY = a.y - (b.y - b.height)
+    }
+
+    return {
+      'overlaps': overlaps,
+      'shiftX': shiftX,
+      'shiftY': shiftY
+    }
   }
 
   function checkBallPlatformCollision() {
@@ -48,8 +66,11 @@ class Collisions {
       'height': this.ball.radius * 2
     }
 
-    if (this.aabb(a, b)) {
-      print('ball-platform collision')
+    check = this.aabb(a, b)
+
+    if (check.overlaps) {
+      this.ball.bounce(check.shiftX, check.shiftY)
+      // print('ball-platform collision')
     }
   }
 
@@ -61,16 +82,24 @@ class Collisions {
       'height': this.ball.radius * 2
     }
 
-    for (brick in this.bricks) {
-      a = {
-        'x': brick.position.x,
-        'y': brick.position.y,
-        'width': brick.width,
-        'height': brick.height
-      }
+    for (i = 0; i < this.bricks.length(); i = i + 1) {
+      brick = this.bricks[i]
 
-      if (this.aabb(a, b)) {
-        print('ball-brick collision')
+      if (brick) {
+        a = {
+          'x': brick.position.x,
+          'y': brick.position.y,
+          'width': brick.width,
+          'height': brick.height
+        }
+
+        check = this.aabb(a, b)
+
+        if (check.overlaps) {
+          this.ball.bounce(check.shiftX, check.shiftY)
+          this.bricks[i] = null
+          // print('ball-brick collision')
+        }
       }
     }
   }
@@ -91,8 +120,11 @@ class Collisions {
         'height': wall.height
       }
 
-      if (this.aabb(a, b)) {
-        print('ball-wall collision')
+      check = this.aabb(a, b)
+
+      if (check.overlaps) {
+        this.ball.bounce(check.shiftX, check.shiftY)
+        // print('ball-wall collision')
       }
     }
   }
@@ -113,8 +145,10 @@ class Collisions {
         'height': wall.height
       }
 
-      if (this.aabb(a, b)) {
-        print('platform-wall collision')
+      check = this.aabb(a, b)
+
+      if (check.overlaps) {
+        // print('platform-wall collision')
       }
     }
   }

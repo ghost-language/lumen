@@ -1,16 +1,17 @@
 class Ball {
   function constructor() {
     this.position = {
-      'x': 100,
-      'y': 100,
+      'x': 400,
+      'y': 300,
     }
 
     this.speed = {
-      'x': 3,
-      'y': 3,
+      'x': 5,
+      'y': 5,
     }
 
     this.radius = 8
+    this.counter = 0
   }
 
   function update() {
@@ -21,5 +22,34 @@ class Ball {
   function draw() {
     graphics.setColor(255, 255, 255)
     graphics.filledCircle(this.position.x, this.position.y, this.radius)
+
+    graphics.setColor(0, 0, 0)
+    graphics.circle(this.position.x, this.position.y, this.radius)
+  }
+
+  function bounce(shiftX, shiftY) {
+    this.counter = this.counter + 1
+    minShift = math.min(math.abs(shiftX), math.abs(shiftY))
+
+    if (math.abs(shiftX) == minShift) {
+      shiftY = 0
+    } else {
+      shiftX = 0
+    }
+
+    // this.position.x = this.position.x + shiftX
+    // this.position.y = this.position.y + shiftY
+
+    print('bounce!', this.counter)
+    // print(shiftX)
+    // print(shiftY)
+
+    if (shiftX != 0) {
+      this.speed.x = -this.speed.x
+    }
+
+    if (shiftY != 0) {
+      this.speed.y = -this.speed.y
+    }
   }
 }

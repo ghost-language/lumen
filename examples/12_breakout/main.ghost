@@ -28,7 +28,9 @@ function load() {
 
 function update() {
   for (brick in bricks.instances) {
-    brick.update()
+    if (brick) {
+      brick.update()
+    }
   }
 
   for (wall in walls) {
@@ -43,7 +45,9 @@ function update() {
 
 function draw() {
   for (brick in bricks.instances) {
-    brick.draw()
+    if (brick) {
+      brick.draw()
+    }
   }
 
   for (wall in walls) {
@@ -75,8 +79,4 @@ function loadWalls() {
   walls.push(rightWall)
   walls.push(topWall)
   walls.push(bottomWall)
-  // walls.instances.push()
-  // walls.instances.push(Wall.new(window.width - thickness, 0, thickness, window.height))
-  // walls.instances.push(Wall.new(0, 0, window.width, thickness))
-  // walls.instances.push(Wall.new(0, window.height - thickness, window.width, Wall.thickness))
 }
