@@ -1,0 +1,30 @@
+class Platform {
+  function constructor() {
+    this.position = {
+      'x': 400,
+      'y': 550,
+    }
+
+    this.speed = {
+      'x': 8,
+    }
+
+    this.width = 80
+    this.height = 15
+  }
+
+  function update() {
+    if (keyboard.isDown('d')) {
+      this.position.x = this.position.x + this.speed.x
+    }
+
+    if (keyboard.isDown('a')) {
+      this.position.x = this.position.x - this.speed.x
+    }
+  }
+
+  function draw() {
+    graphics.setColor(255, 255, 255)
+    graphics.filledRectangle(this.position.x, this.position.y, this.width, this.height)
+  }
+}

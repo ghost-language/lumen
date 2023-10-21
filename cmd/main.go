@@ -71,6 +71,7 @@ func main() {
 		}
 
 		rootDirectory = filepath.Dir(ex)
+		fmt.Printf("Root: %s\n", rootDirectory)
 
 		mainFile, err := filepath.Abs(rootDirectory + "/main.ghost")
 
@@ -89,6 +90,7 @@ func main() {
 		f, err = os.Open(console.args[0])
 
 		rootDirectory = filepath.Dir(console.args[0])
+		fmt.Printf("Root: %s\n", rootDirectory)
 
 		if err != nil {
 			log.Fatalf("could not open file: %s: %s", err, console.args[0])

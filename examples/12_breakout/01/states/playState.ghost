@@ -1,0 +1,16 @@
+import BaseState from 'states/baseState'
+import Paddle from 'paddle'
+
+class PlayState extends BaseState {
+  function constructor() {
+    this.paddle = Paddle.new()
+  }
+
+  function update() {
+    this.paddle.update()
+  }
+
+  function draw() {
+    this.paddle.draw()
+  }
+}
