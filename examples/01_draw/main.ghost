@@ -1,17 +1,17 @@
 function draw() {
-  graphics.setColor(255, 255, 255)
+  graphics.setColor(color.white)
   graphics.filledRectangle(100, 215, 500, 25)
 
-  graphics.setColor(128, 255, 128)
+  graphics.setColor(color.green)
   graphics.filledRectangle(100, 100, 100, 100)
 
-  graphics.setColor(255, 255, 128)
+  graphics.setColor(color.yellow)
   graphics.filledRectangle(300, 150, 100, 50)
 
-  graphics.setColor(255, 128, 128)
+  graphics.setColor(color.red)
   graphics.filledRectangle(500, 185, 100, 15)
 
-  graphics.setColor(255, 255, 255)
+  graphics.setColor(color.blue)
   graphics.circle(100, 400, 25)
 
   graphics.filledCircle(200, 400, 25)

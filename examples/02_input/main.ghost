@@ -24,6 +24,6 @@ function update() {
 }
 
 function draw() {
-  graphics.setColor(255, 255, 255)
+  graphics.setColor(color.white)
   graphics.filledRectangle(player.x, player.y, player.size, player.size)
 }

@@ -6,6 +6,7 @@ import (
 	"ghostlang.org/x/ghost/library/modules"
 	"ghostlang.org/x/ghost/object"
 	"ghostlang.org/x/ghost/token"
+	"ghostlang.org/x/lumen/color"
 	"ghostlang.org/x/lumen/image"
 	"ghostlang.org/x/lumen/renderer"
 	"github.com/veandco/go-sdl2/sdl"
@@ -42,21 +43,14 @@ func graphicsScale(scope *object.Scope, tok token.Token, args ...object.Object) 
 }
 
 func graphicsSetColor(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
-	if len(args) != 3 {
-		panic("wrong number of arguments. expected=3")
+	if len(args) != 1 {
+		panic("wrong number of arguments. expected=1")
 		// return object.NewError("wrong number of arguments. got=%d, expected=4", len(args))
 	}
 
-	red := uint8(args[0].(*object.Number).Value.IntPart())
-	green := uint8(args[1].(*object.Number).Value.IntPart())
-	blue := uint8(args[2].(*object.Number).Value.IntPart())
-	alpha := uint8(255)
+	col := args[0].(*color.Color)
 
-	if len(args) == 4 {
-		alpha = uint8(args[3].(*object.Number).Value.IntPart())
-	}
-
-	renderer.Renderer.SetDrawColor(red, green, blue, alpha)
+	renderer.Renderer.SetDrawColor(col.Red, col.Green, col.Blue, col.Alpha)
 
 	return nil
 }

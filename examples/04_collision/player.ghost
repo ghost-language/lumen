@@ -37,10 +37,10 @@ class Player extends Object {
   }
 
   function draw() {
-    graphics.setColor(255, 255, 255)
+    graphics.setColor(color.white)
 
     if (this.damaged) {
-      graphics.setColor(255, 0, 0)
+      graphics.setColor(color.red)
     }
 
     graphics.filledRectangle(this.x, this.y, this.width, this.height)

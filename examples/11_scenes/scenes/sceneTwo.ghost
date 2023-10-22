@@ -4,7 +4,7 @@ class SceneTwo {
   }
 
   function draw() {
-    graphics.setColor(255, 0, 0)
+    graphics.setColor(color.red)
     graphics.filledCircle(200, 400, 25)
   }
 }

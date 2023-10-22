@@ -11,7 +11,7 @@ class Enemy {
   }
 
   function draw() {
-    graphics.setColor(255, 0, 0)
+    graphics.setColor(color.red)
     graphics.rectangle(this.x, this.y, this.width, this.height)
   }
 }

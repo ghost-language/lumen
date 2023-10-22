@@ -11,6 +11,7 @@ import (
 
 	"ghostlang.org/x/ghost/ghost"
 	"ghostlang.org/x/ghost/object"
+	"ghostlang.org/x/lumen/color"
 	"ghostlang.org/x/lumen/environment"
 	"ghostlang.org/x/lumen/graphic"
 	"ghostlang.org/x/lumen/image"
@@ -111,6 +112,7 @@ func main() {
 	ghost.RegisterModule("window", window.WindowMethods, window.WindowProperties)
 	ghost.RegisterModule("keyboard", keyboard.KeyboardMethods, keyboard.KeyboardProperties)
 	ghost.RegisterModule("image", image.ImageMethods, image.ImageProperties)
+	ghost.RegisterModule("color", color.ColorMethods, color.ColorProperties)
 
 	environment.Ghost = ghost.New()
 	environment.Ghost.SetSource(string(b))

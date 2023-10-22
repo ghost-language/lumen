@@ -88,9 +88,9 @@ class World {
 
 
         if (this.grid[i][j] == 1) {
-          graphics.setColor(255, 255, 255)
+          graphics.setColor(color.white)
           graphics.filledRectangle(x, y, this.resolution, this.resolution)
-          graphics.setColor(0, 0, 0)
+          graphics.setColor(color.black)
           graphics.rectangle(x, y, this.resolution, this.resolution)
         }
       }

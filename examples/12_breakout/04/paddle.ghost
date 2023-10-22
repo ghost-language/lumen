@@ -25,7 +25,7 @@ class Paddle {
   }
 
   function draw() {
-    graphics.setColor(255, 255, 255)
+    graphics.setColor(color.white)
     graphics.filledRectangle(this.x, this.y, this.width, this.height)
   }
 }

@@ -4,7 +4,7 @@ class SceneOne {
   }
 
   function draw() {
-    graphics.setColor(255, 255, 255)
+    graphics.setColor(color.white)
     graphics.filledRectangle(100, 300, 25, 25)
   }
 }
