@@ -6,6 +6,7 @@ class Paddle {
     this.width = 64
     this.height = 16
     this.speed = 10
+    this.color = color.white
   }
 
   function update() {
@@ -25,7 +26,7 @@ class Paddle {
   }
 
   function draw() {
-    graphics.setColor(color.white)
+    graphics.setColor(this.color)
     graphics.filledRectangle(this.x, this.y, this.width, this.height)
   }
 }
