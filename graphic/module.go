@@ -1,12 +1,15 @@
 package graphic
 
 import (
+	"fmt"
 	"math"
+	"os"
 
 	"ghostlang.org/x/ghost/library/modules"
 	"ghostlang.org/x/ghost/object"
 	"ghostlang.org/x/ghost/token"
 	"ghostlang.org/x/lumen/color"
+	"ghostlang.org/x/lumen/font"
 	"ghostlang.org/x/lumen/image"
 	"ghostlang.org/x/lumen/renderer"
 	"github.com/veandco/go-sdl2/sdl"
@@ -26,6 +29,7 @@ func init() {
 	modules.RegisterMethod(GraphicsMethods, "clear", graphicsClear)
 	modules.RegisterMethod(GraphicsMethods, "point", graphicsPoint)
 	modules.RegisterMethod(GraphicsMethods, "draw", graphicsDraw)
+	modules.RegisterMethod(GraphicsMethods, "print", graphicsPrint)
 }
 
 func graphicsScale(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
@@ -208,6 +212,46 @@ func graphicsDraw(scope *object.Scope, tok token.Token, args ...object.Object) o
 	y := args[2].(*object.Number)
 
 	image.Method("draw", []object.Object{x, y})
+
+	return nil
+}
+
+func graphicsPrint(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if len(args) != 3 {
+		panic("wrong number of arguments. expected=3")
+		// return object.NewError("wrong number of arguments. got=%d, expected=2", len(args))
+	}
+
+	text := args[0].(*object.String).Value
+	x := int32(args[1].(*object.Number).Value.IntPart())
+	y := int32(args[2].(*object.Number).Value.IntPart())
+
+	renderer := renderer.Renderer
+
+	var texture *sdl.Texture
+
+	surface, err := font.DefaultFont.RenderUTF8Blended(text, sdl.Color{R: 255, G: 255, B: 255, A: 255})
+
+	if err != nil {
+		fmt.Printf("Failed to render text: %s\n", err)
+		os.Exit(1)
+	}
+
+	// Convert the surface to a texture
+	texture, err = renderer.CreateTextureFromSurface(surface)
+
+	if err != nil {
+		fmt.Printf("Failed to create texture: %s\n", err)
+		os.Exit(1)
+	}
+
+	rect := &sdl.Rect{X: x, Y: y, W: surface.W, H: surface.H}
+
+	// Render the texture
+	renderer.Copy(texture, nil, rect)
+
+	surface.Free()
+	texture.Destroy()
 
 	return nil
 }

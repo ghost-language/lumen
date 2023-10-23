@@ -1,0 +1,10 @@
+x = 0
+
+function update() {
+  // 
+}
+
+function draw() {
+  // graphics.print("X: " + x, 100, 100)
+  graphics.print("hello world", 200, 200)
+}

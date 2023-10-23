@@ -38,6 +38,12 @@ func New(title string) (lumen *Lumen) {
 
 	frameDelay = 1000 / lumen.Fps
 
+	err = img.Init(img.INIT_JPG | img.INIT_PNG)
+
+	if err != nil {
+		panic(err)
+	}
+
 	err = sdl.Init(sdl.INIT_EVERYTHING)
 
 	if err != nil {
@@ -56,7 +62,7 @@ func New(title string) (lumen *Lumen) {
 		panic(err)
 	}
 
-	img.Init(img.INIT_JPG | img.INIT_PNG)
+	sdl.SetHint(sdl.HINT_RENDER_SCALE_QUALITY, "2")
 
 	return lumen
 }
