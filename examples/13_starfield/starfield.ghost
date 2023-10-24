@@ -1,0 +1,39 @@
+import Star from 'star'
+
+class Starfield {
+  function constructor(width, height, numberOfStars) {
+    this.width = width
+    this.height = height
+    this.numberOfStars = numberOfStars
+    this.stars = []
+
+    this.generateStars()
+  }
+
+  function update(star, index) {
+    if (star.z <= star.speed) {
+      this.stars[index] = this.getRandomStar(this.width, this.height)
+    } else {
+      star.update()
+    }
+  }
+
+  function generateStars() {
+    for (i = 0; i < this.numberOfStars; i = i + 1) {
+      this.stars[i] = this.getRandomStar(this.width, this.height)
+    }
+  }
+
+  function getRandomStar(width, height) {
+    x = random.random(-this.width / 4, this.width / 4).round()
+    y = random.random(-this.height / 2, this.height / 2).round()
+    z = random.random(this.width).round()
+    speed = random.random(1, 6).round()
+
+    return Star.new(x, y, z, speed)
+  }
+
+  function getStars() {
+    return this.stars
+  }
+}

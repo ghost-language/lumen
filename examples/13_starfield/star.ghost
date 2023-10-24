@@ -1,0 +1,46 @@
+class Star {
+  function constructor(x, y, z, speed) {
+    this.x = x + 1
+    this.y = y + 1
+    this.z = z + 1
+    this.pz = this.z
+    this.speed = speed
+  }
+
+  function update() {
+    this.pz = this.z
+    this.z = this.z - this.speed
+  }
+
+  function map(value, lowOne, highOne, lowTwo, highTwo) {
+    return ((lowTwo + (highTwo - lowTwo)) * (value - lowOne) / (highOne - lowOne) + 1).round()
+    // return (lowTwo + (highTwo - lowTwo) * (value - lowOne) / (highOne - lowOne))
+  }
+
+  function get(width, height) {
+    x = this.map(this.x / this.z, 0, 1, 0, width)
+    y = this.map(this.y / this.z, 0, 1, 0, height)
+    r = this.map(this.z, 0, width, 16, 0)
+
+    if (this.pz > width / 2) {
+      return {
+        'x': x,
+        'y': y,
+        'r': r,
+        'px': null,
+        'py': null,
+      }
+    }
+
+    px = this.map(this.x / this.pz, 0, 1, 0, width)
+    py = this.map(this.y / this.pz, 0, 1, 0, height)
+
+    return {
+      'x': x,
+      'y': y,
+      'r': r,
+      'px': px,
+      'py': py,
+    }
+  }
+}

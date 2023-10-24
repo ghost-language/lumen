@@ -1,0 +1,24 @@
+import Starfield from 'starfield'
+
+starfield = Starfield.new(window.height, window.width, 750)
+
+function draw() {
+  graphics.print("Starfield", 10, 10)
+  stars = starfield.getStars()
+
+  for (index = 0; index < stars.length(); index = index + 1) {
+    star = stars[index]
+    data = star.get(window.width, window.height)
+
+    graphics.setColor(color.white)
+    graphics.filledCircle(data.x, data.y, data.r)
+
+    // Star trail
+    if (data.px) {
+      graphics.setColor(color.rgb(255, 255, 200))
+      graphics.line(data.x, data.y, data.px, data.py)
+    }
+
+    starfield.update(star, index)
+  }
+}
