@@ -13,10 +13,13 @@ func (lumen *Lumen) initSDL() {
 	lumen.initSDLRenderer()
 	lumen.initSDLTexture()
 
-	// Set the scaling quality
+	// Set the scaling quality. This hint is checked when a texture is created
+	// and it affects scaling when copying that texture.
+	//
+	// 1 = linear filtering (supported by OpenGL and Direct3D)
+	// 2 = anisotropic filtering (supported by Direct3D)
+	//
 	// TODO: Make this configurable
-	// 1 = linear filtering
-	// 2 = anisotropic filtering
 	sdl.SetHint(sdl.HINT_RENDER_SCALE_QUALITY, "2")
 }
 
