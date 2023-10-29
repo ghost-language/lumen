@@ -11,7 +11,7 @@ import (
 
 	"ghostlang.org/x/ghost/ghost"
 	"ghostlang.org/x/ghost/object"
-	"ghostlang.org/x/lumen/lumen"
+	"ghostlang.org/x/lumen/engine"
 	"ghostlang.org/x/lumen/modules"
 )
 
@@ -97,7 +97,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	lumen := lumen.New("Lumen")
+	lumen := engine.New("Lumen")
 
 	// Register ghost modules
 	ghost.RegisterModule("window", modules.WindowMethods, modules.WindowProperties)

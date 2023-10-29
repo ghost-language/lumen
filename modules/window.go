@@ -4,7 +4,7 @@ import (
 	"ghostlang.org/x/ghost/library/modules"
 	"ghostlang.org/x/ghost/object"
 	"ghostlang.org/x/ghost/token"
-	"ghostlang.org/x/lumen/lumen"
+	"ghostlang.org/x/lumen/engine"
 	"github.com/shopspring/decimal"
 )
 
@@ -30,12 +30,11 @@ func windowTitleMethod(scope *object.Scope, tok token.Token, args ...object.Obje
 		return object.NewError("argument to `title` must be a string, got %s", args[0].Type())
 	}
 
-	lumen.Lumen.Title = title.Value
-	lumen.Lumen.Window.SetTitle(title.Value)
+	engine.Lumen.Title = title.Value
 
 	return nil
 }
 
 func windowFpsProperty(scope *object.Scope, tok token.Token) object.Object {
-	return &object.Number{Value: decimal.NewFromInt(int64(lumen.Lumen.CurrentFps))}
+	return &object.Number{Value: decimal.NewFromInt(int64(engine.Lumen.CurrentFps))}
 }

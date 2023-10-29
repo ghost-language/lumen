@@ -1,4 +1,4 @@
-package lumen
+package engine
 
 import (
 	"fmt"
@@ -17,6 +17,7 @@ type Engine struct {
 	TargetFps     uint64
 	CurrentFps    uint64
 	IsRunning     bool
+	Resources     map[string]interface{}
 	Ghost         *ghost.Ghost
 	Window        *sdl.Window
 	Renderer      *sdl.Renderer
@@ -27,6 +28,7 @@ type Engine struct {
 
 func New(title string) (engine *Engine) {
 	Lumen = new(Engine)
+	Lumen.Resources = make(map[string]interface{})
 
 	Lumen.Title = title
 	Lumen.TargetFps = 60
@@ -75,5 +77,6 @@ func (engine *Engine) Run() {
 func (engine *Engine) Quit() {
 	engine.IsRunning = false
 
+	engine.FreeResources()
 	engine.quitSDL()
 }

@@ -1,4 +1,4 @@
-package lumen
+package engine
 
 func (engine *Engine) load() {
 	engine.Ghost.Call("load", nil)
