@@ -12,6 +12,7 @@ import (
 	"ghostlang.org/x/ghost/ghost"
 	"ghostlang.org/x/ghost/object"
 	"ghostlang.org/x/lumen/lumen"
+	"ghostlang.org/x/lumen/modules"
 )
 
 var (
@@ -99,7 +100,7 @@ func main() {
 	lumen := lumen.New("Lumen")
 
 	// Register ghost modules
-	// ...
+	ghost.RegisterModule("window", modules.WindowMethods, modules.WindowProperties)
 
 	lumen.Ghost = ghost.New()
 	lumen.Ghost.SetSource(string(b))

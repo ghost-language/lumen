@@ -2,16 +2,16 @@ package lumen
 
 import "github.com/veandco/go-sdl2/sdl"
 
-func (lumen *Lumen) initSDL() {
+func (engine *Engine) initSDL() {
 	var err error
 
 	if err = sdl.Init(sdl.INIT_EVERYTHING); err != nil {
 		panic(err)
 	}
 
-	lumen.initSDLWindow()
-	lumen.initSDLRenderer()
-	lumen.initSDLTexture()
+	engine.initSDLWindow()
+	engine.initSDLRenderer()
+	engine.initSDLTexture()
 
 	// Set the scaling quality. This hint is checked when a texture is created
 	// and it affects scaling when copying that texture.
@@ -23,16 +23,16 @@ func (lumen *Lumen) initSDL() {
 	sdl.SetHint(sdl.HINT_RENDER_SCALE_QUALITY, "2")
 }
 
-func (lumen *Lumen) initSDLWindow() {
+func (engine *Engine) initSDLWindow() {
 	var err error
 
 	// Create the window
-	lumen.Window, err = sdl.CreateWindow(
-		lumen.Title,
+	engine.Window, err = sdl.CreateWindow(
+		engine.Title,
 		sdl.WINDOWPOS_UNDEFINED,
 		sdl.WINDOWPOS_UNDEFINED,
-		lumen.Width,
-		lumen.Height,
+		engine.Width,
+		engine.Height,
 		sdl.WINDOW_SHOWN,
 	)
 
@@ -41,26 +41,26 @@ func (lumen *Lumen) initSDLWindow() {
 	}
 }
 
-func (lumen *Lumen) initSDLRenderer() {
+func (engine *Engine) initSDLRenderer() {
 	var err error
 
 	// Create the renderer
-	lumen.Renderer, err = sdl.CreateRenderer(lumen.Window, -1, sdl.RENDERER_ACCELERATED|sdl.RENDERER_PRESENTVSYNC)
+	engine.Renderer, err = sdl.CreateRenderer(engine.Window, -1, sdl.RENDERER_ACCELERATED|sdl.RENDERER_PRESENTVSYNC)
 
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (lumen *Lumen) initSDLTexture() {
+func (engine *Engine) initSDLTexture() {
 	var err error
 
 	// Create the texture
-	lumen.Texture, err = lumen.Renderer.CreateTexture(
+	engine.Texture, err = engine.Renderer.CreateTexture(
 		sdl.PIXELFORMAT_ABGR8888,
 		sdl.TEXTUREACCESS_STREAMING,
-		lumen.Width,
-		lumen.Height,
+		engine.Width,
+		engine.Height,
 	)
 
 	if err != nil {
@@ -68,10 +68,10 @@ func (lumen *Lumen) initSDLTexture() {
 	}
 }
 
-func (lumen *Lumen) quitSDL() {
-	lumen.Texture.Destroy()
-	lumen.Renderer.Destroy()
-	lumen.Window.Destroy()
+func (engine *Engine) quitSDL() {
+	engine.Texture.Destroy()
+	engine.Renderer.Destroy()
+	engine.Window.Destroy()
 
 	sdl.Quit()
 }

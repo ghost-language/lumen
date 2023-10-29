@@ -1,18 +1,18 @@
 package lumen
 
-func (lumen *Lumen) load() {
-	lumen.Ghost.Call("load", nil)
+func (engine *Engine) load() {
+	engine.Ghost.Call("load", nil)
 }
 
-func (lumen *Lumen) update() {
-	lumen.Ghost.Call("update", nil)
+func (engine *Engine) update() {
+	engine.Ghost.Call("update", nil)
 }
 
-func (lumen *Lumen) draw() {
-	lumen.Renderer.SetDrawColor(0, 0, 0, 255)
-	lumen.Renderer.Clear()
+func (engine *Engine) draw() {
+	engine.Renderer.SetDrawColor(0, 0, 0, 255)
+	engine.Renderer.Clear()
 
-	lumen.Ghost.Call("draw", nil)
+	engine.Ghost.Call("draw", nil)
 
-	lumen.Renderer.Present()
+	engine.Renderer.Present()
 }

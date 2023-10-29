@@ -7,13 +7,15 @@ import (
 	"github.com/veandco/go-sdl2/sdl"
 )
 
+var Lumen *Engine
 var frameDelay uint64
 
-type Lumen struct {
+type Engine struct {
 	Title         string
 	Width         int32
 	Height        int32
 	TargetFps     uint64
+	CurrentFps    uint64
 	IsRunning     bool
 	Ghost         *ghost.Ghost
 	Window        *sdl.Window
@@ -23,39 +25,39 @@ type Lumen struct {
 	MouseState    []uint32
 }
 
-func New(title string) (lumen *Lumen) {
-	lumen = new(Lumen)
+func New(title string) (engine *Engine) {
+	Lumen = new(Engine)
 
-	lumen.Title = title
-	lumen.TargetFps = 60
-	lumen.Width = 800
-	lumen.Height = 600
+	Lumen.Title = title
+	Lumen.TargetFps = 60
+	Lumen.Width = 800
+	Lumen.Height = 600
 
-	frameDelay = 1000 / lumen.TargetFps
+	frameDelay = 1000 / Lumen.TargetFps
 
-	lumen.initSDL()
+	Lumen.initSDL()
 
-	return lumen
+	return Lumen
 }
 
-func (lumen *Lumen) Run() {
-	lumen.load()
+func (engine *Engine) Run() {
+	engine.load()
 
-	lumen.IsRunning = true
+	engine.IsRunning = true
 
-	for lumen.IsRunning {
+	for engine.IsRunning {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch e := event.(type) {
 			case *sdl.QuitEvent:
-				lumen.handleQuitEvent(e)
+				engine.handleQuitEvent(e)
 			case *sdl.KeyboardEvent:
-				lumen.handleKeyboardEvent(e)
+				engine.handleKeyboardEvent(e)
 			}
 
 			frameStart := sdl.GetTicks64()
 
-			lumen.update()
-			lumen.draw()
+			engine.update()
+			engine.draw()
 
 			frameTime := sdl.GetTicks64() - frameStart
 
@@ -64,14 +66,14 @@ func (lumen *Lumen) Run() {
 				sdl.Delay(uint32(frameDelay - frameTime))
 			}
 
-			fps := 1000 / float64(sdl.GetTicks64()-frameStart)
-			lumen.Window.SetTitle(fmt.Sprintf("%s (FPS: %d)", lumen.Title, int64(fps)))
+			engine.CurrentFps = uint64(1000 / float64(sdl.GetTicks64()-frameStart))
+			engine.Window.SetTitle(fmt.Sprintf("%s (FPS: %d)", engine.Title, engine.CurrentFps))
 		}
 	}
 }
 
-func (lumen *Lumen) Quit() {
-	lumen.IsRunning = false
+func (engine *Engine) Quit() {
+	engine.IsRunning = false
 
-	lumen.quitSDL()
+	engine.quitSDL()
 }

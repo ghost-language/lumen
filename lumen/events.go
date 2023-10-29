@@ -6,12 +6,12 @@ import (
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-func (lumen *Lumen) handleQuitEvent(event *sdl.QuitEvent) {
+func (engine *Engine) handleQuitEvent(event *sdl.QuitEvent) {
 	fmt.Println("Quitting Lumen...")
 
-	lumen.Quit()
+	engine.Quit()
 }
 
-func (lumen *Lumen) handleKeyboardEvent(event *sdl.KeyboardEvent) {
-	lumen.KeyboardState = sdl.GetKeyboardState()
+func (engine *Engine) handleKeyboardEvent(event *sdl.KeyboardEvent) {
+	engine.KeyboardState = sdl.GetKeyboardState()
 }
