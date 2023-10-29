@@ -1,10 +1,12 @@
-x = 0
+// data = {
+//   'frames': 0
+// }
 
-function update() {
-  // 
-}
+// function update() {
+  // data.frames = data.frames + 1
+// }
 
 function draw() {
-  // graphics.print("X: " + x, 100, 100)
-  graphics.print("hello world", 200, 200)
+  graphics.print('FPS: ' + window.fps.toString(), 10, 10)
+  // graphics.print("hello world", 200, 200)
 }

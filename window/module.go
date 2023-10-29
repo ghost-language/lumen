@@ -21,6 +21,7 @@ func init() {
 	modules.RegisterProperty(WindowProperties, "title", windowTitleProperty)
 	modules.RegisterProperty(WindowProperties, "width", windowWidthProperty)
 	modules.RegisterProperty(WindowProperties, "height", windowHeightProperty)
+	modules.RegisterProperty(WindowProperties, "fps", windowFpsProperty)
 }
 
 func windowTitle(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
@@ -80,4 +81,8 @@ func windowHeightProperty(scope *object.Scope, tok token.Token) object.Object {
 	_, height := Window.Window.GetSize()
 
 	return &object.Number{Value: decimal.NewFromInt(int64(height))}
+}
+
+func windowFpsProperty(scope *object.Scope, tok token.Token) object.Object {
+	return &object.Number{Value: decimal.NewFromInt(int64(Window.Fps))}
 }

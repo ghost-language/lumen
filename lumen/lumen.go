@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"ghostlang.org/x/ghost/ghost"
-	"ghostlang.org/x/ghost/object"
 	"ghostlang.org/x/lumen/keyboard"
 	"ghostlang.org/x/lumen/renderer"
 	"ghostlang.org/x/lumen/window"
@@ -23,9 +22,6 @@ type Lumen struct {
 	Width  int32
 	Height int32
 	Fps    uint64
-
-	GraphicsMethods    map[string]*object.LibraryFunction
-	GraphicsProperties map[string]*object.LibraryProperty
 }
 
 func New(title string) (lumen *Lumen) {
@@ -99,8 +95,7 @@ func (lumen *Lumen) Run(ghost *ghost.Ghost) {
 		}
 
 		keyboard.UpdateState()
-
-		// fmt.Println("FPS:", 1000.0/float64(sdl.GetTicks64()-frameStart))
+		window.Window.Fps = 1000 / float64(sdl.GetTicks64()-frameStart)
 	}
 }
 

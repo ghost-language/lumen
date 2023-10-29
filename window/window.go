@@ -9,6 +9,7 @@ type window struct {
 	Title  string
 	Width  int32
 	Height int32
+	Fps    float64
 }
 
 func New(title string, width int32, height int32) *window {

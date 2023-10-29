@@ -1,10 +1,15 @@
 import Starfield from 'starfield'
 
-starfield = Starfield.new(window.height, window.width, 750)
+starfield = Starfield.new(window.height, window.width, 500)
 
 function draw() {
-  graphics.print("Starfield", 10, 10)
+  graphics.translate(0, 0)
   stars = starfield.getStars()
+
+  graphics.print('Stars: ' + stars.length().toString(), 10, 10)
+  graphics.print('FPS: ' + window.fps.toString(), 10, 34)
+
+  graphics.translate(window.width / 2, window.height / 2)
 
   for (index = 0; index < stars.length(); index = index + 1) {
     star = stars[index]

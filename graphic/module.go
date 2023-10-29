@@ -12,6 +12,7 @@ import (
 	"ghostlang.org/x/lumen/font"
 	"ghostlang.org/x/lumen/image"
 	"ghostlang.org/x/lumen/renderer"
+	"ghostlang.org/x/lumen/window"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -20,6 +21,7 @@ var GraphicsProperties = map[string]*object.LibraryProperty{}
 
 func init() {
 	modules.RegisterMethod(GraphicsMethods, "scale", graphicsScale)
+	modules.RegisterMethod(GraphicsMethods, "translate", graphicsTranslate)
 	modules.RegisterMethod(GraphicsMethods, "setColor", graphicsSetColor)
 	modules.RegisterMethod(GraphicsMethods, "rectangle", graphicsRectangle)
 	modules.RegisterMethod(GraphicsMethods, "filledRectangle", graphicsFilledRectangle)
@@ -38,10 +40,26 @@ func graphicsScale(scope *object.Scope, tok token.Token, args ...object.Object) 
 		// return object.NewError("wrong number of arguments. got=%d, expected=2", len(args))
 	}
 
+	x, _ := args[0].(*object.Number).Value.Float64()
+	y, _ := args[1].(*object.Number).Value.Float64()
+
+	renderer.Renderer.SetScale(float32(x), float32(y))
+
+	return nil
+}
+
+// Translate the coordinate system in two dimensions.
+// For example, to move the coordinate system 100 pixels to the right and 100 pixels down, use (100, 100).
+func graphicsTranslate(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if len(args) != 2 {
+		panic("wrong number of arguments. expected=2")
+		// return object.NewError("wrong number of arguments. got=%d, expected=2", len(args))
+	}
+
 	x := int32(args[0].(*object.Number).Value.IntPart())
 	y := int32(args[1].(*object.Number).Value.IntPart())
 
-	renderer.Renderer.SetScale(float32(x), float32(y))
+	renderer.Renderer.SetClipRect(&sdl.Rect{X: x, Y: y, W: window.Window.Width, H: window.Window.Height})
 
 	return nil
 }
@@ -222,7 +240,7 @@ func graphicsPrint(scope *object.Scope, tok token.Token, args ...object.Object) 
 		// return object.NewError("wrong number of arguments. got=%d, expected=2", len(args))
 	}
 
-	text := args[0].(*object.String).Value
+	text := args[0].String()
 	x := int32(args[1].(*object.Number).Value.IntPart())
 	y := int32(args[2].(*object.Number).Value.IntPart())
 

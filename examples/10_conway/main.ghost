@@ -14,5 +14,7 @@ function update() {
 }
 
 function draw() {
+  graphics.print('FPS: ' + window.fps.toString(), 10, 10)
+  
   world.draw()
 }
