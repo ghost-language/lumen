@@ -1,7 +1,0 @@
-class BaseState {
-  function constructor() { }
-  function enter(data) { }
-  function update() { }
-  function draw() { }
-  function exit() { }
-}
