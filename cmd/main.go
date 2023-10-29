@@ -100,7 +100,7 @@ func main() {
 	lumen := engine.New("Lumen")
 
 	// Register ghost modules
-	ghost.RegisterModule("window", modules.WindowMethods, modules.WindowProperties)
+	modules.Register()
 
 	lumen.Ghost = ghost.New()
 	lumen.Ghost.SetSource(string(b))
