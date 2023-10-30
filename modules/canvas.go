@@ -1,6 +1,8 @@
 package modules
 
 import (
+	"math"
+
 	"ghostlang.org/x/ghost/library/modules"
 	"ghostlang.org/x/ghost/object"
 	"ghostlang.org/x/ghost/token"
@@ -14,6 +16,13 @@ var CanvasProperties = map[string]*object.LibraryProperty{}
 func init() {
 	// Methods
 	modules.RegisterMethod(CanvasMethods, "rectangle", canvasRectangleMethod)
+	modules.RegisterMethod(CanvasMethods, "filledRectangle", canvasFilledRectangleMethod)
+	modules.RegisterMethod(CanvasMethods, "circle", canvasCircleMethod)
+	modules.RegisterMethod(CanvasMethods, "filledCircle", canvasFilledCircleMethod)
+	modules.RegisterMethod(CanvasMethods, "line", canvasLineMethod)
+	modules.RegisterMethod(CanvasMethods, "point", canvasPointMethod)
+	modules.RegisterMethod(CanvasMethods, "clear", canvasClearMethod)
+	modules.RegisterMethod(CanvasMethods, "setColor", canvasSetColorMethod)
 
 	// Properties
 	// modules.RegisterProperty(CanvasProperties, "fps", windowFpsProperty)
@@ -22,7 +31,6 @@ func init() {
 func canvasRectangleMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
 	if len(args) != 4 {
 		return object.NewError("wrong number of arguments. got=%d, want=4", len(args))
-		// return object.NewError("wrong number of arguments. got=%d, expected=4", len(args))
 	}
 
 	x := int32(args[0].(*object.Number).Value.IntPart())
@@ -30,12 +38,141 @@ func canvasRectangleMethod(scope *object.Scope, tok token.Token, args ...object.
 	w := int32(args[2].(*object.Number).Value.IntPart())
 	h := int32(args[3].(*object.Number).Value.IntPart())
 
-	// Set the color
-	engine.Lumen.Renderer.SetDrawColor(255, 255, 255, 255)
-
 	rectangle := sdl.Rect{X: x, Y: y, W: w, H: h}
 
 	engine.Lumen.Renderer.DrawRect(&rectangle)
+
+	return nil
+}
+
+func canvasFilledRectangleMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if len(args) != 4 {
+		return object.NewError("wrong number of arguments. got=%d, want=4", len(args))
+	}
+
+	x := int32(args[0].(*object.Number).Value.IntPart())
+	y := int32(args[1].(*object.Number).Value.IntPart())
+	w := int32(args[2].(*object.Number).Value.IntPart())
+	h := int32(args[3].(*object.Number).Value.IntPart())
+
+	rectangle := sdl.Rect{X: x, Y: y, W: w, H: h}
+
+	engine.Lumen.Renderer.FillRect(&rectangle)
+
+	return nil
+}
+
+func canvasCircleMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if len(args) != 3 {
+		return object.NewError("wrong number of arguments. got=%d, want=3", len(args))
+	}
+
+	x := int32(args[0].(*object.Number).Value.IntPart())
+	y := int32(args[1].(*object.Number).Value.IntPart())
+	r := int32(args[2].(*object.Number).Value.IntPart())
+
+	d := int32(math.Pi - float64(2*r))
+
+	x0 := int32(0)
+	y0 := int32(r)
+
+	for x0 <= y0 {
+		engine.Lumen.Renderer.DrawPoint(x+x0, y+y0)
+		engine.Lumen.Renderer.DrawPoint(x-x0, y-y0)
+		engine.Lumen.Renderer.DrawPoint(x-x0, y+y0)
+		engine.Lumen.Renderer.DrawPoint(x+x0, y-y0)
+		engine.Lumen.Renderer.DrawPoint(x+y0, y+x0)
+		engine.Lumen.Renderer.DrawPoint(x-y0, y-x0)
+		engine.Lumen.Renderer.DrawPoint(x-y0, y+x0)
+		engine.Lumen.Renderer.DrawPoint(x+y0, y-x0)
+
+		if d < 0 {
+			d = d + int32((math.Pi*float64(x0))+(math.Pi*2))
+		} else {
+			d = d + int32((math.Pi*float64(x0-y0))+(math.Pi*3))
+			y0--
+		}
+		x0++
+	}
+
+	return nil
+}
+
+func canvasFilledCircleMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if len(args) != 3 {
+		return object.NewError("wrong number of arguments. got=%d, want=3", len(args))
+	}
+
+	x := int32(args[0].(*object.Number).Value.IntPart())
+	y := int32(args[1].(*object.Number).Value.IntPart())
+	r := int32(args[2].(*object.Number).Value.IntPart())
+
+	d := int32(math.Pi - float64(2*r))
+
+	x0 := int32(0)
+	y0 := int32(r)
+
+	for x0 <= y0 {
+		engine.Lumen.Renderer.DrawLine(x-x0, y-y0, x+x0, y-y0)
+		engine.Lumen.Renderer.DrawLine(x-x0, y+y0, x+x0, y+y0)
+		engine.Lumen.Renderer.DrawLine(x-y0, y-x0, x+y0, y-x0)
+		engine.Lumen.Renderer.DrawLine(x-y0, y+x0, x+y0, y+x0)
+
+		if d < 0 {
+			d = d + int32((math.Pi*float64(x0))+(math.Pi*2))
+		} else {
+			d = d + int32((math.Pi*float64(x0-y0))+(math.Pi*3))
+			y0--
+		}
+		x0++
+	}
+
+	return nil
+}
+
+func canvasLineMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if len(args) != 4 {
+		return object.NewError("wrong number of arguments. got=%d, want=4", len(args))
+	}
+
+	x1 := int32(args[0].(*object.Number).Value.IntPart())
+	y1 := int32(args[1].(*object.Number).Value.IntPart())
+	x2 := int32(args[2].(*object.Number).Value.IntPart())
+	y2 := int32(args[3].(*object.Number).Value.IntPart())
+
+	engine.Lumen.Renderer.DrawLine(x1, y1, x2, y2)
+
+	return nil
+}
+
+func canvasPointMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if len(args) != 2 {
+		return object.NewError("wrong number of arguments. got=%d, want=2", len(args))
+	}
+
+	x := int32(args[0].(*object.Number).Value.IntPart())
+	y := int32(args[1].(*object.Number).Value.IntPart())
+
+	engine.Lumen.Renderer.DrawPoint(x, y)
+
+	return nil
+}
+
+func canvasClearMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	engine.Lumen.Renderer.Clear()
+
+	return nil
+}
+
+func canvasSetColorMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if len(args) != 1 {
+		return object.NewError("wrong number of arguments. got=%d, want=1", len(args))
+	}
+
+	color := args[0].(*engine.Color)
+
+	// Set the color
+	engine.Lumen.Renderer.SetDrawColor(color.Red, color.Green, color.Blue, color.Alpha)
 
 	return nil
 }

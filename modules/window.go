@@ -31,6 +31,7 @@ func windowTitleMethod(scope *object.Scope, tok token.Token, args ...object.Obje
 	}
 
 	engine.Lumen.Title = title.Value
+	engine.Lumen.Window.SetTitle(title.Value)
 
 	return nil
 }
