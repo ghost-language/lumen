@@ -1,6 +1,9 @@
 package engine
 
-import "github.com/veandco/go-sdl2/sdl"
+import (
+	"github.com/veandco/go-sdl2/img"
+	"github.com/veandco/go-sdl2/sdl"
+)
 
 func (engine *Engine) initSDL() {
 	var err error
@@ -9,9 +12,13 @@ func (engine *Engine) initSDL() {
 		panic(err)
 	}
 
-	engine.initSDLWindow()
-	engine.initSDLRenderer()
-	engine.initSDLTexture()
+	if err = img.Init(img.INIT_JPG | img.INIT_PNG); err != nil {
+		panic(err)
+	}
+
+	engine.createSDLWindow()
+	engine.createSDLRenderer()
+	engine.createSDLTexture()
 
 	// Set the scaling quality. This hint is checked when a texture is created
 	// and it affects scaling when copying that texture.
@@ -23,7 +30,7 @@ func (engine *Engine) initSDL() {
 	sdl.SetHint(sdl.HINT_RENDER_SCALE_QUALITY, "2")
 }
 
-func (engine *Engine) initSDLWindow() {
+func (engine *Engine) createSDLWindow() {
 	var err error
 
 	// Create the window
@@ -41,7 +48,7 @@ func (engine *Engine) initSDLWindow() {
 	}
 }
 
-func (engine *Engine) initSDLRenderer() {
+func (engine *Engine) createSDLRenderer() {
 	var err error
 
 	// Create the renderer
@@ -52,7 +59,7 @@ func (engine *Engine) initSDLRenderer() {
 	}
 }
 
-func (engine *Engine) initSDLTexture() {
+func (engine *Engine) createSDLTexture() {
 	var err error
 
 	// Create the texture

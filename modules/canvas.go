@@ -30,6 +30,9 @@ func canvasRectangleMethod(scope *object.Scope, tok token.Token, args ...object.
 	w := int32(args[2].(*object.Number).Value.IntPart())
 	h := int32(args[3].(*object.Number).Value.IntPart())
 
+	// Set the color
+	engine.Lumen.Renderer.SetDrawColor(255, 255, 255, 255)
+
 	rectangle := sdl.Rect{X: x, Y: y, W: w, H: h}
 
 	engine.Lumen.Renderer.DrawRect(&rectangle)
