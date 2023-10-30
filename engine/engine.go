@@ -55,22 +55,22 @@ func (engine *Engine) Run() {
 			case *sdl.KeyboardEvent:
 				engine.handleKeyboardEvent(e)
 			}
-
-			frameStart := sdl.GetTicks64()
-
-			engine.update()
-			engine.draw()
-
-			frameTime := sdl.GetTicks64() - frameStart
-
-			// Give the CPU some time to run calculations
-			if frameDelay > frameTime {
-				sdl.Delay(uint32(frameDelay - frameTime))
-			}
-
-			engine.CurrentFps = uint64(1000 / float64(sdl.GetTicks64()-frameStart))
-			engine.Window.SetTitle(fmt.Sprintf("%s (FPS: %d)", engine.Title, engine.CurrentFps))
 		}
+
+		frameStart := sdl.GetTicks64()
+
+		engine.update()
+		engine.draw()
+
+		frameTime := sdl.GetTicks64() - frameStart
+
+		// Give the CPU some time to run calculations
+		if frameDelay > frameTime {
+			sdl.Delay(uint32(frameDelay - frameTime))
+		}
+
+		engine.CurrentFps = uint64(1000 / float64(sdl.GetTicks64()-frameStart))
+		engine.Window.SetTitle(fmt.Sprintf("%s (FPS: %d)", engine.Title, engine.CurrentFps))
 	}
 }
 
