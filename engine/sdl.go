@@ -23,11 +23,12 @@ func (engine *Engine) initSDL() {
 	// Set the scaling quality. This hint is checked when a texture is created
 	// and it affects scaling when copying that texture.
 	//
+	// 0 = nearest pixel sampling
 	// 1 = linear filtering (supported by OpenGL and Direct3D)
 	// 2 = anisotropic filtering (supported by Direct3D)
 	//
 	// TODO: Make this configurable
-	sdl.SetHint(sdl.HINT_RENDER_SCALE_QUALITY, "2")
+	sdl.SetHint(sdl.HINT_RENDER_SCALE_QUALITY, "0")
 }
 
 func (engine *Engine) createSDLWindow() {

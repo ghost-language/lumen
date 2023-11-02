@@ -1,6 +1,8 @@
 package engine
 
-import "github.com/veandco/go-sdl2/sdl"
+import (
+	"github.com/veandco/go-sdl2/sdl"
+)
 
 // Register a resource to the resource manager.
 func (engine *Engine) RegisterResource(name string, resource interface{}) {
@@ -16,6 +18,9 @@ func (engine *Engine) GetResource(name string) interface{} {
 func (engine *Engine) FreeResources() {
 	for _, res := range engine.Resources {
 		switch resource := res.(type) {
+		case *Image:
+			resource.Surface.Free()
+			resource.Texture.Destroy()
 		case *sdl.Texture:
 			resource.Destroy()
 		case *sdl.Surface:

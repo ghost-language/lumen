@@ -23,6 +23,7 @@ func init() {
 	modules.RegisterMethod(CanvasMethods, "point", canvasPointMethod)
 	modules.RegisterMethod(CanvasMethods, "clear", canvasClearMethod)
 	modules.RegisterMethod(CanvasMethods, "setColor", canvasSetColorMethod)
+	modules.RegisterMethod(CanvasMethods, "scale", canvasScaleMethod)
 
 	// Properties
 	// modules.RegisterProperty(CanvasProperties, "fps", windowFpsProperty)
@@ -173,6 +174,26 @@ func canvasSetColorMethod(scope *object.Scope, tok token.Token, args ...object.O
 
 	// Set the color
 	engine.Lumen.Renderer.SetDrawColor(color.Red, color.Green, color.Blue, color.Alpha)
+
+	return nil
+}
+
+func canvasScaleMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if len(args) < 1 {
+		return object.NewError("wrong number of arguments. got=%d, want=1", len(args))
+	}
+
+	var x, y float32
+
+	if len(args) == 2 {
+		x, _ = args[0].(*object.Number).Value.BigFloat().Float32()
+		y, _ = args[1].(*object.Number).Value.BigFloat().Float32()
+	} else {
+		x, _ = args[0].(*object.Number).Value.BigFloat().Float32()
+		y, _ = args[0].(*object.Number).Value.BigFloat().Float32()
+	}
+
+	engine.Lumen.Renderer.SetScale(x, y)
 
 	return nil
 }
