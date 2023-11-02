@@ -19,6 +19,8 @@ type Engine struct {
 	Window                *sdl.Window
 	Renderer              *sdl.Renderer
 	Texture               *sdl.Texture
+	DefaultFont           *Font
+	CurrentFont           *Font
 	PreviousKeyboardState []uint8
 	CurrentKeyboardState  []uint8
 }

@@ -21,6 +21,8 @@ func (engine *Engine) FreeResources() {
 		case *Image:
 			resource.Surface.Free()
 			resource.Texture.Destroy()
+		case *Font:
+			//
 		case *sdl.Texture:
 			resource.Destroy()
 		case *sdl.Surface:

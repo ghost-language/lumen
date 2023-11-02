@@ -3,6 +3,7 @@ package engine
 import (
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/sdl"
+	"github.com/veandco/go-sdl2/ttf"
 )
 
 func (engine *Engine) initSDL() {
@@ -16,9 +17,9 @@ func (engine *Engine) initSDL() {
 		panic(err)
 	}
 
-	engine.createSDLWindow()
-	engine.createSDLRenderer()
-	engine.createSDLTexture()
+	if err = ttf.Init(); err != nil {
+		panic(err)
+	}
 
 	// Set the scaling quality. This hint is checked when a texture is created
 	// and it affects scaling when copying that texture.
@@ -29,6 +30,11 @@ func (engine *Engine) initSDL() {
 	//
 	// TODO: Make this configurable
 	sdl.SetHint(sdl.HINT_RENDER_SCALE_QUALITY, "0")
+
+	engine.createSDLWindow()
+	engine.createSDLRenderer()
+	engine.createSDLTexture()
+	engine.loadAndSetDefaultFont()
 }
 
 func (engine *Engine) createSDLWindow() {
@@ -82,4 +88,10 @@ func (engine *Engine) quitSDL() {
 	engine.Window.Destroy()
 
 	sdl.Quit()
+}
+
+func (engine *Engine) loadAndSetDefaultFont() {
+	engine.DefaultFont = NewFont("../resources/silver.ttf", 19)
+
+	engine.CurrentFont = engine.DefaultFont
 }

@@ -23,6 +23,9 @@ func init() {
 	modules.RegisterMethod(CanvasMethods, "point", canvasPointMethod)
 	modules.RegisterMethod(CanvasMethods, "clear", canvasClearMethod)
 	modules.RegisterMethod(CanvasMethods, "setColor", canvasSetColorMethod)
+	modules.RegisterMethod(CanvasMethods, "setFont", canvasSetFontMethod)
+	modules.RegisterMethod(CanvasMethods, "resetFont", canvasResetFontMethod)
+	modules.RegisterMethod(CanvasMethods, "print", canvasPrintMethod)
 	modules.RegisterMethod(CanvasMethods, "scale", canvasScaleMethod)
 
 	// Properties
@@ -174,6 +177,40 @@ func canvasSetColorMethod(scope *object.Scope, tok token.Token, args ...object.O
 
 	// Set the color
 	engine.Lumen.Renderer.SetDrawColor(color.Red, color.Green, color.Blue, color.Alpha)
+
+	return nil
+}
+
+func canvasSetFontMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if len(args) != 1 {
+		return object.NewError("wrong number of arguments. got=%d, want=1", len(args))
+	}
+
+	font := args[0].(*engine.Font)
+
+	// Set the font
+	engine.Lumen.CurrentFont = font
+
+	return nil
+}
+
+func canvasResetFontMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if len(args) != 0 {
+		return object.NewError("wrong number of arguments. got=%d, want=0", len(args))
+	}
+
+	// Set the font
+	engine.Lumen.CurrentFont = engine.Lumen.DefaultFont
+
+	return nil
+}
+
+func canvasPrintMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if len(args) != 3 {
+		return object.NewError("wrong number of arguments. got=%d, want=3", len(args))
+	}
+
+	engine.Lumen.CurrentFont.Method("print", args)
 
 	return nil
 }
