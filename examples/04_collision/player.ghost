@@ -1,0 +1,49 @@
+import Entity from 'entity'
+
+class Player extends Entity {
+  function constructor(x = 0, y = 0) {
+    this.x = x
+    this.y = y
+    this.size = 16
+    this.width = this.size
+    this.height = this.size
+    this.speed = 4
+    this.damaged = false
+  }
+
+  function update() {
+    if (keyboard.isDown('s')) {
+      this.y = this.y + this.speed
+    }
+
+    if (keyboard.isDown('w')) {
+      this.y = this.y - this.speed
+    }
+
+    if (keyboard.isDown('a')) {
+      this.x = this.x - this.speed
+    }
+
+    if (keyboard.isDown('d')) {
+      this.x = this.x + this.speed
+    }
+  }
+
+  function onCollision(other) {
+    if (this.overlaps(other)) {
+      this.damaged = true
+    } else {
+      this.damaged = false
+    }
+  }
+
+  function draw() {
+    canvas.setColor(color.white)
+
+    if (this.damaged) {
+      canvas.setColor(color.rgb(255, 0, 0))
+    }
+
+    canvas.filledRectangle(this.x, this.y, this.size, this.size)
+  }
+}

@@ -1,0 +1,20 @@
+import World from 'world'
+
+world = World.new()
+
+function load() {
+  window.title("Conway's Game of Life")
+  
+  world.load()
+}
+
+function update() {
+  world.update()
+}
+
+function draw() {
+  canvas.scale(2)
+  canvas.print('FPS: ' + window.fps.toString(), 10, 10)
+  
+  world.draw()
+}

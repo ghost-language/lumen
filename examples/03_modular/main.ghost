@@ -1,0 +1,13 @@
+import Player from './player'
+
+player = Player.new()
+
+function update() {
+  player.update()
+}
+
+function draw() {
+  canvas.scale(2)
+  
+  player.draw()
+}

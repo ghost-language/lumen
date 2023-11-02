@@ -1,0 +1,12 @@
+function draw() {
+  canvas.scale(2)
+
+  canvas.setColor(color.white)
+  canvas.filledRectangle(25, 25, 50, 50)
+  canvas.filledRectangle(100, 25, 50, 50)
+  canvas.filledRectangle(175, 25, 50, 50)
+
+  canvas.filledCircle(50, 125, 25)
+  canvas.filledCircle(125, 125, 25)
+  canvas.filledCircle(200, 125, 25)
+}

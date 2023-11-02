@@ -17,6 +17,8 @@ func init() {
 
 	// Properties
 	modules.RegisterProperty(WindowProperties, "fps", windowFpsProperty)
+	modules.RegisterProperty(WindowProperties, "width", windowWidthProperty)
+	modules.RegisterProperty(WindowProperties, "height", windowHeightProperty)
 }
 
 func windowTitleMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
@@ -38,4 +40,16 @@ func windowTitleMethod(scope *object.Scope, tok token.Token, args ...object.Obje
 
 func windowFpsProperty(scope *object.Scope, tok token.Token) object.Object {
 	return &object.Number{Value: decimal.NewFromInt(int64(engine.Lumen.CurrentFps))}
+}
+
+func windowWidthProperty(scope *object.Scope, tok token.Token) object.Object {
+	w, _ := engine.Lumen.Window.GetSize()
+
+	return &object.Number{Value: decimal.NewFromInt(int64(w))}
+}
+
+func windowHeightProperty(scope *object.Scope, tok token.Token) object.Object {
+	_, h := engine.Lumen.Window.GetSize()
+
+	return &object.Number{Value: decimal.NewFromInt(int64(h))}
 }

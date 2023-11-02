@@ -1,0 +1,30 @@
+player = {
+  x: 0,
+  y: 0,
+  size: 14,
+  speed: 4
+}
+
+function update() {
+  if (keyboard.isDown('s')) {
+    player.y = player.y + player.speed
+  }
+
+  if (keyboard.isDown('w')) {
+    player.y = player.y - player.speed
+  }
+
+  if (keyboard.isDown('a')) {
+    player.x = player.x - player.speed
+  }
+
+  if (keyboard.isDown('d')) {
+    player.x = player.x + player.speed
+  }
+}
+
+function draw() {
+  canvas.scale(2)
+  canvas.setColor(color.white)
+  canvas.filledRectangle(player.x, player.y, player.size, player.size)
+}

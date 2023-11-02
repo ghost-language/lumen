@@ -1,0 +1,31 @@
+class Player {
+  function constructor(x = 0, y = 0) {
+    this.x = x
+    this.y = y
+    this.size = 14
+    this.speed = 4
+  }
+
+  function update() {
+    if (keyboard.isDown('s')) {
+      this.y = this.y + this.speed
+    }
+
+    if (keyboard.isDown('w')) {
+      this.y = this.y - this.speed
+    }
+
+    if (keyboard.isDown('a')) {
+      this.x = this.x - this.speed
+    }
+
+    if (keyboard.isDown('d')) {
+      this.x = this.x + this.speed
+    }
+  }
+
+  function draw() {
+    canvas.setColor(color.white)
+    canvas.filledRectangle(this.x, this.y, this.size, this.size)
+  }
+}
