@@ -11,13 +11,8 @@ import (
 
 	"ghostlang.org/x/ghost/ghost"
 	"ghostlang.org/x/ghost/object"
-	"ghostlang.org/x/lumen/color"
-	"ghostlang.org/x/lumen/environment"
-	"ghostlang.org/x/lumen/graphic"
-	"ghostlang.org/x/lumen/image"
-	"ghostlang.org/x/lumen/keyboard"
-	"ghostlang.org/x/lumen/lumen"
-	"ghostlang.org/x/lumen/window"
+	"ghostlang.org/x/lumen/engine"
+	"ghostlang.org/x/lumen/modules"
 )
 
 var (
@@ -72,8 +67,6 @@ func main() {
 		}
 
 		rootDirectory = filepath.Dir(ex)
-		fmt.Printf("Root: %s\n", rootDirectory)
-
 		mainFile, err := filepath.Abs(rootDirectory + "/main.ghost")
 
 		if err != nil {
@@ -91,7 +84,6 @@ func main() {
 		f, err = os.Open(console.args[0])
 
 		rootDirectory = filepath.Dir(console.args[0])
-		fmt.Printf("Root: %s\n", rootDirectory)
 
 		if err != nil {
 			log.Fatalf("could not open file: %s: %s", err, console.args[0])
@@ -105,27 +97,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	lumen := lumen.New("Lumen")
+	lumen := engine.New("Lumen")
 
 	// Register ghost modules
-	ghost.RegisterModule("graphics", graphic.GraphicsMethods, graphic.GraphicsProperties)
-	ghost.RegisterModule("window", window.WindowMethods, window.WindowProperties)
-	ghost.RegisterModule("keyboard", keyboard.KeyboardMethods, keyboard.KeyboardProperties)
-	ghost.RegisterModule("image", image.ImageMethods, image.ImageProperties)
-	ghost.RegisterModule("color", color.ColorMethods, color.ColorProperties)
+	modules.Register()
 
-	environment.Ghost = ghost.New()
-	environment.Ghost.SetSource(string(b))
-	environment.Ghost.SetDirectory(rootDirectory)
-	result := environment.Ghost.Execute()
-
-	// fmt.Printf("Result Type: %T", result)
+	lumen.Ghost = ghost.New()
+	lumen.Ghost.SetSource(string(b))
+	lumen.Ghost.SetDirectory(rootDirectory)
+	result := lumen.Ghost.Execute()
 
 	if _, ok := result.(*object.Error); ok {
 		os.Exit(1)
 	}
 
-	lumen.Run(environment.Ghost)
+	lumen.Run()
 }
 
 func showHelp() {
@@ -140,9 +126,9 @@ func showHelp() {
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println()
-	fmt.Println("    lumen game.ghost")
+	fmt.Println("    lumen main.ghost")
 	fmt.Println()
-	fmt.Println("            Execute source file (game.ghost)")
+	fmt.Println("            Execute source file (main.ghost)")
 	fmt.Println()
 	fmt.Println()
 }
