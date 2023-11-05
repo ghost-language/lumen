@@ -19,8 +19,8 @@ class Camera {
     if (keyboard.wasPressed('-')) {
       this.zoom = this.zoom - 1
 
-      if (this.zoom < 3) {
-        this.zoom = 3
+      if (this.zoom < 4) {
+        this.zoom = 4
       }
     }
   }
