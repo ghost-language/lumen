@@ -24,5 +24,5 @@ func (engine *Engine) handleQuitEvent(event *sdl.QuitEvent) {
 }
 
 func (engine *Engine) handleKeyboardEvent(event *sdl.KeyboardEvent) {
-	engine.UpdateKeyboardState()
+	engine.CurrentKeyboardState = sdl.GetKeyboardState()
 }

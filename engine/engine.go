@@ -46,7 +46,7 @@ func (engine *Engine) Run() {
 
 	engine.IsRunning = true
 
-	engine.UpdateKeyboardState()
+	engine.SetInitialKeyboardState()
 
 	for engine.IsRunning {
 		frameStart := sdl.GetTicks64()
@@ -61,6 +61,8 @@ func (engine *Engine) Run() {
 		if 1000.0/float64(engine.TargetFps) > float64(frameTime) {
 			sdl.Delay(uint32(1000.0/float64(engine.TargetFps) - float64(frameTime)))
 		}
+
+		engine.UpdateKeyboardState()
 
 		engine.CurrentFps = uint64(1000 / float64(sdl.GetTicks64()-frameStart))
 	}

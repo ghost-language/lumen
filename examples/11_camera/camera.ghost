@@ -7,9 +7,27 @@ class Camera {
     this.zoom = 4
   }
 
-  function follow(object) {
-    this.x = -object.x + window.width / (this.zoom * 2) - (object.width / 2)
-    this.y = -object.y + window.height / (this.zoom * 2) - (object.height / 2)
+  function update() {
+    if (keyboard.wasPressed('=')) {
+      this.zoom = this.zoom + 1
+
+      if (this.zoom > 8) {
+        this.zoom = 8
+      }
+    }
+
+    if (keyboard.wasPressed('-')) {
+      this.zoom = this.zoom - 1
+
+      if (this.zoom < 3) {
+        this.zoom = 3
+      }
+    }
+  }
+
+  function follow(target) {
+    this.x = -target.x + window.width / (this.zoom * 2) - (target.width / 2)
+    this.y = -target.y + window.height / (this.zoom * 2) - (target.height / 2)
 
     // Keep camera within bounds
     if (this.x > 0) {

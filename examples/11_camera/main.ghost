@@ -10,6 +10,7 @@ function update() {
   world.update()
   
   player.update()
+  camera.update()
   camera.follow(player)
 }
 
