@@ -1,0 +1,30 @@
+class Player {
+  function constructor() {
+    this.x = 0
+    this.y = 0
+    this.speed = 1
+    this.sprite = image.load('resources/player.png')
+  }
+
+  function update() {
+    if (keyboard.isDown('s')) {
+      this.y = this.y + this.speed
+    }
+
+    if (keyboard.isDown('w')) {
+      this.y = this.y - this.speed
+    }
+
+    if (keyboard.isDown('a')) {
+      this.x = this.x - this.speed
+    }
+
+    if (keyboard.isDown('d')) {
+      this.x = this.x + this.speed
+    }
+  }
+
+  function draw() {
+    this.sprite.draw(this.x, this.y)
+  }
+}

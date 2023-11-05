@@ -1,0 +1,19 @@
+class World {
+  function constructor() {
+    this.rows = 100
+    this.cols = 100
+    this.grass = image.load('resources/grass.png')
+  }
+
+  function update() {
+    // 
+  }
+
+  function draw() {
+    for (x = 0; x < this.rows; x = x + 1) {
+      for (y = 0; y < this.cols; y = y + 1) {
+        this.grass.draw(x * 16, y * 16)
+      }
+    }
+  }
+}

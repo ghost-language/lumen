@@ -44,6 +44,8 @@ func (image *Image) draw(args []object.Object) {
 	x := int32(args[0].(*object.Number).Value.IntPart())
 	y := int32(args[1].(*object.Number).Value.IntPart())
 
+	x, y = Lumen.ApplyOffset(x, y)
+
 	src := &sdl.Rect{X: 0, Y: 0, W: int32(image.Width), H: int32(image.Height)}
 	dst := &sdl.Rect{X: x, Y: y, W: int32(image.Width), H: int32(image.Height)}
 

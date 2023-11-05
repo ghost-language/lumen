@@ -1,0 +1,21 @@
+import Camera from 'camera'
+import Player from 'player'
+import World from 'world'
+
+camera = Camera.new()
+player = Player.new()
+world = World.new()
+
+function update() {
+  player.update()
+  camera.follow(player)
+  world.update()
+}
+
+function draw() {
+  canvas.scale(4)
+
+  world.draw()
+  camera.draw()
+  player.draw()
+}

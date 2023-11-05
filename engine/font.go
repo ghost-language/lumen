@@ -61,6 +61,8 @@ func (font *Font) print(args []object.Object) {
 	x := int32(args[1].(*object.Number).Value.IntPart())
 	y := int32(args[2].(*object.Number).Value.IntPart())
 
+	x, y = Lumen.ApplyOffset(x, y)
+
 	surface, _ := Lumen.GetResource(font.Path).(*Font).Family.RenderUTF8Blended(text, sdl.Color{R: 255, G: 255, B: 255, A: 255})
 	texture, _ := Lumen.Renderer.CreateTextureFromSurface(surface)
 
