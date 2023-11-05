@@ -4,7 +4,6 @@ import "ghostlang.org/x/ghost/object"
 
 const COLOR = "Color"
 
-// Color objects consist of a nil value.
 type Color struct {
 	Red   uint8
 	Green uint8

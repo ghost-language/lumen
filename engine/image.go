@@ -7,7 +7,6 @@ import (
 
 const IMAGE = "Image"
 
-// Image objects consist of a nil value.
 type Image struct {
 	Width     int32
 	Height    int32

@@ -8,7 +8,6 @@ import (
 
 const FONT = "Font"
 
-// Font objects consist of a nil value.
 type Font struct {
 	Path   string
 	Size   int
