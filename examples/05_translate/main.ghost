@@ -1,0 +1,42 @@
+class Player {
+  function constructor() {
+    this.x = 100
+    this.y = 100
+  }
+
+  function update() {
+    // 
+  }
+
+  function draw() {
+    canvas.setColor(color.white)
+    canvas.filledRectangle(this.x, this.y, 10, 10)
+  }
+}
+
+class Camera {
+  function constructor() {
+    this.x = 0
+    this.y = 0
+  }
+
+  function update() {
+    this.x = this.x - 1
+    this.y = this.y - 1
+  }
+}
+
+camera = Camera.new()
+player = Player.new()
+
+function update() {
+  camera.update()
+  player.update()
+}
+
+function draw() {
+  canvas.scale(2)
+  canvas.translate(camera.x, camera.y)
+
+  player.draw()
+}

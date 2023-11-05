@@ -23,6 +23,8 @@ type Engine struct {
 	CurrentFont           *Font
 	PreviousKeyboardState []uint8
 	CurrentKeyboardState  []uint8
+	OffsetX               int32
+	OffsetY               int32
 }
 
 func New(title string) (engine *Engine) {
