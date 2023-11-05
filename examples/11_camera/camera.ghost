@@ -2,14 +2,16 @@ class Camera {
   function constructor() {
     this.x = 0
     this.y = 0
+    this.zoom = 4
   }
 
   function follow(object) {
-    this.x = -object.x + (window.width / 8) - 8
-    this.y = -object.y + (window.height / 8) - 8
+    this.x = -object.x + window.width / (this.zoom * 2) - (object.width / 2)
+    this.y = -object.y + window.height / (this.zoom * 2) - (object.height / 2)
   }
 
   function draw() {
+    canvas.scale(this.zoom)
     canvas.translate(this.x, this.y)
   }
 }

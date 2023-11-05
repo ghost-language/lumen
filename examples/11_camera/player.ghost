@@ -2,6 +2,8 @@ class Player {
   function constructor() {
     this.x = 0
     this.y = 0
+    this.width = 16
+    this.height = 16
     this.speed = 1
     this.sprite = image.load('resources/player.png')
   }

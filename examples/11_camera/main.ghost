@@ -7,15 +7,15 @@ player = Player.new()
 world = World.new()
 
 function update() {
+  world.update()
+  
   player.update()
   camera.follow(player)
-  world.update()
 }
 
 function draw() {
-  canvas.scale(4)
-
-  world.draw()
   camera.draw()
+  world.draw()
+
   player.draw()
 }
