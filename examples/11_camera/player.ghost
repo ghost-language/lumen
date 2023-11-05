@@ -4,7 +4,7 @@ class Player {
     this.y = 0
     this.width = 16
     this.height = 16
-    this.speed = 1
+    this.speed = 2
     this.sprite = image.load('resources/player.png')
   }
 

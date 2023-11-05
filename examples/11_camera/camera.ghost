@@ -2,12 +2,31 @@ class Camera {
   function constructor() {
     this.x = 0
     this.y = 0
+    this.width = 20 * 16
+    this.height = 20 * 16
     this.zoom = 4
   }
 
   function follow(object) {
     this.x = -object.x + window.width / (this.zoom * 2) - (object.width / 2)
     this.y = -object.y + window.height / (this.zoom * 2) - (object.height / 2)
+
+    // Keep camera within bounds
+    if (this.x > 0) {
+      this.x = 0
+    }
+
+    if (this.y > 0) {
+      this.y = 0
+    }
+
+    if (this.x < -this.width + window.width / this.zoom) {
+      this.x = -this.width + window.width / this.zoom
+    }
+
+    if (this.y < -this.height + window.height / this.zoom) {
+      this.y = -this.height + window.height / this.zoom
+    }
   }
 
   function draw() {
