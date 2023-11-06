@@ -1,0 +1,27 @@
+import Spritesheet from 'spritesheet'
+
+class Map {
+  function constructor(spritesheet, size) {
+    this.layers = []
+    this.spritesheet = Spritesheet.new(spritesheet, size)
+  }
+
+  function addLayer(layer) {
+    this.layers.push(layer)
+  }
+
+  function draw() {
+    for (i = 0; i < this.layers.length(); i = i + 1) {
+      for (row = 0; row < this.layers[i].length(); row = row + 1) {
+        for (col = 0; col < this.layers[i][row].length(); col = col + 1) {
+          tile = this.layers[i][row][col]
+          x = col * this.spritesheet.size
+          y = row * this.spritesheet.size
+
+          this.spritesheet.draw(x, y, tile)
+          // this.spritesheet.draw(row, col, this.layers[i][row][col])
+        }
+      }
+    }
+  }
+}
