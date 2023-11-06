@@ -10,8 +10,8 @@ class World {
   }
 
   function draw() {
-    for (x = 0; x < this.rows; x = x + 1) {
-      for (y = 0; y < this.cols; y = y + 1) {
+    for (x = 0; x < this.rows; x++) {
+      for (y = 0; y < this.cols; y++) {
         this.grass.draw(x * 16, y * 16)
       }
     }

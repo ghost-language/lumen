@@ -20,7 +20,7 @@ function draw() {
   canvas.scale(scale)
   canvas.setColor(color.white)
 
-  for (i = 0; i < dots.length(); i = i + 1) {
+  for (i = 0; i < dots.length(); i++) {
     canvas.point(dots[i].x / scale, dots[i].y / scale)
   }
 
