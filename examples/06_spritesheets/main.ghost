@@ -1,0 +1,26 @@
+class Spritesheet {
+  function constructor(path, size) {
+    this.sprite = image.load(path)
+    this.size = size
+  }
+
+  function draw(x, y, frame) {
+    // Determine the X and Y offset based on the frame, size, and the height and width of the sprite
+    width = this.sprite.getWidth() / 2
+    sy = (frame / width).floor() * this.size
+    sx = (frame % width).floor() * this.size
+
+    this.sprite.clip(sx, sy, this.size).draw(x, y)
+  }
+}
+
+spritesheet = Spritesheet.new('resources/tilemap.png', 16)
+
+function draw() {
+  canvas.scale(6)
+
+  spritesheet.draw(0, 0, 0)
+  spritesheet.draw(16, 0, 1)
+  spritesheet.draw(32, 0, 2)
+  spritesheet.draw(48, 0, 3)
+}
