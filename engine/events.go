@@ -13,6 +13,8 @@ func (engine *Engine) handleEvents() {
 			engine.handleQuitEvent(e)
 		case *sdl.KeyboardEvent:
 			engine.handleKeyboardEvent(e)
+		case *sdl.MouseButtonEvent:
+			engine.handleMouseButtonEvent(e)
 		}
 	}
 }
@@ -24,5 +26,9 @@ func (engine *Engine) handleQuitEvent(event *sdl.QuitEvent) {
 }
 
 func (engine *Engine) handleKeyboardEvent(event *sdl.KeyboardEvent) {
-	engine.CurrentKeyboardState = sdl.GetKeyboardState()
+	engine.UpdateKeyboardState()
+}
+
+func (engine *Engine) handleMouseButtonEvent(event *sdl.MouseButtonEvent) {
+	engine.UpdateMouseState()
 }

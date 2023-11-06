@@ -23,6 +23,8 @@ type Engine struct {
 	CurrentFont           *Font
 	PreviousKeyboardState []uint8
 	CurrentKeyboardState  []uint8
+	PreviousMouseState    uint32
+	CurrentMouseState     uint32
 	OffsetX               int32
 	OffsetY               int32
 }
@@ -47,6 +49,7 @@ func (engine *Engine) Run() {
 	engine.IsRunning = true
 
 	engine.SetInitialKeyboardState()
+	engine.SetInitialMouseState()
 
 	for engine.IsRunning {
 		frameStart := sdl.GetTicks64()
@@ -63,6 +66,7 @@ func (engine *Engine) Run() {
 		}
 
 		engine.UpdateKeyboardState()
+		engine.UpdateMouseState()
 
 		engine.CurrentFps = uint64(1000 / float64(sdl.GetTicks64()-frameStart))
 	}
