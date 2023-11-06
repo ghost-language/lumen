@@ -72,3 +72,85 @@ function draw() {
 ```
 
 After `draw()` is executed, the game loop returns to `update()` and the cycle repeats until the game is closed. These three functions are the core of Lumen's game loop, and are the only functions that are required to be defined in a Lumen game.
+
+## Modules
+### Canvas
+#### Methods
+- `canvas.rectangle()`
+- `canvas.filledRectangle()`
+- `canvas.circle()`
+- `canvas.filledCircle()`
+- `canvas.line()`
+- `canvas.point()`
+- `canvas.clear()`
+- `canvas.setColor()`
+- `canvas.setFont()`
+- `canvas.resetFont()`
+- `canvas.print()`
+- `canvas.scale()`
+- `canvas.translate()`
+
+### Color
+#### Methods
+- `color.rgb()`
+- `color.hex()`
+
+#### Properties
+- `color.black`
+- `color.white`
+
+### Font
+#### Methods
+- `font.load()`
+
+### Image
+#### Methods
+- `image.load()`
+
+### Keyboard
+#### Methods
+- `keyboard.isDown()`
+- `keyboard.isUp()`
+- `keyboard.wasPressed()`
+- `keyboard.wasReleased()`
+
+### Mouse
+#### Methods
+- `mouse.showCursor()`
+- `mouse.hideCursor()`
+- `mouse.isButtonDown()`
+- `mouse.isButtonUp()`
+- `mouse.wasButtonPressed()`
+- `mouse.wasButtonReleased()`
+
+#### Properties
+- `mouse.x`
+- `mouse.y`
+
+### Window
+#### Methods
+- `window.setTitle()`
+
+#### Properties
+- `window.fps`
+- `window.width`
+- `window.height`
+
+## Objects
+### Color
+Represents a color.
+
+### Font
+Represents a font.
+
+#### Methods
+- `print()`
+
+### Image
+Represents an image.
+
+#### Methods
+- `draw()`
+- `clip()`
+- `getWidth()` (need to update ghost to include object properties)
+- `getHeight()` (need to update ghost to include object properties)
