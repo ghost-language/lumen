@@ -28,8 +28,8 @@ class Spritesheet {
   }
 }
 
-x = 0
-y = 0
+x = 5
+y = 5
 size = 48
 spritesheet = Spritesheet.new('resources/player_walk.png', size)
 spritesheet.addAnimation('run', [0, 1, 2, 3, 4, 5, 6, 7])
@@ -45,6 +45,7 @@ function draw() {
   canvas.rectangle(x, y, size, size)
 
   spritesheet.play('run', x, y, 0.15)
+  canvas.print('FPS: ' + window.fps.toString(), 5, 58)
 }
 
 
