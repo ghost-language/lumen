@@ -1,0 +1,50 @@
+cursor = image.load('resources/cursor.png')
+scale = 4
+select = {
+  x1: 0,
+  y1: 0,
+  x2: 0,
+  y2: 0
+}
+
+function load() {
+  mouse.hideCursor()
+}
+
+function update() {
+  if (mouse.wasButtonPressed('left')) {
+    select.x1 = mouse.x / scale
+    select.y1 = mouse.y / scale
+  }
+
+  if (mouse.isButtonDown('left')) {
+    select.x2 = mouse.x / scale
+    select.y2 = mouse.y / scale
+  }
+
+  if (mouse.wasButtonReleased('left')) {
+    select.x1 = 0
+    select.y1 = 0
+    select.x2 = 0
+    select.y2 = 0
+  }
+}
+
+function draw() {
+  canvas.scale(scale)
+  canvas.setColor(color.white)
+
+  if (select.x1 > 0 and select.y1 > 0) {
+    width = select.x2 - select.x1
+    height = select.y2 - select.y1
+
+    canvas.rectangle(select.x1.round(), select.y1.round(), width.round(), height.round())
+  }
+
+  cursor.draw(mouse.x / scale, mouse.y / scale)
+
+  canvas.scale(2)
+  canvas.print('   FPS: ' + window.fps.toString(), 5, 5)
+  canvas.print(' Mouse: ' + select.x2.toString() + ', ' + select.y2.toString(), 5, 40)
+  canvas.print('Anchor: ' + select.x1.toString() + ', ' + select.y1.toString(), 5, 20)
+}
