@@ -1,0 +1,33 @@
+class Spritesheet {
+  function constructor(path, size) {
+    this.sprite = image.load(path)
+    this.size = size
+    this.animations = {}
+    this.currentFrame = 0
+  }
+
+  function draw(x, y, frame) {
+    // Determine the X and Y offset based on the frame, size, and the height and width of the sprite
+    width = this.sprite.getWidth() / 2
+    sy = (frame / width).floor() * this.size
+    sx = (frame % width).floor() * this.size
+
+    this.sprite.clip(sx, sy, this.size).draw(x, y)
+  }
+
+  function addAnimation(name, frames, speed) {
+    this.animations[name] = {
+      frames: frames,
+      speed: speed,
+    }
+  }
+
+  function play(name, x, y) {
+    animation = this.animations[name]
+
+    this.currentFrame = this.currentFrame + animation.speed
+    this.currentFrame = this.currentFrame % animation.frames.length()
+    
+    this.draw(x, y, animation.frames[this.currentFrame])
+  }
+}
