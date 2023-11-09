@@ -1,0 +1,13 @@
+import Map from 'map'
+
+map = Map.new('resources/map.json')
+
+function update() {
+  map.update()
+}
+
+function draw() {
+  canvas.scale(4)
+  
+  map.draw()
+}
