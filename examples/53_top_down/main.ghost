@@ -1,0 +1,25 @@
+import Map from 'map'
+import Player from 'player'
+
+// Scale the canvas by 4x
+scale = 4
+
+// Create a new player object at the center of the screen
+player = Player.new(
+  (window.width / 2) / scale - 8,
+  (window.height / 2) / scale - 8
+)
+
+map = Map.new('resources/map.json')
+
+function update() {
+  map.update()
+  player.update()
+}
+
+function draw() {
+  canvas.scale(scale)
+  
+  map.draw()
+  player.draw()
+}

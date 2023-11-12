@@ -1,0 +1,70 @@
+import Spritesheet from 'spritesheet'
+
+class Player {
+  function constructor(x = 0, y = 0) {
+    this.x = x
+    this.y = y
+    this.isMoving = false
+    this.previousX = x
+    this.previousY = y
+    this.speed = 1
+    this.size = 16
+    this.direction = 'down'
+    this.sprite = Spritesheet.new('resources/characters.png', this.size)
+
+    character = 1
+
+    this.sprite.addAnimation('up', [7 * character - 1, 8 * character - 1], 0.075)
+    this.sprite.addAnimation('right', [9 * character - 1, 10 * character - 1], 0.075)
+    this.sprite.addAnimation('down', [5 * character - 1, 6 * character - 1], 0.075)
+    this.sprite.addAnimation('left', [11 * character - 1, 12 * character - 1], 0.075)
+
+    this.sprite.addAnimation('up_idle', [2 * character - 1], 0)
+    this.sprite.addAnimation('right_idle', [3 * character - 1], 0)
+    this.sprite.addAnimation('down_idle', [1 * character - 1], 0)
+    this.sprite.addAnimation('left_idle', [4 * character - 1], 0)
+  }
+
+  function update() {
+    this.previousX = this.x
+    this.previousY = this.y
+
+    if (keyboard.isDown('a')) {
+      this.x = this.x - this.speed
+      this.direction = 'left'
+    }
+
+    if (keyboard.isDown('d')) {
+      this.x = this.x + this.speed
+      this.direction = 'right'
+    }
+
+    if (keyboard.isDown('s')) {
+      this.y = this.y + this.speed
+      this.direction = 'down'
+    }
+
+    if (keyboard.isDown('w')) {
+      this.y = this.y - this.speed
+      this.direction = 'up'
+    }
+
+    // Determine if the player is moving or not based on the current
+    // and previous positions update `isMoving` accordingly.
+    if (this.x != this.previousX or this.y != this.previousY) {
+      this.isMoving = true
+    } else {
+      this.isMoving = false
+    }
+  }
+
+  function draw() {
+    direction = this.direction
+
+    if (!this.isMoving) {
+      direction = direction + '_idle'
+    }
+
+    this.sprite.play(direction, this.x, this.y)
+  }
+}
