@@ -43,7 +43,6 @@ class Map {
       layer = this.map.layers[i]
 
       if (layer.type == 'tilelayer') {
-        console.log('Drawing: ' + layer.name)
         this.drawTileLayer(layer)
       }
     }
@@ -60,10 +59,10 @@ class Map {
         }
 
         tileset = this.getTileset(gid)
+        
+        frame = gid - tileset.firstgid
 
-        index = gid - tileset.firstgid
-
-        tileset.spritesheet.draw(index, x * tileset.size, y * tileset.size)
+        tileset.spritesheet.draw(frame, x * tileset.size, y * tileset.size)
       }
     }
   }

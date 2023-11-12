@@ -5,10 +5,10 @@ class Spritesheet {
   }
 
   function draw(x, y, frame) {
-    // Determine the X and Y offset based on the frame, size, and the height and width of the sprite
-    width = this.sprite.getWidth() / 2
-    sy = (frame / width).floor() * this.size
-    sx = (frame % width).floor() * this.size
+    columns = this.sprite.getWidth() / this.size
+    
+    sx = (frame % columns) * this.size
+    sy = (frame / columns).floor() * this.size
 
     this.sprite.clip(sx, sy, this.size).draw(x, y)
   }
