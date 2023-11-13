@@ -9,20 +9,45 @@ class Player {
     this.previousY = y
     this.speed = 1
     this.size = 16
+    this.width = this.size
+    this.height = this.size
     this.direction = 'down'
     this.sprite = Spritesheet.new('resources/characters.png', this.size)
 
+    characters = [
+      {
+        up: [6, 7],
+        right: [8, 9],
+        down: [4, 5],
+        left: [10, 11],
+        up_idle: [1],
+        right_idle: [2],
+        down_idle: [0],
+        left_idle: [3],
+      },
+      {
+        up: [150, 151],
+        right: [152, 153],
+        down: [148, 149],
+        left: [154, 155],
+        up_idle: [145],
+        right_idle: [146],
+        down_idle: [144],
+        left_idle: [147]
+      }
+    ]
+
     character = 1
 
-    this.sprite.addAnimation('up', [7 * character - 1, 8 * character - 1], 0.075)
-    this.sprite.addAnimation('right', [9 * character - 1, 10 * character - 1], 0.075)
-    this.sprite.addAnimation('down', [5 * character - 1, 6 * character - 1], 0.075)
-    this.sprite.addAnimation('left', [11 * character - 1, 12 * character - 1], 0.075)
+    this.sprite.addAnimation('up', characters[character].up, 0.075)
+    this.sprite.addAnimation('right', characters[character].right, 0.075)
+    this.sprite.addAnimation('down', characters[character].down, 0.075)
+    this.sprite.addAnimation('left', characters[character].left, 0.075)
 
-    this.sprite.addAnimation('up_idle', [2 * character - 1], 0)
-    this.sprite.addAnimation('right_idle', [3 * character - 1], 0)
-    this.sprite.addAnimation('down_idle', [1 * character - 1], 0)
-    this.sprite.addAnimation('left_idle', [4 * character - 1], 0)
+    this.sprite.addAnimation('up_idle', characters[character].up_idle, 0)
+    this.sprite.addAnimation('right_idle', characters[character].right_idle, 0)
+    this.sprite.addAnimation('down_idle', characters[character].down_idle, 0)
+    this.sprite.addAnimation('left_idle', characters[character].left_idle, 0)
   }
 
   function update() {

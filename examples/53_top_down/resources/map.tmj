@@ -378,11 +378,11 @@
         {
          "columns":49,
          "firstgid":1,
-         "image":"tilesheet.png",
+         "image":"..\/..\/..\/..\/..\/..\/Downloads\/kenney_1-bit-pack\/Tilesheet\/colored_packed.png",
          "imageheight":352,
          "imagewidth":784,
          "margin":0,
-         "name":"tilesheet",
+         "name":"colored_packed",
          "spacing":0,
          "tilecount":1078,
          "tileheight":16,

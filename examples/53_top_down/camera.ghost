@@ -1,0 +1,54 @@
+class Camera {
+  function constructor() {
+    this.x = 0
+    this.y = 0
+    this.width = 100 * 16
+    this.height = 100 * 16
+    this.zoom = 4
+  }
+
+  function update() {
+    if (keyboard.wasPressed('=')) {
+      this.zoom = this.zoom + 1
+
+      if (this.zoom > 8) {
+        this.zoom = 8
+      }
+    }
+
+    if (keyboard.wasPressed('-')) {
+      this.zoom = this.zoom - 1
+
+      if (this.zoom < 4) {
+        this.zoom = 4
+      }
+    }
+  }
+
+  function follow(target) {
+    this.x = -target.x + window.width / (this.zoom * 2) - (target.width / 2)
+    this.y = -target.y + window.height / (this.zoom * 2) - (target.height / 2)
+
+    // Keep camera within bounds
+    if (this.x > 0) {
+      this.x = 0
+    }
+
+    if (this.y > 0) {
+      this.y = 0
+    }
+
+    if (this.x < -this.width + window.width / this.zoom) {
+      this.x = -this.width + window.width / this.zoom
+    }
+
+    if (this.y < -this.height + window.height / this.zoom) {
+      this.y = -this.height + window.height / this.zoom
+    }
+  }
+
+  function draw() {
+    canvas.scale(this.zoom)
+    canvas.translate(this.x, this.y)
+  }
+}

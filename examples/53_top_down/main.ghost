@@ -1,8 +1,9 @@
 import Map from 'map'
+import Camera from 'camera'
 import Player from 'player'
 
 // Scale the canvas by 4x
-scale = 4
+scale = 3
 
 // Create a new player object at the center of the screen
 player = Player.new(
@@ -10,16 +11,27 @@ player = Player.new(
   (window.height / 2) / scale - 8
 )
 
+camera = Camera.new()
 map = Map.new('resources/map.json')
 
 function update() {
   map.update()
   player.update()
+  camera.update()
+  camera.follow(player)
 }
 
 function draw() {
   canvas.scale(scale)
   
+  camera.draw()
   map.draw()
   player.draw()
+
+  canvas.scale(2)
+  canvas.setColor(color.rgb(0, 0, 0, 0.5)))
+  canvas.filledRectangle(0, 0, 47, 24)
+
+  canvas.setColor(color.white)
+  canvas.print('FPS: ' + window.fps.toString(), 5, 5)
 }
