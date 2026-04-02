@@ -5,7 +5,6 @@ import (
 	"ghostlang.org/x/ghost/object"
 	"ghostlang.org/x/ghost/token"
 	"ghostlang.org/x/lumen/engine"
-	"github.com/shopspring/decimal"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -119,11 +118,11 @@ func mouseWasButtonReleasedMethod(scope *object.Scope, tok token.Token, args ...
 func mouseXProperty(scope *object.Scope, tok token.Token) object.Object {
 	x, _, _ := sdl.GetMouseState()
 
-	return &object.Number{Value: decimal.NewFromInt(int64(x))}
+	return object.NewInt(int64(x))
 }
 
 func mouseYProperty(scope *object.Scope, tok token.Token) object.Object {
 	_, y, _ := sdl.GetMouseState()
 
-	return &object.Number{Value: decimal.NewFromInt(int64(y))}
+	return object.NewInt(int64(y))
 }

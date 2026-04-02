@@ -7,6 +7,4 @@ require (
 	github.com/veandco/go-sdl2 v0.4.35
 )
 
-require github.com/shopspring/decimal v1.3.1 // indirect
-
-replace ghostlang.org/x/ghost => ../ghost
+replace ghostlang.org/x/ghost => /Users/kai/.claude-worktrees/ghost/nervous-johnson

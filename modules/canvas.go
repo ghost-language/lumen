@@ -38,10 +38,10 @@ func canvasRectangleMethod(scope *object.Scope, tok token.Token, args ...object.
 		return object.NewError("wrong number of arguments. got=%d, want=4", len(args))
 	}
 
-	x := int32(args[0].(*object.Number).Value.IntPart())
-	y := int32(args[1].(*object.Number).Value.IntPart())
-	w := int32(args[2].(*object.Number).Value.IntPart())
-	h := int32(args[3].(*object.Number).Value.IntPart())
+	x := int32(args[0].(*object.Number).Int64())
+	y := int32(args[1].(*object.Number).Int64())
+	w := int32(args[2].(*object.Number).Int64())
+	h := int32(args[3].(*object.Number).Int64())
 
 	rectangle := sdl.Rect{X: x, Y: y, W: w, H: h}
 
@@ -55,10 +55,10 @@ func canvasFilledRectangleMethod(scope *object.Scope, tok token.Token, args ...o
 		return object.NewError("wrong number of arguments. got=%d, want=4", len(args))
 	}
 
-	x := int32(args[0].(*object.Number).Value.IntPart())
-	y := int32(args[1].(*object.Number).Value.IntPart())
-	w := int32(args[2].(*object.Number).Value.IntPart())
-	h := int32(args[3].(*object.Number).Value.IntPart())
+	x := int32(args[0].(*object.Number).Int64())
+	y := int32(args[1].(*object.Number).Int64())
+	w := int32(args[2].(*object.Number).Int64())
+	h := int32(args[3].(*object.Number).Int64())
 
 	x, y = engine.Lumen.ApplyOffset(x, y)
 
@@ -74,9 +74,9 @@ func canvasCircleMethod(scope *object.Scope, tok token.Token, args ...object.Obj
 		return object.NewError("wrong number of arguments. got=%d, want=3", len(args))
 	}
 
-	x := int32(args[0].(*object.Number).Value.IntPart())
-	y := int32(args[1].(*object.Number).Value.IntPart())
-	r := int32(args[2].(*object.Number).Value.IntPart())
+	x := int32(args[0].(*object.Number).Int64())
+	y := int32(args[1].(*object.Number).Int64())
+	r := int32(args[2].(*object.Number).Int64())
 
 	d := int32(math.Pi - float64(2*r))
 
@@ -113,9 +113,9 @@ func canvasFilledCircleMethod(scope *object.Scope, tok token.Token, args ...obje
 		return object.NewError("wrong number of arguments. got=%d, want=3", len(args))
 	}
 
-	x := int32(args[0].(*object.Number).Value.IntPart())
-	y := int32(args[1].(*object.Number).Value.IntPart())
-	r := int32(args[2].(*object.Number).Value.IntPart())
+	x := int32(args[0].(*object.Number).Int64())
+	y := int32(args[1].(*object.Number).Int64())
+	r := int32(args[2].(*object.Number).Int64())
 
 	d := int32(math.Pi - float64(2*r))
 
@@ -148,10 +148,10 @@ func canvasLineMethod(scope *object.Scope, tok token.Token, args ...object.Objec
 		return object.NewError("wrong number of arguments. got=%d, want=4", len(args))
 	}
 
-	x1 := int32(args[0].(*object.Number).Value.IntPart())
-	y1 := int32(args[1].(*object.Number).Value.IntPart())
-	x2 := int32(args[2].(*object.Number).Value.IntPart())
-	y2 := int32(args[3].(*object.Number).Value.IntPart())
+	x1 := int32(args[0].(*object.Number).Int64())
+	y1 := int32(args[1].(*object.Number).Int64())
+	x2 := int32(args[2].(*object.Number).Int64())
+	y2 := int32(args[3].(*object.Number).Int64())
 
 	x1, y1 = engine.Lumen.ApplyOffset(x1, y1)
 	x2, y2 = engine.Lumen.ApplyOffset(x2, y2)
@@ -166,8 +166,8 @@ func canvasPointMethod(scope *object.Scope, tok token.Token, args ...object.Obje
 		return object.NewError("wrong number of arguments. got=%d, want=2", len(args))
 	}
 
-	x := int32(args[0].(*object.Number).Value.IntPart())
-	y := int32(args[1].(*object.Number).Value.IntPart())
+	x := int32(args[0].(*object.Number).Int64())
+	y := int32(args[1].(*object.Number).Int64())
 
 	x, y = engine.Lumen.ApplyOffset(x, y)
 
@@ -237,11 +237,11 @@ func canvasScaleMethod(scope *object.Scope, tok token.Token, args ...object.Obje
 	var x, y float32
 
 	if len(args) == 2 {
-		x, _ = args[0].(*object.Number).Value.BigFloat().Float32()
-		y, _ = args[1].(*object.Number).Value.BigFloat().Float32()
+		x = float32(args[0].(*object.Number).Float64())
+		y = float32(args[1].(*object.Number).Float64())
 	} else {
-		x, _ = args[0].(*object.Number).Value.BigFloat().Float32()
-		y, _ = args[0].(*object.Number).Value.BigFloat().Float32()
+		x = float32(args[0].(*object.Number).Float64())
+		y = float32(args[0].(*object.Number).Float64())
 	}
 
 	engine.Lumen.Renderer.SetScale(x, y)
@@ -257,11 +257,11 @@ func canvasTranslateMethod(scope *object.Scope, tok token.Token, args ...object.
 	var x, y float32
 
 	if len(args) == 2 {
-		x, _ = args[0].(*object.Number).Value.BigFloat().Float32()
-		y, _ = args[1].(*object.Number).Value.BigFloat().Float32()
+		x = float32(args[0].(*object.Number).Float64())
+		y = float32(args[1].(*object.Number).Float64())
 	} else {
-		x, _ = args[0].(*object.Number).Value.BigFloat().Float32()
-		y, _ = args[0].(*object.Number).Value.BigFloat().Float32()
+		x = float32(args[0].(*object.Number).Float64())
+		y = float32(args[0].(*object.Number).Float64())
 	}
 
 	engine.Lumen.OffsetX = int32(x)
