@@ -5,7 +5,6 @@ import (
 	"ghostlang.org/x/ghost/object"
 	"ghostlang.org/x/ghost/token"
 	"ghostlang.org/x/lumen/engine"
-	"github.com/shopspring/decimal"
 )
 
 var WindowMethods = map[string]*object.LibraryFunction{}
@@ -39,17 +38,17 @@ func windowTitleMethod(scope *object.Scope, tok token.Token, args ...object.Obje
 }
 
 func windowFpsProperty(scope *object.Scope, tok token.Token) object.Object {
-	return &object.Number{Value: decimal.NewFromInt(int64(engine.Lumen.CurrentFps))}
+	return object.NewInt(int64(engine.Lumen.CurrentFps))
 }
 
 func windowWidthProperty(scope *object.Scope, tok token.Token) object.Object {
 	w, _ := engine.Lumen.Window.GetSize()
 
-	return &object.Number{Value: decimal.NewFromInt(int64(w))}
+	return object.NewInt(int64(w))
 }
 
 func windowHeightProperty(scope *object.Scope, tok token.Token) object.Object {
 	_, h := engine.Lumen.Window.GetSize()
 
-	return &object.Number{Value: decimal.NewFromInt(int64(h))}
+	return object.NewInt(int64(h))
 }

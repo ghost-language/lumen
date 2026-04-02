@@ -2,7 +2,6 @@ package engine
 
 import (
 	"ghostlang.org/x/ghost/object"
-	"github.com/shopspring/decimal"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -50,8 +49,8 @@ func (image *Image) Method(method string, args []object.Object) (object.Object, 
 // Object methods
 
 func (image *Image) draw(args []object.Object) {
-	x := int32(args[0].(*object.Number).Value.IntPart())
-	y := int32(args[1].(*object.Number).Value.IntPart())
+	x := int32(args[0].(*object.Number).Int64())
+	y := int32(args[1].(*object.Number).Int64())
 
 	x, y = Lumen.ApplyOffset(x, y)
 
@@ -80,9 +79,9 @@ func (image *Image) draw(args []object.Object) {
 
 // clip applies an X and Y offset to the image.
 func (image *Image) clip(args []object.Object) object.Object {
-	x := int32(args[0].(*object.Number).Value.IntPart())
-	y := int32(args[1].(*object.Number).Value.IntPart())
-	size := int32(args[2].(*object.Number).Value.IntPart())
+	x := int32(args[0].(*object.Number).Int64())
+	y := int32(args[1].(*object.Number).Int64())
+	size := int32(args[2].(*object.Number).Int64())
 
 	image.XOffset = x
 	image.YOffset = y
@@ -93,10 +92,10 @@ func (image *Image) clip(args []object.Object) object.Object {
 
 // getWidth returns the width of the image.
 func (image *Image) getWidth(args []object.Object) object.Object {
-	return &object.Number{Value: decimal.NewFromInt32(image.Width)}
+	return object.NewInt(int64(image.Width))
 }
 
 // getHeight returns the height of the image.
 func (image *Image) getHeight(args []object.Object) object.Object {
-	return &object.Number{Value: decimal.NewFromInt32(image.Height)}
+	return object.NewInt(int64(image.Height))
 }

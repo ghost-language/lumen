@@ -28,13 +28,13 @@ func colorRgbMethod(scope *object.Scope, tok token.Token, args ...object.Object)
 		return object.NewError("wrong number of arguments. got=%d, want=3", len(args))
 	}
 
-	red := uint8(args[0].(*object.Number).Value.IntPart())
-	green := uint8(args[1].(*object.Number).Value.IntPart())
-	blue := uint8(args[2].(*object.Number).Value.IntPart())
+	red := uint8(args[0].(*object.Number).Int64())
+	green := uint8(args[1].(*object.Number).Int64())
+	blue := uint8(args[2].(*object.Number).Int64())
 	alpha := uint8(255)
 
 	if len(args) == 4 {
-		alpha = uint8(args[3].(*object.Number).Value.IntPart())
+		alpha = uint8(args[3].(*object.Number).Int64())
 	}
 
 	color := new(engine.Color)

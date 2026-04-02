@@ -23,7 +23,7 @@ func fontLoadMethod(scope *object.Scope, tok token.Token, args ...object.Object)
 		return object.NewError("wrong number of arguments. got=%d, want=1", len(args))
 	}
 
-	font := engine.NewFont(args[0].String(), int(args[1].(*object.Number).Value.IntPart()))
+	font := engine.NewFont(args[0].String(), int(args[1].(*object.Number).Int64()))
 
 	return font
 }

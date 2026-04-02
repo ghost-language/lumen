@@ -57,8 +57,8 @@ func (font *Font) Method(method string, args []object.Object) (object.Object, bo
 
 func (font *Font) print(args []object.Object) {
 	text := args[0].String()
-	x := int32(args[1].(*object.Number).Value.IntPart())
-	y := int32(args[2].(*object.Number).Value.IntPart())
+	x := int32(args[1].(*object.Number).Int64())
+	y := int32(args[2].(*object.Number).Int64())
 
 	x, y = Lumen.ApplyOffset(x, y)
 
