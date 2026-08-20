@@ -1,0 +1,275 @@
+import * from 'data'
+import * from 'combatant'
+
+// The party holds the heroes, the shared purse, and the shared pack. Inventory
+// entries are { id, count } so a stack of five herbs is one row on screen.
+class Party {
+  constructor(heroIds) {
+    this.members = []
+    this.gold = 40
+    this.pack = []
+
+    for (index = 0; index < heroIds.length(); index++) {
+      this.members.push(newHero(heroIds[index]))
+    }
+  }
+
+  leader() {
+    return this.members[0]
+  }
+
+  // living returns the members still standing, which is who a battle takes
+  // commands from and who a monster can pick as a target.
+  living() {
+    alive = []
+
+    for (index = 0; index < this.members.length(); index++) {
+      if (this.members[index].isAlive()) {
+        alive.push(this.members[index])
+      }
+    }
+
+    return alive
+  }
+
+  isDefeated() {
+    return this.living().length() == 0
+  }
+
+  // ---- pack
+
+  add(itemId, count) {
+    entry = this.entryFor(itemId)
+
+    if (entry != null) {
+      entry.count = entry.count + count
+
+      return null
+    }
+
+    this.pack.push({ id: itemId, count: count })
+  }
+
+  // remove takes one of an item, dropping the row when the last one goes. The
+  // pack is rebuilt rather than spliced because Ghost's lists have no removal.
+  remove(itemId) {
+    remaining = []
+
+    for (index = 0; index < this.pack.length(); index++) {
+      entry = this.pack[index]
+
+      if (entry.id != itemId) {
+        remaining.push(entry)
+
+        continue
+      }
+
+      if (entry.count > 1) {
+        remaining.push({ id: entry.id, count: entry.count - 1 })
+      }
+    }
+
+    this.pack = remaining
+  }
+
+  entryFor(itemId) {
+    for (index = 0; index < this.pack.length(); index++) {
+      if (this.pack[index].id == itemId) {
+        return this.pack[index]
+      }
+    }
+
+    return null
+  }
+
+  has(itemId) {
+    return this.entryFor(itemId) != null
+  }
+
+  countOf(itemId) {
+    entry = this.entryFor(itemId)
+
+    if (entry == null) {
+      return 0
+    }
+
+    return entry.count
+  }
+
+  // packOfKind lists the pack entries whose item is of a given kind, which is
+  // what the equip and item menus are built from.
+  packOfKind(kind) {
+    matching = []
+
+    for (index = 0; index < this.pack.length(); index++) {
+      entry = this.pack[index]
+      found = findItem(entry.id)
+
+      if (found == null) {
+        continue
+      }
+
+      if (found.kind == kind) {
+        matching.push(entry)
+      }
+    }
+
+    return matching
+  }
+
+  // usable lists everything that can be drunk or applied, which is the item
+  // menu in and out of battle.
+  usable() {
+    return this.packOfKind('potion')
+  }
+
+  // ---- equipment
+
+  // equip moves an item from the pack onto a hero, returning whatever came off
+  // to the pack. Passing a null item unequips the slot.
+  equip(hero, slot, itemId) {
+    previous = hero.equipment[slot]
+
+    if (itemId != null) {
+      if (!this.has(itemId)) {
+        return false
+      }
+
+      this.remove(itemId)
+    }
+
+    hero.equip(slot, itemId)
+
+    if (previous != null) {
+      this.add(previous, 1)
+    }
+
+    return true
+  }
+
+  // previewEquip reports the attack and defence change equipping an item would
+  // make, so the menu can show it before the player commits.
+  previewEquip(hero, slot, itemId) {
+    before = { attack: hero.attackPower(), defence: hero.defencePower() }
+
+    previous = hero.equipment[slot]
+    hero.equip(slot, itemId)
+
+    after = { attack: hero.attackPower(), defence: hero.defencePower() }
+
+    hero.equip(slot, previous)
+
+    return { attack: after.attack - before.attack, defence: after.defence - before.defence }
+  }
+
+  // ---- items
+
+  // useItem applies a potion to a target and returns what to tell the player,
+  // or null when the item did nothing and should not be spent.
+  useItem(itemId, target) {
+    found = findItem(itemId)
+
+    if (found == null) {
+      return null
+    }
+
+    restoredHealth = 0
+    restoredMagic = 0
+
+    if (found.heals != null) {
+      restoredHealth = target.healBy(found.heals)
+    }
+
+    if (found.restores != null) {
+      restoredMagic = target.restoreMagic(found.restores)
+    }
+
+    if (restoredHealth == 0 and restoredMagic == 0) {
+      return null
+    }
+
+    this.remove(itemId)
+
+    if (restoredHealth > 0 and restoredMagic > 0) {
+      return target.name + ' recovers ' + restoredHealth.toString() + ' HP and ' + restoredMagic.toString() + ' MP.'
+    }
+
+    if (restoredMagic > 0) {
+      return target.name + ' recovers ' + restoredMagic.toString() + ' MP.'
+    }
+
+    return target.name + ' recovers ' + restoredHealth.toString() + ' HP.'
+  }
+
+  // restAll is what an inn or a save point does.
+  restAll() {
+    for (index = 0; index < this.members.length(); index++) {
+      member = this.members[index]
+      member.health = member.maxHealth
+      member.magic = member.maxMagic
+      member.buff = 0
+    }
+  }
+
+  update(dt) {
+    for (index = 0; index < this.members.length(); index++) {
+      this.members[index].update(dt)
+    }
+  }
+
+  // ---- saving
+  //
+  // Only what cannot be derived is written out: levels, current health, the
+  // pack, and what each hero is wearing. Everything else comes back from the
+  // tables in data.ghost.
+
+  toSave() {
+    saved = []
+
+    for (index = 0; index < this.members.length(); index++) {
+      member = this.members[index]
+
+      saved.push({
+        id: member.id,
+        level: member.level,
+        experience: member.experience,
+        health: member.health,
+        magic: member.magic,
+        maxHealth: member.maxHealth,
+        maxMagic: member.maxMagic,
+        strength: member.strength,
+        defence: member.baseDefence,
+        agility: member.agility,
+        weapon: member.equipment.weapon,
+        armour: member.equipment.armour,
+        shield: member.equipment.shield
+      })
+    }
+
+    return { gold: this.gold, pack: this.pack, members: saved }
+  }
+
+  loadSave(saved) {
+    this.gold = saved.gold
+    this.pack = saved.pack
+
+    for (index = 0; index < saved.members.length(); index++) {
+      record = saved.members[index]
+      member = this.members[index]
+
+      member.level = record.level
+      member.experience = record.experience
+      member.maxHealth = record.maxHealth
+      member.maxMagic = record.maxMagic
+      member.health = record.health
+      member.magic = record.magic
+      member.strength = record.strength
+      member.baseDefence = record.defence
+      member.agility = record.agility
+
+      member.equip('weapon', record.weapon)
+      member.equip('armour', record.armour)
+      member.equip('shield', record.shield)
+    }
+  }
+}

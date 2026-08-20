@@ -1,0 +1,819 @@
+import * from 'data'
+import * from 'combatant'
+import * from 'ui'
+import Menu from 'ui'
+
+// A front-view, turn-based battle in the Dragon Quest mould: the party is
+// off-screen behind the camera, the monsters face you from the top of the
+// screen, and every round is a command from each hero followed by everyone
+// acting in order of agility.
+//
+// The whole battle is one state machine. `phase` says what the player is
+// looking at, and a queue of messages sits in front of all of it: whenever
+// there is a message to read, the battle waits for it before moving on. That
+// keeps every outcome legible instead of a round resolving in one frame.
+class Battle {
+  constructor(party, monsterIds, fonts, sounds) {
+    this.party = party
+    this.fonts = fonts
+    this.sounds = sounds
+
+    this.monsters = this.spawn(monsterIds)
+
+    this.phase = 'intro'
+    this.actorIndex = 0
+    this.actions = []
+    this.resolveIndex = 0
+
+    this.messages = []
+    this.messageIndex = 0
+    this.messageTimer = 0
+    this.afterMessages = 'command'
+
+    this.pendingCommand = null
+    this.menu = null
+    this.result = null
+    this.time = 0
+    this.shake = 0
+
+    this.rewardExperience = 0
+    this.rewardGold = 0
+
+    this.announce()
+  }
+
+  // spawn turns a list of monster ids into combatants, lettering duplicates so
+  // the log can tell two goblins apart.
+  spawn(monsterIds) {
+    spawned = []
+    counts = {}
+
+    for (index = 0; index < monsterIds.length(); index++) {
+      id = monsterIds[index]
+
+      total = 0
+
+      for (other = 0; other < monsterIds.length(); other++) {
+        if (monsterIds[other] == id) {
+          total = total + 1
+        }
+      }
+
+      suffix = ''
+
+      if (total > 1) {
+        seen = counts[id]
+
+        if (seen == null) {
+          seen = 0
+        }
+
+        counts[id] = seen + 1
+        suffix = ['A', 'B', 'C', 'D'][seen]
+      }
+
+      spawned.push(newMonster(id, suffix))
+    }
+
+    return spawned
+  }
+
+  announce() {
+    names = []
+
+    for (index = 0; index < this.monsters.length(); index++) {
+      names.push(this.monsters[index].name)
+    }
+
+    this.say(names.join(' and ') + ' draws near!', 'command')
+  }
+
+  // ---- messages
+
+  // say queues one message and, when it has been read, moves to `next`.
+  say(text, next) {
+    this.messages.push(text)
+    this.afterMessages = next
+    this.phase = 'message'
+    this.messageTimer = 0
+  }
+
+  // queue adds a message to the run currently being read without changing where
+  // the battle goes afterwards.
+  queue(text) {
+    this.messages.push(text)
+  }
+
+  currentMessage() {
+    if (this.messageIndex >= this.messages.length()) {
+      return null
+    }
+
+    return this.messages[this.messageIndex]
+  }
+
+  advanceMessage() {
+    this.messageIndex = this.messageIndex + 1
+
+    if (this.messageIndex < this.messages.length() and this.messages.length() > 0) {
+      this.messageTimer = 0
+
+      return null
+    }
+
+    this.messages = []
+    this.messageIndex = 0
+    this.phase = this.afterMessages
+
+    if (this.phase == 'command') {
+      this.beginCommands()
+    }
+
+    if (this.phase == 'resolve') {
+      this.resolveNext()
+    }
+  }
+
+  // ---- living combatants
+
+  livingMonsters() {
+    alive = []
+
+    for (index = 0; index < this.monsters.length(); index++) {
+      if (this.monsters[index].isAlive()) {
+        alive.push(this.monsters[index])
+      }
+    }
+
+    return alive
+  }
+
+  isOver() {
+    return this.result != null
+  }
+
+  // ---- command entry
+
+  beginCommands() {
+    this.actions = []
+    this.actorIndex = 0
+
+    for (index = 0; index < this.party.members.length(); index++) {
+      this.party.members[index].beginTurn()
+    }
+
+    this.askNextHero()
+  }
+
+  // askNextHero moves to the next hero who can act, or starts the round once
+  // every one of them has an order.
+  askNextHero() {
+    living = this.party.living()
+
+    if (this.actorIndex >= living.length()) {
+      this.startRound()
+
+      return null
+    }
+
+    this.phase = 'command'
+    this.pendingCommand = { actor: living[this.actorIndex] }
+
+    this.menu = new Menu([
+      row('Fight', 'fight', null, true),
+      row('Spell', 'spell', null, this.pendingCommand.actor.spells.length() > 0),
+      row('Item', 'item', null, this.party.usable().length() > 0),
+      row('Guard', 'guard', null, true),
+      row('Run', 'run', null, true)
+    ], { width: 190, title: this.pendingCommand.actor.name, rowHeight: 24, maxVisible: 5 })
+  }
+
+  // stepBack returns to the previous hero's command, or leaves the first hero's
+  // command alone since there is nothing behind it.
+  stepBack() {
+    if (this.actorIndex == 0) {
+      return null
+    }
+
+    this.actorIndex = this.actorIndex - 1
+
+    // Drop the order that hero already gave, since they are about to give
+    // another one.
+    kept = []
+
+    for (index = 0; index < this.actions.length() - 1; index++) {
+      kept.push(this.actions[index])
+    }
+
+    this.actions = kept
+
+    this.askNextHero()
+  }
+
+  chooseCommand(command) {
+    this.pendingCommand.kind = command
+
+    switch (command) {
+      case 'fight' { this.askTarget('enemy') }
+      case 'guard' { this.commit() }
+      case 'run' { this.commit() }
+      case 'spell' { this.askSpell() }
+      case 'item' { this.askItem() }
+    }
+  }
+
+  askSpell() {
+    this.phase = 'spell'
+
+    rows = []
+    known = this.pendingCommand.actor.spells
+
+    for (index = 0; index < known.length(); index++) {
+      spell = findSpell(known[index])
+
+      rows.push(row(
+        spell.name,
+        spell.id,
+        spell.cost.toString() + ' MP',
+        this.pendingCommand.actor.canCast(spell)
+      ))
+    }
+
+    this.menu = new Menu(rows, { width: 250, title: 'Spells', rowHeight: 24, maxVisible: 5 })
+  }
+
+  askItem() {
+    this.phase = 'item'
+
+    rows = []
+    stock = this.party.usable()
+
+    for (index = 0; index < stock.length(); index++) {
+      entry = stock[index]
+      found = findItem(entry.id)
+
+      rows.push(row(found.name, found.id, 'x' + entry.count.toString(), true))
+    }
+
+    this.menu = new Menu(rows, { width: 270, title: 'Items', rowHeight: 24, maxVisible: 5 })
+  }
+
+  // askTarget builds the target list. A spell or item aimed at the whole party
+  // needs no choice, so it commits straight away.
+  askTarget(side) {
+    if (side == 'party') {
+      this.commit()
+
+      return null
+    }
+
+    this.phase = 'target'
+
+    candidates = this.livingMonsters()
+
+    if (side == 'ally') {
+      candidates = this.party.living()
+    }
+
+    rows = []
+
+    for (index = 0; index < candidates.length(); index++) {
+      target = candidates[index]
+      detail = null
+
+      if (side == 'ally') {
+        detail = target.health.toString() + '/' + target.maxHealth.toString()
+      }
+
+      rows.push(row(target.name, target, detail, true))
+    }
+
+    this.menu = new Menu(rows, { width: 250, title: 'Target', rowHeight: 24, maxVisible: 5 })
+  }
+
+  // commit records the finished order and moves on to the next hero.
+  commit() {
+    this.actions.push(this.pendingCommand)
+    this.pendingCommand = null
+    this.actorIndex = this.actorIndex + 1
+
+    this.askNextHero()
+  }
+
+  // ---- the round
+
+  // startRound adds the monsters' orders and sorts everything by agility, so a
+  // fast monster can strike before a slow hero who chose first.
+  startRound() {
+    living = this.livingMonsters()
+
+    for (index = 0; index < living.length(); index++) {
+      this.actions.push(this.monsterAction(living[index]))
+    }
+
+    this.actions = sortByAgility(this.actions)
+    this.resolveIndex = 0
+    this.phase = 'resolve'
+
+    this.resolveNext()
+  }
+
+  // monsterAction is the whole of the monster intelligence: cast if it knows a
+  // spell, has the magic, and the dice agree, otherwise swing.
+  monsterAction(monster) {
+    monster.beginTurn()
+
+    if (monster.spells.length() > 0) {
+      spell = findSpell(monster.spells[0])
+
+      if (monster.canCast(spell) and math.random() < 0.35) {
+        return { actor: monster, kind: 'spell', spell: spell.id, target: pickRandom(this.party.living()) }
+      }
+    }
+
+    return { actor: monster, kind: 'fight', target: pickRandom(this.party.living()) }
+  }
+
+  // resolveNext performs orders in turn, skipping any whose owner has already
+  // fallen, until one produces a message to read or the round runs out.
+  resolveNext() {
+    while (this.resolveIndex < this.actions.length()) {
+      action = this.actions[this.resolveIndex]
+      this.resolveIndex = this.resolveIndex + 1
+
+      if (!action.actor.isAlive()) {
+        continue
+      }
+
+      before = this.messages.length()
+
+      this.perform(action)
+
+      if (this.checkOutcome()) {
+        return null
+      }
+
+      // An order that had nothing to report - a blow aimed at something already
+      // dead, with nothing left to hit instead - is carried straight past. Only
+      // an order that actually said something stops for the player to read it,
+      // otherwise the battle would sit on an empty window waiting to be
+      // dismissed.
+      if (this.messages.length() > before) {
+        this.afterMessages = 'resolve'
+        this.phase = 'message'
+        this.messageTimer = 0
+
+        return null
+      }
+    }
+
+    this.phase = 'command'
+
+    this.beginCommands()
+  }
+
+  perform(action) {
+    switch (action.kind) {
+      case 'fight' { this.performAttack(action) }
+      case 'guard' { this.performGuard(action) }
+      case 'run' { this.performRun(action) }
+      case 'spell' { this.performSpell(action) }
+      case 'item' { this.performItem(action) }
+    }
+  }
+
+  performAttack(action) {
+    target = action.target
+
+    // The chosen target may have fallen earlier in the round; swing at whoever
+    // is left rather than at a corpse.
+    if (target == null or !target.isAlive()) {
+      target = this.substituteTarget(action.actor)
+    }
+
+    if (target == null) {
+      return null
+    }
+
+    result = strike(action.actor, target)
+
+    target.takeDamage(result.damage)
+
+    this.sounds.play('hit')
+    this.shake = 0.18
+
+    if (result.critical) {
+      this.queue(action.actor.name + ' lands a critical hit!')
+    }
+
+    this.queue(action.actor.name + ' hits ' + target.name + ' for ' + result.damage.toString() + '.')
+
+    this.reportIfDefeated(target)
+  }
+
+  performGuard(action) {
+    action.actor.guarding = true
+
+    this.queue(action.actor.name + ' braces for the next blow.')
+  }
+
+  // performRun gives the party a chance to escape based on how fast they are
+  // next to the monsters. A failed attempt costs the turn, as it should.
+  performRun(action) {
+    partySpeed = averageAgility(this.party.living())
+    monsterSpeed = averageAgility(this.livingMonsters())
+
+    chance = 0.35 + (partySpeed - monsterSpeed) * 0.04
+
+    if (math.random() < math.clamp(chance, 0.1, 0.9)) {
+      this.result = 'fled'
+
+      this.queue('The party slips away.')
+
+      return null
+    }
+
+    this.queue(action.actor.name + ' tries to run, and fails.')
+  }
+
+  performSpell(action) {
+    spell = findSpell(action.spell)
+    caster = action.actor
+
+    if (!caster.canCast(spell)) {
+      this.queue(caster.name + ' has not the magic left.')
+
+      return null
+    }
+
+    caster.spend(spell.cost)
+
+    this.queue(caster.name + ' casts ' + spell.name + '.')
+    this.sounds.play('spell')
+
+    switch (spell.kind) {
+      case 'damage' { this.castDamage(spell, caster, action.target) }
+      case 'heal' { this.castHeal(spell, caster, action.target) }
+      case 'buff' { this.castBuff(spell, action.target) }
+    }
+  }
+
+  castDamage(spell, caster, target) {
+    if (target == null or !target.isAlive()) {
+      target = this.substituteTarget(caster)
+    }
+
+    if (target == null) {
+      return null
+    }
+
+    damage = spellDamage(spell, caster, target)
+
+    target.takeDamage(damage)
+    this.shake = 0.2
+
+    this.queue(target.name + ' takes ' + damage.toString() + '.')
+
+    this.reportIfDefeated(target)
+  }
+
+  castHeal(spell, caster, target) {
+    if (spell.target == 'party') {
+      living = this.party.living()
+
+      for (index = 0; index < living.length(); index++) {
+        restored = living[index].healBy(spell.power)
+
+        this.queue(living[index].name + ' recovers ' + restored.toString() + '.')
+      }
+
+      return null
+    }
+
+    if (target == null or !target.isAlive()) {
+      target = pickRandom(this.party.living())
+    }
+
+    if (target == null) {
+      return null
+    }
+
+    restored = target.healBy(spell.power + caster.level * 2)
+
+    this.queue(target.name + ' recovers ' + restored.toString() + '.')
+  }
+
+  castBuff(spell, target) {
+    if (target == null) {
+      target = pickRandom(this.party.living())
+    }
+
+    if (target == null) {
+      return null
+    }
+
+    target.buff = target.buff + spell.power
+
+    this.queue(target.name + ' is harder to hurt.')
+  }
+
+  performItem(action) {
+    target = action.target
+
+    if (target == null or !target.isAlive()) {
+      target = action.actor
+    }
+
+    message = this.party.useItem(action.item, target)
+
+    if (message == null) {
+      this.queue('Nothing happens.')
+
+      return null
+    }
+
+    this.sounds.play('chime')
+    this.queue(message)
+  }
+
+  // substituteTarget picks a fresh target for an order whose original has
+  // already fallen.
+  substituteTarget(actor) {
+    if (actor.isHero) {
+      return pickRandom(this.livingMonsters())
+    }
+
+    return pickRandom(this.party.living())
+  }
+
+  reportIfDefeated(target) {
+    if (target.isAlive()) {
+      return null
+    }
+
+    if (target.isHero) {
+      this.queue(target.name + ' falls.')
+
+      return null
+    }
+
+    this.queue(target.name + ' is defeated.')
+
+    this.rewardExperience = this.rewardExperience + target.experienceReward
+    this.rewardGold = this.rewardGold + target.goldReward
+  }
+
+  // checkOutcome ends the battle when one side is finished. It returns true
+  // when the battle is over, so resolution stops there.
+  checkOutcome() {
+    if (this.result == 'fled') {
+      this.afterMessages = 'over'
+      this.phase = 'message'
+
+      return true
+    }
+
+    if (this.party.isDefeated()) {
+      this.result = 'defeat'
+
+      this.queue('The party has fallen...')
+
+      this.afterMessages = 'over'
+      this.phase = 'message'
+
+      return true
+    }
+
+    if (this.livingMonsters().length() == 0) {
+      this.result = 'victory'
+
+      this.awardSpoils()
+
+      this.afterMessages = 'over'
+      this.phase = 'message'
+
+      return true
+    }
+
+    return false
+  }
+
+  awardSpoils() {
+    this.party.gold = this.party.gold + this.rewardGold
+
+    this.queue('Victory! ' + this.rewardExperience.toString() + ' experience and ' + this.rewardGold.toString() + ' gold.')
+
+    living = this.party.living()
+
+    for (index = 0; index < living.length(); index++) {
+      member = living[index]
+      levels = member.gainExperience(this.rewardExperience)
+
+      for (step = 0; step < levels.length(); step++) {
+        gain = levels[step]
+
+        this.queue(member.name + ' reaches level ' + gain.level.toString() + '!')
+      }
+    }
+  }
+
+  // ---- frame
+
+  update(dt) {
+    this.time = this.time + dt
+
+    if (this.shake > 0) {
+      this.shake = math.max(0, this.shake - dt)
+    }
+
+    for (index = 0; index < this.monsters.length(); index++) {
+      this.monsters[index].update(dt)
+    }
+
+    this.party.update(dt)
+
+    if (this.phase == 'message') {
+      this.updateMessages(dt)
+
+      return null
+    }
+
+    if (this.phase == 'over') {
+      return null
+    }
+
+    this.updateMenu()
+  }
+
+  // updateMessages lets a message be dismissed by hand, and moves on by itself
+  // after a moment so a long round does not become a button-mashing exercise.
+  updateMessages(dt) {
+    // Nothing to read means nothing to wait for.
+    if (this.currentMessage() == null) {
+      this.advanceMessage()
+
+      return null
+    }
+
+    this.messageTimer = this.messageTimer + dt
+
+    if (pressedConfirm() or pressedCancel()) {
+      this.advanceMessage()
+
+      return null
+    }
+
+    if (this.messageTimer > 1.4) {
+      this.advanceMessage()
+    }
+  }
+
+  updateMenu() {
+    if (this.menu == null) {
+      return null
+    }
+
+    action = this.menu.update()
+
+    if (action == null) {
+      return null
+    }
+
+    if (action == 'cancel') {
+      this.cancelMenu()
+
+      return null
+    }
+
+    this.sounds.play('blip')
+    this.confirmMenu()
+  }
+
+  cancelMenu() {
+    switch (this.phase) {
+      case 'command' { this.stepBack() }
+      case 'spell' { this.askNextHero() }
+      case 'item' { this.askNextHero() }
+      case 'target' { this.askNextHero() }
+    }
+  }
+
+  confirmMenu() {
+    chosen = this.menu.value()
+
+    switch (this.phase) {
+      case 'command' { this.chooseCommand(chosen) }
+      case 'spell' {
+        this.pendingCommand.spell = chosen
+
+        this.askTarget(findSpell(chosen).target)
+      }
+      case 'item' {
+        this.pendingCommand.item = chosen
+
+        this.askTarget('ally')
+      }
+      case 'target' {
+        this.pendingCommand.target = chosen
+
+        this.commit()
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Combat arithmetic
+
+// strike is an ordinary weapon blow. Defence takes off half its value rather
+// than all of it, so a well-armoured target is tough but never untouchable, and
+// a blow always lands for at least one.
+function strike(attacker, defender) {
+  power = attacker.attackPower()
+  guard = defender.defencePower() / 2
+
+  if (math.random() < 0.04) {
+    return { damage: math.max(1, math.floor(power * 1.5 * variance())), critical: true }
+  }
+
+  base = math.max(1, power - guard)
+
+  return { damage: math.max(1, math.floor(base * variance())), critical: false }
+}
+
+// spellDamage ignores armour, which is what makes a mage worth bringing against
+// something in chain mail.
+function spellDamage(spell, caster, target) {
+  base = spell.power + caster.level * 2 - target.defencePower() / 4
+
+  return math.max(1, math.floor(math.max(1, base) * variance()))
+}
+
+// variance is the roll every blow is multiplied by, so repeated attacks on the
+// same target do not read as a fixed number.
+function variance() {
+  return 0.85 + math.random() * 0.3
+}
+
+function averageAgility(group) {
+  if (group.length() == 0) {
+    return 0
+  }
+
+  total = 0
+
+  for (index = 0; index < group.length(); index++) {
+    total = total + group[index].agility
+  }
+
+  return total / group.length()
+}
+
+function pickRandom(group) {
+  if (group.length() == 0) {
+    return null
+  }
+
+  return group[math.random(0, group.length() - 1)]
+}
+
+// sortByAgility orders a round, fastest first, with a small random nudge so
+// evenly matched combatants do not always go in the same order.
+function sortByAgility(actions) {
+  scored = []
+
+  for (index = 0; index < actions.length(); index++) {
+    action = actions[index]
+
+    scored.push({ action: action, speed: action.actor.agility + math.random() * 4 })
+  }
+
+  // Insertion sort. A round is a handful of entries, and Ghost's `and` does not
+  // short-circuit, so the bounds check has to stand on its own.
+  for (i = 1; i < scored.length(); i++) {
+    current = scored[i]
+    j = i - 1
+    placed = false
+
+    while (!placed) {
+      if (j < 0) {
+        placed = true
+      } else if (scored[j].speed >= current.speed) {
+        placed = true
+      } else {
+        scored[j + 1] = scored[j]
+        j = j - 1
+      }
+    }
+
+    scored[j + 1] = current
+  }
+
+  ordered = []
+
+  for (index = 0; index < scored.length(); index++) {
+    ordered.push(scored[index].action)
+  }
+
+  return ordered
+}

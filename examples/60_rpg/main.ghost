@@ -1,33 +1,39 @@
 // A small top-down RPG built with nothing but Lumen and Ghost.
 //
 //   move        arrow keys / WASD / gamepad stick or d-pad
-//   interact    space or E (gamepad A)
-//   pack        tab
-//   save/load   F5 / F9
-//   mute        M
-//   fullscreen  F11
-//   quit        escape
+//   confirm     space or E (gamepad A)     - talk, choose a menu entry
+//   cancel      escape or Q (gamepad B)    - go back one step
+//   menu        tab                        - pack, equipment, status, save
+//   debug       F1        fullscreen  F11        mute  M
+//   quit        escape, from the world with no menu open
 //
 // Ghost scopes assignment to the function it happens in, so a bare `total = 1`
 // inside update() makes a new local rather than changing a global. Everything
 // that has to persist between frames therefore lives on `game`, a map, or on a
 // class instance.
 
+import * from 'data'
+import * from 'ui'
+import Battle from 'battle'
+import BattleView from 'battleview'
 import Camera from 'camera'
 import Dialogue from 'dialogue'
+import FieldMenu from 'fieldmenu'
 import Hud from 'hud'
 import Npc from 'npc'
+import Party from 'party'
 import Player from 'player'
 import Sounds from 'sounds'
 import Spritesheet from 'spritesheet'
 import Tilemap from 'tilemap'
 
 game = {
-  paused: false,
+  mode: 'field',
   showDebug: false,
   message: '',
   messageTime: 0,
-  fade: 1
+  fade: 1,
+  encounterAt: 240
 }
 
 function load() {
@@ -35,23 +41,33 @@ function load() {
   window.setMode(800, 600)
   filesystem.setIdentity('lumen-rpg')
 
-  game.font = font.system(20)
-  game.smallFont = font.system(16)
+  game.fonts = { body: font.system(20), small: font.system(16) }
 
-  game.sounds = new Sounds(['blip', 'step', 'chime'])
+  game.sounds = new Sounds(['blip', 'step', 'chime', 'hit', 'spell', 'fanfare'])
   game.sounds.setVolume(0.7)
 
   // Trees and water block movement; everything else is walkable.
   game.map = new Tilemap('resources/map.json', ['Trees', 'Water'])
 
   game.characters = new Spritesheet('resources/characters.png', 16, 16)
-  game.player = new Player(game.characters, 25, 25, game.map.tileSize)
+
+  game.party = new Party(['aldric', 'sera', 'nell'])
+  game.party.add('herb', 3)
+  game.party.add('tonic', 1)
+  game.party.add('leather', 1)
+  game.party.add('buckler', 1)
+
+  game.player = new Player(game.characters, 25, 25, game.map.tileSize, findHero('aldric').character)
+  game.spawn = { x: game.player.x, y: game.player.y }
 
   game.camera = new Camera(3)
   game.camera.setBounds(game.map.pixelWidth, game.map.pixelHeight)
 
-  game.dialogue = new Dialogue(game.font)
-  game.hud = new Hud(game.font, game.smallFont)
+  game.dialogue = new Dialogue(game.fonts.body)
+  game.hud = new Hud(game.fonts.body, game.fonts.small)
+  game.fieldMenu = new FieldMenu(game.party, game.fonts, game.sounds)
+  game.battleView = new BattleView(game.characters, game.fonts)
+  game.battle = null
 
   game.npcs = buildNpcs(game.characters, game.map.tileSize)
 
@@ -68,8 +84,8 @@ function buildNpcs(sheet, tileSize) {
       gives: null,
       lines: [
         'You must be the one from the coast road. We do not get many visitors this far in.',
-        'Mind the trees to the north. Easy to lose an afternoon in there.',
-        'If you find anything shiny, it is probably not mine.'
+        'Mind the long grass. Things live in it that would rather you did not walk through.',
+        'Press tab if you want to check your pack. Everyone forgets.'
       ]
     }),
     new Npc(sheet, 29, 27, tileSize, {
@@ -79,39 +95,62 @@ function buildNpcs(sheet, tileSize) {
       lines: [
         'Forty years I have walked this map and never once found the edge of it.',
         'That is because there is no edge. Only a wall you cannot see.',
-        'Press tab if you want to check your pack. Everyone forgets.'
+        'If a fight turns badly, guard and let the cleric work. Dying is expensive.'
       ]
     }),
     new Npc(sheet, 27, 21, tileSize, {
       name: 'Bram',
       frame: 24,
-      gives: 'Brass key',
+      gives: 'copper',
       lines: [
-        'Here. My grandfather left me this and I have never found the lock.',
-        'Maybe you will have better luck than I did.'
+        'Here. My grandfather left me this and I have never once drawn it in anger.',
+        'Put it on someone who will. Check the equip screen.'
       ]
     }),
     new Npc(sheet, 21, 30, tileSize, {
       name: 'Elsie',
       frame: 36,
-      gives: 'Waterlogged map',
+      gives: 'elixir',
       lines: [
-        'Pulled this out of the shallows last spring. Half the ink ran off.',
-        'Take it. It is no use to anyone who already knows the way.'
+        'Pulled this out of the shallows last spring. Still sealed, somehow.',
+        'Save it. You will know the moment when it comes.'
       ]
     })
   ]
 }
 
+// =============================================================================
+// Frame
+
 function update(dt) {
-  // The fade is driven even while paused so the opening fade-in always finishes.
+  // The fade is driven in every mode so the opening fade-in always finishes.
   game.fade = math.max(0, game.fade - dt * 1.5)
 
   if (game.messageTime > 0) {
     game.messageTime = math.max(0, game.messageTime - dt)
   }
 
-  if (game.paused or game.hud.inventoryOpen) {
+  if (game.mode == 'battle') {
+    updateBattle(dt)
+
+    return null
+  }
+
+  updateField(dt)
+}
+
+function updateField(dt) {
+  game.fieldMenu.update(dt)
+
+  if (game.fieldMenu.saveRequested) {
+    game.fieldMenu.saveRequested = false
+
+    saveGame()
+  }
+
+  game.party.update(dt)
+
+  if (game.fieldMenu.open) {
     return null
   }
 
@@ -129,22 +168,155 @@ function update(dt) {
 
   game.camera.update(dt)
   game.camera.follow(game.player, dt)
+
+  checkEncounter()
 }
 
-// keypressed fires once per physical press, which is what menus and dialogue
-// want. Holding a key down does not repeat it here.
+function updateBattle(dt) {
+  game.battle.update(dt)
+
+  // The battle stays on its closing message until it has been read; only then
+  // does the world come back.
+  if (game.battle.phase == 'over') {
+    if (game.battle.currentMessage() == null) {
+      endBattle()
+    }
+  }
+}
+
+// =============================================================================
+// Encounters
+
+// checkEncounter rolls once the player has walked far enough. Using distance
+// rather than a timer means standing still is safe, which is what makes a town
+// or a corner feel like a place to stop and think.
+function checkEncounter() {
+  if (game.player.walked < game.encounterAt) {
+    return null
+  }
+
+  game.player.walked = 0
+  game.encounterAt = math.random(160, 420)
+
+  startBattle(rollEncounter())
+}
+
+// rollEncounter picks a group by weight from those the party is strong enough
+// to meet. A weight table is far easier to tune than a chain of thresholds, and
+// filtering by level first means a new party never draws a late-game group.
+function rollEncounter() {
+  level = averagePartyLevel()
+
+  available = []
+  total = 0
+
+  for (index = 0; index < encounters.length(); index++) {
+    group = encounters[index]
+
+    if (group.level > level) {
+      continue
+    }
+
+    available.push(group)
+    total = total + group.weight
+  }
+
+  if (available.length() == 0) {
+    return encounters[0].monsters
+  }
+
+  roll = math.random() * total
+
+  for (index = 0; index < available.length(); index++) {
+    roll = roll - available[index].weight
+
+    if (roll <= 0) {
+      return available[index].monsters
+    }
+  }
+
+  return available[0].monsters
+}
+
+function averagePartyLevel() {
+  total = 0
+
+  for (index = 0; index < game.party.members.length(); index++) {
+    total = total + game.party.members[index].level
+  }
+
+  return total / game.party.members.length()
+}
+
+function startBattle(monsterIds) {
+  game.mode = 'battle'
+  game.dialogue.active = false
+
+  game.battle = new Battle(game.party, monsterIds, game.fonts, game.sounds)
+}
+
+// endBattle returns to the world, handling the three ways a fight can finish.
+function endBattle() {
+  outcome = game.battle.result
+
+  game.battle = null
+  game.mode = 'field'
+  game.fade = 0.7
+  game.player.walked = 0
+
+  if (outcome == 'victory') {
+    game.sounds.play('fanfare')
+
+    return null
+  }
+
+  if (outcome == 'defeat') {
+    // Losing costs half the purse and sends the party back where they started,
+    // which is the traditional bargain: a setback, never a lost save.
+    game.party.gold = math.floor(game.party.gold / 2)
+    game.party.restAll()
+
+    game.player.x = game.spawn.x
+    game.player.y = game.spawn.y
+
+    notify('The party wakes where they began. Half the purse is gone.')
+  }
+}
+
+// =============================================================================
+// Input
+
+// keypressed fires once per physical press. Menus and battles poll the shared
+// helpers in ui.ghost instead, so this only handles what is global or what
+// belongs to walking around.
 function keypressed(key) {
   switch (key) {
-    case 'Escape' { handleEscape() }
-    case 'Tab' { game.hud.toggleInventory() }
-    case 'Space' { interact() }
-    case 'E' { interact() }
     case 'F1' { game.showDebug = !game.showDebug }
     case 'F5' { saveGame() }
     case 'F9' { loadGame() }
     case 'F11' { window.toggleFullscreen() }
     case 'M' { toggleSound() }
   }
+
+  if (game.mode == 'battle') {
+    return null
+  }
+
+  switch (key) {
+    case 'Tab' { toggleMenu() }
+    case 'Escape' { handleEscape() }
+    case 'Space' { interact() }
+    case 'E' { interact() }
+  }
+}
+
+function toggleMenu() {
+  if (game.dialogue.active) {
+    return null
+  }
+
+  game.sounds.play('blip')
+  game.fieldMenu.toggle()
 }
 
 function handleEscape() {
@@ -154,9 +326,9 @@ function handleEscape() {
     return null
   }
 
-  if (game.hud.inventoryOpen) {
-    game.hud.toggleInventory()
-
+  // The field menu handles its own cancel key, so escape only quits from a
+  // world with nothing open on top of it.
+  if (game.fieldMenu.open) {
     return null
   }
 
@@ -171,29 +343,38 @@ function toggleSound() {
   }
 }
 
-// wheelmoved scrolls the pack when it is open.
 function wheelmoved(x, y) {
-  if (game.hud.inventoryOpen) {
-    game.hud.scrollBy(-y * 26)
-  }
+  //
 }
 
-// Gamepad buttons are polled rather than delivered as events, so the confirm
-// button is checked here where a press can be detected as an edge.
+// Gamepad buttons are polled rather than delivered as events, so the field
+// confirm is checked here where a press can be seen as an edge.
 function gamepadCheck() {
+  if (game.mode == 'battle') {
+    return null
+  }
+
+  if (game.fieldMenu.open) {
+    return null
+  }
+
   if (joystick.isConnected(1) and joystick.wasPressed(1, 'a')) {
     interact()
+  }
+
+  if (joystick.isConnected(1) and joystick.wasPressed(1, 'start')) {
+    toggleMenu()
   }
 }
 
 function interact() {
-  if (game.dialogue.active) {
-    game.dialogue.advance(game.sounds)
-
+  if (game.fieldMenu.open) {
     return null
   }
 
-  if (game.paused or game.hud.inventoryOpen) {
+  if (game.dialogue.active) {
+    game.dialogue.advance(game.sounds)
+
     return null
   }
 
@@ -207,17 +388,16 @@ function interact() {
   game.dialogue.start(npc.name, npc.talk())
   game.sounds.play('blip')
 
-  // A chest hands over its contents the first time it is opened.
+  // A giver hands its item over the first time it is spoken to.
   if (npc.gives != null and !npc.given) {
     npc.given = true
 
-    game.player.items.push(npc.gives)
-    game.player.coins = game.player.coins + 5
+    game.party.add(npc.gives, 1)
+    game.party.gold = game.party.gold + 15
 
     game.sounds.play('chime')
-    game.camera.knock(2, 0.2)
 
-    notify('Found ' + npc.gives)
+    notify('Received ' + findItem(npc.gives).name)
   }
 }
 
@@ -256,9 +436,7 @@ function saveGame() {
     x: game.player.x,
     y: game.player.y,
     facing: game.player.facing,
-    health: game.player.health,
-    coins: game.player.coins,
-    items: game.player.items,
+    party: game.party.toSave(),
     opened: opened
   }))
 
@@ -280,9 +458,8 @@ function loadGame() {
   game.player.x = save.x
   game.player.y = save.y
   game.player.facing = save.facing
-  game.player.health = save.health
-  game.player.coins = save.coins
-  game.player.items = save.items
+
+  game.party.loadSave(save.party)
 
   for (index = 0; index < game.npcs.length(); index++) {
     game.npcs[index].given = false
@@ -302,23 +479,33 @@ function loadGame() {
 function draw() {
   gamepadCheck()
 
+  if (game.mode == 'battle') {
+    game.battleView.draw(game.battle)
+
+    drawNotification()
+    drawFade()
+
+    return null
+  }
+
   // World, seen through the camera.
   game.camera.attach()
 
   game.map.draw(game.camera.visibleTiles(game.map.tileSize))
 
   drawInteractionHint()
-
-  // Characters are drawn back to front so someone standing lower on the screen
-  // overlaps someone standing higher, which reads as depth.
   drawSortedCharacters()
 
   game.camera.detach()
 
-  // Interface, in screen space.
-  game.hud.draw(game.player, game.showDebug)
-  game.hud.drawInventory(game.player)
+  // Interface, in screen space. The field menu dims the world and draws its own
+  // party strip, so the walking-around HUD steps out of its way.
+  if (!game.fieldMenu.open) {
+    game.hud.draw(game.party, game.showDebug)
+  }
+
   game.dialogue.draw()
+  game.fieldMenu.draw()
 
   drawNotification()
   drawFade()
@@ -368,6 +555,10 @@ function drawInteractionHint() {
     return null
   }
 
+  if (game.fieldMenu.open) {
+    return null
+  }
+
   point = game.player.facingPoint()
   npc = nearestNpc(point.x, point.y, 14)
 
@@ -390,9 +581,9 @@ function drawNotification() {
     return null
   }
 
-  canvas.setFont(game.font)
+  canvas.setFont(game.fonts.body)
 
-  width = game.font.getWidth(game.message) + 32
+  width = game.fonts.body.getWidth(game.message) + 32
   x = (window.width - width) / 2
 
   // The banner fades out over its last half second rather than vanishing.

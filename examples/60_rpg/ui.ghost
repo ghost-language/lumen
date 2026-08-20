@@ -1,0 +1,385 @@
+// Shared interface pieces: the framed window every panel sits in, a list menu
+// with a cursor, and the input helpers both use. Keeping them here means the
+// field menu, the battle, and the shop all behave the same way under the hands.
+
+// theme is the one place colours are decided.
+theme = {
+  panel: color.rgb(14, 16, 30, 0.94),
+  border: color.rgb(120, 150, 220),
+  text: color.white,
+  dim: color.rgb(140, 148, 175),
+  accent: color.rgb(255, 214, 102),
+  good: color.rgb(120, 214, 130),
+  bad: color.rgb(232, 96, 96),
+  shadow: color.rgb(0, 0, 0, 0.45)
+}
+
+// drawPanel draws the bordered box behind every menu, with a soft drop shadow so
+// panels read as sitting above the world rather than painted onto it.
+function drawPanel(x, y, width, height) {
+  canvas.setColor(theme.shadow)
+  canvas.filledRectangle(x + 4, y + 5, width, height)
+
+  canvas.setColor(theme.panel)
+  canvas.filledRectangle(x, y, width, height)
+
+  canvas.setColor(theme.border)
+  canvas.setLineWidth(2)
+  canvas.rectangle(x, y, width, height)
+}
+
+// drawBar is the health and magic gauge used in menus and in battle.
+function drawBar(x, y, width, height, fraction, fill) {
+  canvas.setColor(color.rgb(40, 44, 60))
+  canvas.filledRectangle(x, y, width, height)
+
+  filled = math.max(0, math.min(1, fraction)) * width
+
+  if (filled > 0) {
+    canvas.setColor(fill)
+    canvas.filledRectangle(x, y, filled, height)
+  }
+
+  canvas.setColor(color.rgb(10, 12, 20))
+  canvas.setLineWidth(1)
+  canvas.rectangle(x, y, width, height)
+}
+
+// barColor shifts a health bar from green through amber to red, which tells the
+// player how much trouble they are in without them reading a number.
+function barColor(fraction) {
+  if (fraction > 0.5) {
+    return theme.good
+  }
+
+  if (fraction > 0.25) {
+    return theme.accent
+  }
+
+  return theme.bad
+}
+
+// ---------------------------------------------------------------------------
+// Input
+//
+// Menus are driven through these rather than reading the keyboard directly, so
+// every menu in the game accepts the same keys and the same gamepad buttons.
+
+function pressedUp() {
+  if (keyboard.wasPressed('up', 'w')) { return true }
+
+  return joystick.isConnected(1) and joystick.wasPressed(1, 'dpup')
+}
+
+function pressedDown() {
+  if (keyboard.wasPressed('down', 's')) { return true }
+
+  return joystick.isConnected(1) and joystick.wasPressed(1, 'dpdown')
+}
+
+function pressedLeft() {
+  if (keyboard.wasPressed('left', 'a')) { return true }
+
+  return joystick.isConnected(1) and joystick.wasPressed(1, 'dpleft')
+}
+
+function pressedRight() {
+  if (keyboard.wasPressed('right', 'd')) { return true }
+
+  return joystick.isConnected(1) and joystick.wasPressed(1, 'dpright')
+}
+
+function pressedConfirm() {
+  if (keyboard.wasPressed('space', 'return', 'e')) { return true }
+
+  return joystick.isConnected(1) and joystick.wasPressed(1, 'a')
+}
+
+function pressedCancel() {
+  if (keyboard.wasPressed('escape', 'backspace', 'q')) { return true }
+
+  return joystick.isConnected(1) and joystick.wasPressed(1, 'b')
+}
+
+// ---------------------------------------------------------------------------
+// Menu
+
+// A Menu is a list of rows with a cursor. Rows are maps of
+// { label, detail, enabled, value }: `label` is drawn on the left, `detail` on
+// the right, `value` is what the caller gets back on confirm, and a row that is
+// not enabled is greyed out and skipped by the cursor.
+class Menu {
+  constructor(rows, config) {
+    this.rows = rows
+    this.index = 0
+    this.columns = 1
+    this.rowHeight = 26
+    this.width = 220
+    this.title = ''
+    this.maxVisible = 8
+    this.scroll = 0
+
+    if (config != null) {
+      if (config.columns != null) { this.columns = config.columns }
+      if (config.width != null) { this.width = config.width }
+      if (config.title != null) { this.title = config.title }
+      if (config.rowHeight != null) { this.rowHeight = config.rowHeight }
+      if (config.maxVisible != null) { this.maxVisible = config.maxVisible }
+    }
+
+    this.moveToEnabled(1)
+  }
+
+  setRows(rows) {
+    this.rows = rows
+    this.index = 0
+    this.scroll = 0
+
+    this.moveToEnabled(1)
+  }
+
+  // visibleLines is how many rows fit at once. A list longer than this scrolls
+  // rather than growing a panel past the bottom of the screen.
+  visibleLines() {
+    lines = math.ceil(this.rows.length() / this.columns)
+
+    return math.min(lines, this.maxVisible)
+  }
+
+  // keepInView slides the window so the cursor is always on screen.
+  keepInView() {
+    line = math.floor(this.index / this.columns)
+    visible = this.visibleLines()
+
+    if (line < this.scroll) {
+      this.scroll = line
+    }
+
+    if (line >= this.scroll + visible) {
+      this.scroll = line - visible + 1
+    }
+
+    maximum = math.ceil(this.rows.length() / this.columns) - visible
+
+    this.scroll = math.max(0, math.min(this.scroll, math.max(0, maximum)))
+  }
+
+  isEmpty() {
+    return this.rows.length() == 0
+  }
+
+  current() {
+    if (this.isEmpty()) {
+      return null
+    }
+
+    return this.rows[this.index]
+  }
+
+  value() {
+    row = this.current()
+
+    if (row == null) {
+      return null
+    }
+
+    return row.value
+  }
+
+  // moveToEnabled walks in the given direction until it lands on a selectable
+  // row, so a menu whose first entry is greyed out still opens on something the
+  // player can choose.
+  moveToEnabled(direction) {
+    if (this.isEmpty()) {
+      return null
+    }
+
+    steps = 0
+
+    while (steps < this.rows.length()) {
+      row = this.rows[this.index]
+
+      if (row.enabled != false) {
+        return null
+      }
+
+      this.index = this.wrap(this.index + direction)
+      steps = steps + 1
+    }
+  }
+
+  wrap(index) {
+    count = this.rows.length()
+
+    if (index < 0) {
+      return count - 1
+    }
+
+    if (index >= count) {
+      return 0
+    }
+
+    return index
+  }
+
+  moveBy(delta) {
+    if (this.isEmpty()) {
+      return null
+    }
+
+    direction = 1
+
+    if (delta < 0) {
+      direction = -1
+    }
+
+    this.index = this.wrap(this.index + delta)
+
+    this.moveToEnabled(direction)
+    this.keepInView()
+  }
+
+  // update reads the shared input helpers and returns 'confirm', 'cancel', or
+  // null. Movement is handled internally.
+  update() {
+    if (pressedUp()) { this.moveBy(-this.columns) }
+    if (pressedDown()) { this.moveBy(this.columns) }
+
+    if (this.columns > 1) {
+      if (pressedLeft()) { this.moveBy(-1) }
+      if (pressedRight()) { this.moveBy(1) }
+    }
+
+    if (pressedConfirm()) {
+      row = this.current()
+
+      if (row != null and row.enabled != false) {
+        return 'confirm'
+      }
+    }
+
+    if (pressedCancel()) {
+      return 'cancel'
+    }
+
+    return null
+  }
+
+  height() {
+    rowCount = this.visibleLines()
+
+    if (rowCount < 1) {
+      rowCount = 1
+    }
+
+    extra = 24
+
+    if (this.title != '') {
+      extra = extra + 30
+    }
+
+    return rowCount * this.rowHeight + extra
+  }
+
+  draw(x, y, activeFont) {
+    canvas.setFont(activeFont)
+
+    drawPanel(x, y, this.width, this.height())
+
+    top = y + 12
+
+    if (this.title != '') {
+      canvas.setColor(theme.accent)
+      canvas.print(this.title, x + 16, top)
+
+      canvas.setColor(color.rgb(70, 88, 128))
+      canvas.line(x + 14, top + 26, x + this.width - 14, top + 26)
+
+      top = top + 32
+    }
+
+    if (this.isEmpty()) {
+      canvas.setColor(theme.dim)
+      canvas.print('- nothing -', x + 20, top)
+
+      canvas.resetFont()
+
+      return null
+    }
+
+    columnWidth = (this.width - 24) / this.columns
+    visible = this.visibleLines()
+
+    for (index = 0; index < this.rows.length(); index++) {
+      row = this.rows[index]
+
+      column = index % this.columns
+      line = math.floor(index / this.columns)
+
+      // Rows outside the scrolled window are skipped entirely.
+      if (line < this.scroll) {
+        continue
+      }
+
+      if (line >= this.scroll + visible) {
+        continue
+      }
+
+      rowX = x + 14 + column * columnWidth
+      rowY = top + (line - this.scroll) * this.rowHeight
+
+      if (index == this.index) {
+        canvas.setColor(color.rgb(52, 66, 110))
+        canvas.filledRectangle(rowX - 2, rowY - 3, columnWidth - 4, this.rowHeight - 2)
+
+        canvas.setColor(theme.accent)
+        canvas.print('>', rowX, rowY)
+      }
+
+      canvas.setColor(theme.text)
+
+      if (row.enabled == false) {
+        canvas.setColor(theme.dim)
+      }
+
+      canvas.print(row.label, rowX + 16, rowY)
+
+      if (row.detail != null) {
+        canvas.setColor(theme.dim)
+        canvas.print(row.detail, rowX + columnWidth - 12 - activeFont.getWidth(row.detail), rowY)
+      }
+    }
+
+    this.drawScrollMarks(x, top, visible)
+
+    canvas.resetFont()
+  }
+
+  // drawScrollMarks hints that there is more above or below the window.
+  drawScrollMarks(x, top, visible) {
+    lines = math.ceil(this.rows.length() / this.columns)
+
+    if (lines <= visible) {
+      return null
+    }
+
+    middle = x + this.width / 2
+
+    if (this.scroll > 0) {
+      canvas.setColor(theme.dim)
+      canvas.filledPolygon(middle - 5, top - 6, middle + 5, top - 6, middle, top - 12)
+    }
+
+    if (this.scroll + visible < lines) {
+      bottom = top + visible * this.rowHeight + 4
+
+      canvas.setColor(theme.dim)
+      canvas.filledPolygon(middle - 5, bottom, middle + 5, bottom, middle, bottom + 6)
+    }
+  }
+}
+
+// row builds a menu row. Only the label is required.
+function row(label, value, detail, enabled) {
+  return { label: label, value: value, detail: detail, enabled: enabled }
+}

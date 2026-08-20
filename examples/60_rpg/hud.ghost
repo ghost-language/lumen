@@ -1,29 +1,19 @@
-// The heads-up display and the inventory panel. Everything here draws in screen
-// space, after the camera has been detached.
+import * from 'ui'
+
+// The field heads-up display: the party's health at a glance, the purse, and an
+// optional debug readout. The inventory now lives in the field menu, so this is
+// only what should stay on screen while walking around.
 class Hud {
   constructor(bodyFont, labelFont) {
     this.font = bodyFont
     this.smallFont = labelFont
-    this.inventoryOpen = false
-    this.scroll = 0
   }
 
-  toggleInventory() {
-    this.inventoryOpen = !this.inventoryOpen
-    this.scroll = 0
+  draw(party, showDebug) {
+    canvas.setFont(this.smallFont)
 
-    return this.inventoryOpen
-  }
-
-  scrollBy(amount) {
-    this.scroll = math.max(0, this.scroll + amount)
-  }
-
-  draw(player, showDebug) {
-    canvas.setFont(this.font)
-
-    this.drawHearts(player)
-    this.drawCoins(player)
+    this.drawParty(party)
+    this.drawGold(party)
 
     if (showDebug) {
       this.drawDebug()
@@ -32,98 +22,53 @@ class Hud {
     canvas.resetFont()
   }
 
-  drawHearts(player) {
-    x = 20
-    y = 18
+  // drawParty is a compact stack of name-and-bar rows in the top-left corner.
+  drawParty(party) {
+    width = 168
+    rowHeight = 34
 
-    for (index = 0; index < player.maxHealth; index++) {
-      filled = index < player.health
+    drawPanel(14, 14, width, party.members.length() * rowHeight + 16)
 
-      if (filled) {
-        canvas.setColor(color.rgb(224, 72, 88))
-      } else {
-        canvas.setColor(color.rgb(60, 40, 48))
+    for (index = 0; index < party.members.length(); index++) {
+      member = party.members[index]
+      y = 22 + index * rowHeight
+
+      nameColor = theme.text
+
+      if (!member.isAlive()) {
+        nameColor = theme.bad
       }
 
-      canvas.filledCircle(x + index * 20, y, 7)
+      canvas.setColor(nameColor)
+      canvas.print(member.name, 26, y)
 
-      canvas.setColor(color.rgb(20, 16, 24))
-      canvas.setLineWidth(2)
-      canvas.circle(x + index * 20, y, 7)
+      canvas.setColor(theme.dim)
+      health = member.health.toString()
+      canvas.print(health, 168 - this.smallFont.getWidth(health), y)
+
+      fraction = member.healthFraction()
+
+      drawBar(26, y + 20, 128, 5, fraction, barColor(fraction))
     }
   }
 
-  drawCoins(player) {
-    canvas.setColor(color.rgb(240, 200, 72))
-    canvas.filledCircle(24, 46, 7)
+  drawGold(party) {
+    y = 14 + party.members.length() * 34 + 24
+
+    canvas.setColor(theme.accent)
+    canvas.filledCircle(26, y + 8, 7)
 
     canvas.setColor(color.rgb(150, 110, 20))
     canvas.setLineWidth(2)
-    canvas.circle(24, 46, 7)
+    canvas.circle(26, y + 8, 7)
 
-    canvas.setColor(color.white)
-    canvas.print(player.coins.toString(), 40, 36)
+    canvas.setColor(theme.text)
+    canvas.print(party.gold.toString(), 42, y)
   }
 
   drawDebug() {
-    canvas.setFont(this.smallFont)
-    canvas.setColor(color.rgb(160, 220, 160))
-
-    canvas.print('fps ' + window.fps.toString(), window.width - 90, 16)
-    canvas.print('dt  ' + (timer.averageDelta * 1000).round(1).toString() + 'ms', window.width - 90, 34)
-
-    canvas.setFont(this.font)
-  }
-
-  // drawInventory clips the item list to the panel with a scissor, so a long
-  // list scrolls inside the box instead of spilling over the rest of the screen.
-  drawInventory(player) {
-    if (!this.inventoryOpen) {
-      return null
-    }
-
-    width = 280
-    height = 220
-    x = (window.width - width) / 2
-    y = (window.height - height) / 2
-
-    canvas.setColor(color.rgb(12, 14, 26, 0.94))
-    canvas.filledRectangle(x, y, width, height)
-
-    canvas.setColor(color.rgb(120, 150, 220))
-    canvas.setLineWidth(2)
-    canvas.rectangle(x, y, width, height)
-
-    canvas.setFont(this.font)
-    canvas.setColor(color.yellow)
-    canvas.print('Pack', x + 18, y + 12)
-
-    canvas.setColor(color.rgb(70, 90, 130))
-    canvas.line(x + 18, y + 40, x + width - 18, y + 40)
-
-    listTop = y + 50
-    listHeight = height - 68
-
-    canvas.setScissor(x + 12, listTop, width - 24, listHeight)
-
-    if (player.items.length() == 0) {
-      canvas.setColor(color.rgb(130, 130, 150))
-      canvas.print('Nothing yet.', x + 18, listTop + 4)
-    }
-
-    for (index = 0; index < player.items.length(); index++) {
-      itemY = listTop + index * 26 - this.scroll
-
-      canvas.setColor(color.white)
-      canvas.print('- ' + player.items[index], x + 18, itemY)
-    }
-
-    canvas.clearScissor()
-
-    canvas.setFont(this.smallFont)
-    canvas.setColor(color.rgb(150, 160, 190))
-    canvas.print('tab to close', x + 18, y + height - 26)
-
-    canvas.resetFont()
+    canvas.setColor(theme.good)
+    canvas.print('fps ' + window.fps.toString(), window.width - 96, 16)
+    canvas.print('dt  ' + (timer.averageDelta * 1000).round(1).toString() + 'ms', window.width - 96, 34)
   }
 }
