@@ -1,10 +1,10 @@
 class Spritesheet {
-  function constructor(path, size) {
+  constructor(path, size) {
     this.sprite = image.load(path)
     this.size = size
   }
 
-  function draw(x, y, frame) {
+  draw(x, y, frame) {
     columns = this.sprite.getWidth() / this.size
     
     sx = (frame % columns) * this.size
@@ -14,7 +14,7 @@ class Spritesheet {
   }
 }
 
-spritesheet = Spritesheet.new('resources/tilemap.png', 16)
+spritesheet = new Spritesheet('resources/tilemap.png', 16)
 
 function draw() {
   canvas.scale(6)

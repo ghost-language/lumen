@@ -1,57 +1,55 @@
 package modules
 
 import (
+	"path/filepath"
+
 	"ghostlang.org/x/ghost/library/modules"
 	"ghostlang.org/x/ghost/object"
 	"ghostlang.org/x/ghost/token"
 	"ghostlang.org/x/lumen/engine"
-	"github.com/veandco/go-sdl2/img"
 )
 
 var ImageMethods = map[string]*object.LibraryFunction{}
 var ImageProperties = map[string]*object.LibraryProperty{}
 
 func init() {
-	// Methods
 	modules.RegisterMethod(ImageMethods, "load", imageLoadMethod)
-
-	// Properties
-	// modules.RegisterProperty(ImageProperties, "fps", windowFpsProperty)
+	modules.RegisterMethod(ImageMethods, "newQuad", imageNewQuadMethod)
 }
 
+// imageLoadMethod loads an image relative to the game's source directory.
 func imageLoadMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
-	if len(args) != 1 {
-		return object.NewError("wrong number of arguments. got=%d, want=1", len(args))
+	if err := arity("image.load", tok, args, 1); err != nil {
+		return err
 	}
 
-	image := new(engine.Image)
-
-	image.Path = engine.Lumen.Ghost.GetDirectory() + "/" + args[0].String()
-	image.BlendMode = 1
-	surface, err := img.Load(image.Path)
+	path, err := text("image.load", tok, args, 0)
 
 	if err != nil {
-		return object.NewError("could not load image: %s", err.Error())
+		return err
 	}
 
-	image.Surface = surface
+	image, loadErr := engine.NewImage(resolvePath(path))
 
-	texture, err := engine.Lumen.Renderer.CreateTextureFromSurface(image.Surface)
-
-	if err != nil {
-		return object.NewError("could not create texture from surface: %s", err.Error())
+	if loadErr != nil {
+		return object.NewError("%d:%d: runtime error: image.load() could not load %s: %s", tok.Line, tok.Column, path, loadErr)
 	}
-
-	image.Texture = texture
-	image.Width = image.Surface.W
-	image.Height = image.Surface.H
-
-	// Add image reference to resource manager
-	engine.Lumen.RegisterResource(image.Path, image)
 
 	return image
 }
 
-// func windowFpsProperty(scope *object.Scope, tok token.Token) object.Object {
-// 	return &object.Number{Value: decimal.NewFromInt(int64(engine.Lumen.CurrentFps))}
-// }
+// imageNewQuadMethod is an alias for canvas.newQuad(), kept here so spritesheet
+// code that already reaches for the image module does not have to switch.
+func imageNewQuadMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	return canvasNewQuadMethod(scope, tok, args...)
+}
+
+// resolvePath turns a game-relative asset path into an absolute one. Absolute
+// paths are left alone so a game can load from anywhere it likes.
+func resolvePath(path string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
+
+	return filepath.Join(engine.Lumen.Ghost.GetDirectory(), path)
+}

@@ -1,9 +1,9 @@
 import World from 'world'
 
-world = World.new()
+world = new World()
 
 function load() {
-  window.title("Conway's Game of Life")
+  window.setTitle("Conway's Game of Life")
   
   world.load()
 }

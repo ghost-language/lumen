@@ -1,16 +1,16 @@
 import Spritesheet from 'spritesheet'
 
 class Map {
-  function constructor(spritesheet, size) {
+  constructor(spritesheet, size) {
     this.layers = []
-    this.spritesheet = Spritesheet.new(spritesheet, size)
+    this.spritesheet = new Spritesheet(spritesheet, size)
   }
 
-  function addLayer(layer) {
+  addLayer(layer) {
     this.layers.push(layer)
   }
 
-  function draw() {
+  draw() {
     for (i = 0; i < this.layers.length(); i++) {
       for (row = 0; row < this.layers[i].length(); row++) {
         for (col = 0; col < this.layers[i][row].length(); col++) {

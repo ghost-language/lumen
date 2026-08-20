@@ -1,0 +1,417 @@
+// A small top-down RPG built with nothing but Lumen and Ghost.
+//
+//   move        arrow keys / WASD / gamepad stick or d-pad
+//   interact    space or E (gamepad A)
+//   pack        tab
+//   save/load   F5 / F9
+//   mute        M
+//   fullscreen  F11
+//   quit        escape
+//
+// Ghost scopes assignment to the function it happens in, so a bare `total = 1`
+// inside update() makes a new local rather than changing a global. Everything
+// that has to persist between frames therefore lives on `game`, a map, or on a
+// class instance.
+
+import Camera from 'camera'
+import Dialogue from 'dialogue'
+import Hud from 'hud'
+import Npc from 'npc'
+import Player from 'player'
+import Sounds from 'sounds'
+import Spritesheet from 'spritesheet'
+import Tilemap from 'tilemap'
+
+game = {
+  paused: false,
+  showDebug: false,
+  message: '',
+  messageTime: 0,
+  fade: 1
+}
+
+function load() {
+  window.setTitle('Lumen RPG')
+  window.setMode(800, 600)
+  filesystem.setIdentity('lumen-rpg')
+
+  game.font = font.system(20)
+  game.smallFont = font.system(16)
+
+  game.sounds = new Sounds(['blip', 'step', 'chime'])
+  game.sounds.setVolume(0.7)
+
+  // Trees and water block movement; everything else is walkable.
+  game.map = new Tilemap('resources/map.json', ['Trees', 'Water'])
+
+  game.characters = new Spritesheet('resources/characters.png', 16, 16)
+  game.player = new Player(game.characters, 25, 25, game.map.tileSize)
+
+  game.camera = new Camera(3)
+  game.camera.setBounds(game.map.pixelWidth, game.map.pixelHeight)
+
+  game.dialogue = new Dialogue(game.font)
+  game.hud = new Hud(game.font, game.smallFont)
+
+  game.npcs = buildNpcs(game.characters, game.map.tileSize)
+
+  canvas.setBackgroundColor(color.rgb(12, 14, 22))
+
+  console.log('Lumen ' + lumen.version + ' - saves in ' + filesystem.getSaveDirectory())
+}
+
+function buildNpcs(sheet, tileSize) {
+  return [
+    new Npc(sheet, 22, 22, tileSize, {
+      name: 'Wren',
+      frame: 0,
+      gives: null,
+      lines: [
+        'You must be the one from the coast road. We do not get many visitors this far in.',
+        'Mind the trees to the north. Easy to lose an afternoon in there.',
+        'If you find anything shiny, it is probably not mine.'
+      ]
+    }),
+    new Npc(sheet, 29, 27, tileSize, {
+      name: 'Osric',
+      frame: 12,
+      gives: null,
+      lines: [
+        'Forty years I have walked this map and never once found the edge of it.',
+        'That is because there is no edge. Only a wall you cannot see.',
+        'Press tab if you want to check your pack. Everyone forgets.'
+      ]
+    }),
+    new Npc(sheet, 27, 21, tileSize, {
+      name: 'Bram',
+      frame: 24,
+      gives: 'Brass key',
+      lines: [
+        'Here. My grandfather left me this and I have never found the lock.',
+        'Maybe you will have better luck than I did.'
+      ]
+    }),
+    new Npc(sheet, 21, 30, tileSize, {
+      name: 'Elsie',
+      frame: 36,
+      gives: 'Waterlogged map',
+      lines: [
+        'Pulled this out of the shallows last spring. Half the ink ran off.',
+        'Take it. It is no use to anyone who already knows the way.'
+      ]
+    })
+  ]
+}
+
+function update(dt) {
+  // The fade is driven even while paused so the opening fade-in always finishes.
+  game.fade = math.max(0, game.fade - dt * 1.5)
+
+  if (game.messageTime > 0) {
+    game.messageTime = math.max(0, game.messageTime - dt)
+  }
+
+  if (game.paused or game.hud.inventoryOpen) {
+    return null
+  }
+
+  if (game.dialogue.active) {
+    game.dialogue.update(dt)
+
+    return null
+  }
+
+  game.player.update(dt, game.map, game.sounds)
+
+  for (index = 0; index < game.npcs.length(); index++) {
+    game.npcs[index].update(dt)
+  }
+
+  game.camera.update(dt)
+  game.camera.follow(game.player, dt)
+}
+
+// keypressed fires once per physical press, which is what menus and dialogue
+// want. Holding a key down does not repeat it here.
+function keypressed(key) {
+  switch (key) {
+    case 'Escape' { handleEscape() }
+    case 'Tab' { game.hud.toggleInventory() }
+    case 'Space' { interact() }
+    case 'E' { interact() }
+    case 'F1' { game.showDebug = !game.showDebug }
+    case 'F5' { saveGame() }
+    case 'F9' { loadGame() }
+    case 'F11' { window.toggleFullscreen() }
+    case 'M' { toggleSound() }
+  }
+}
+
+function handleEscape() {
+  if (game.dialogue.active) {
+    game.dialogue.active = false
+
+    return null
+  }
+
+  if (game.hud.inventoryOpen) {
+    game.hud.toggleInventory()
+
+    return null
+  }
+
+  lumen.quit()
+}
+
+function toggleSound() {
+  if (game.sounds.toggle()) {
+    notify('Sound on')
+  } else {
+    notify('Sound off')
+  }
+}
+
+// wheelmoved scrolls the pack when it is open.
+function wheelmoved(x, y) {
+  if (game.hud.inventoryOpen) {
+    game.hud.scrollBy(-y * 26)
+  }
+}
+
+// Gamepad buttons are polled rather than delivered as events, so the confirm
+// button is checked here where a press can be detected as an edge.
+function gamepadCheck() {
+  if (joystick.isConnected(1) and joystick.wasPressed(1, 'a')) {
+    interact()
+  }
+}
+
+function interact() {
+  if (game.dialogue.active) {
+    game.dialogue.advance(game.sounds)
+
+    return null
+  }
+
+  if (game.paused or game.hud.inventoryOpen) {
+    return null
+  }
+
+  point = game.player.facingPoint()
+  npc = nearestNpc(point.x, point.y, 14)
+
+  if (npc == null) {
+    return null
+  }
+
+  game.dialogue.start(npc.name, npc.talk())
+  game.sounds.play('blip')
+
+  // A chest hands over its contents the first time it is opened.
+  if (npc.gives != null and !npc.given) {
+    npc.given = true
+
+    game.player.items.push(npc.gives)
+    game.player.coins = game.player.coins + 5
+
+    game.sounds.play('chime')
+    game.camera.knock(2, 0.2)
+
+    notify('Found ' + npc.gives)
+  }
+}
+
+function nearestNpc(x, y, radius) {
+  found = null
+
+  for (index = 0; index < game.npcs.length(); index++) {
+    npc = game.npcs[index]
+
+    if (npc.isNear(x, y, radius)) {
+      found = npc
+    }
+  }
+
+  return found
+}
+
+function notify(message) {
+  game.message = message
+  game.messageTime = 2.5
+}
+
+// =============================================================================
+// Saving
+
+function saveGame() {
+  opened = []
+
+  for (index = 0; index < game.npcs.length(); index++) {
+    if (game.npcs[index].given) {
+      opened.push(index)
+    }
+  }
+
+  filesystem.write('slot1.json', json.encode({
+    x: game.player.x,
+    y: game.player.y,
+    facing: game.player.facing,
+    health: game.player.health,
+    coins: game.player.coins,
+    items: game.player.items,
+    opened: opened
+  }))
+
+  notify('Saved')
+  game.sounds.play('chime')
+}
+
+function loadGame() {
+  contents = filesystem.read('slot1.json')
+
+  if (contents == null) {
+    notify('No save yet')
+
+    return null
+  }
+
+  save = json.decode(contents)
+
+  game.player.x = save.x
+  game.player.y = save.y
+  game.player.facing = save.facing
+  game.player.health = save.health
+  game.player.coins = save.coins
+  game.player.items = save.items
+
+  for (index = 0; index < game.npcs.length(); index++) {
+    game.npcs[index].given = false
+  }
+
+  for (index = 0; index < save.opened.length(); index++) {
+    game.npcs[save.opened[index]].given = true
+  }
+
+  notify('Loaded')
+  game.sounds.play('blip')
+}
+
+// =============================================================================
+// Drawing
+
+function draw() {
+  gamepadCheck()
+
+  // World, seen through the camera.
+  game.camera.attach()
+
+  game.map.draw(game.camera.visibleTiles(game.map.tileSize))
+
+  drawInteractionHint()
+
+  // Characters are drawn back to front so someone standing lower on the screen
+  // overlaps someone standing higher, which reads as depth.
+  drawSortedCharacters()
+
+  game.camera.detach()
+
+  // Interface, in screen space.
+  game.hud.draw(game.player, game.showDebug)
+  game.hud.drawInventory(game.player)
+  game.dialogue.draw()
+
+  drawNotification()
+  drawFade()
+}
+
+function drawSortedCharacters() {
+  actors = [game.player]
+
+  for (index = 0; index < game.npcs.length(); index++) {
+    actors.push(game.npcs[index])
+  }
+
+  // A short insertion sort: with a handful of actors it costs nothing, and it
+  // keeps the ordering stable frame to frame.
+  //
+  // Ghost's `and` evaluates both sides, so the bounds check cannot share a
+  // condition with the comparison: at j = -1 the index would still be read, and
+  // a negative index reads as null rather than raising.
+  for (i = 1; i < actors.length(); i++) {
+    current = actors[i]
+    j = i - 1
+    placed = false
+
+    while (!placed) {
+      if (j < 0) {
+        placed = true
+      } else if (actors[j].y <= current.y) {
+        placed = true
+      } else {
+        actors[j + 1] = actors[j]
+        j = j - 1
+      }
+    }
+
+    actors[j + 1] = current
+  }
+
+  for (index = 0; index < actors.length(); index++) {
+    actors[index].draw()
+  }
+}
+
+// drawInteractionHint marks the NPC the player is facing, so it is obvious what
+// pressing space will do.
+function drawInteractionHint() {
+  if (game.dialogue.active) {
+    return null
+  }
+
+  point = game.player.facingPoint()
+  npc = nearestNpc(point.x, point.y, 14)
+
+  if (npc == null) {
+    return null
+  }
+
+  bob = math.sin(timer.time * 6) * 1.5
+
+  canvas.setColor(color.rgb(255, 235, 140))
+  canvas.filledPolygon(
+    npc.centerX() - 3, npc.centerY() - 14 + bob,
+    npc.centerX() + 3, npc.centerY() - 14 + bob,
+    npc.centerX(), npc.centerY() - 9 + bob
+  )
+}
+
+function drawNotification() {
+  if (game.messageTime <= 0) {
+    return null
+  }
+
+  canvas.setFont(game.font)
+
+  width = game.font.getWidth(game.message) + 32
+  x = (window.width - width) / 2
+
+  // The banner fades out over its last half second rather than vanishing.
+  alpha = math.min(1, game.messageTime / 0.5)
+
+  canvas.setColor(color.rgb(20, 22, 36, alpha * 0.9))
+  canvas.filledRectangle(x, 70, width, 34)
+
+  canvas.setColor(color.rgb(255, 255, 255, alpha))
+  canvas.print(game.message, x + 16, 76)
+
+  canvas.resetFont()
+}
+
+function drawFade() {
+  if (game.fade <= 0) {
+    return null
+  }
+
+  canvas.setColor(color.rgb(0, 0, 0, game.fade))
+  canvas.filledRectangle(0, 0, window.width, window.height)
+}

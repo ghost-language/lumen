@@ -1,10 +1,10 @@
 class Spritesheet {
-  function constructor(path, size) {
+  constructor(path, size) {
     this.sprite = image.load(path)
     this.size = size
   }
 
-  function draw(frame, x, y) {
+  draw(frame, x, y) {
     columns = this.sprite.getWidth() / this.size
     
     sx = (frame % columns) * this.size

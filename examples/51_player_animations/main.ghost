@@ -4,7 +4,7 @@ import Player from 'player'
 scale = 4
 
 // Create a new player object at the center of the screen
-player = Player.new(
+player = new Player(
   (window.width / 2) / scale - 8,
   (window.height / 2) / scale - 8
 )

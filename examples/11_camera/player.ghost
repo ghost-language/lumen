@@ -1,5 +1,5 @@
 class Player {
-  function constructor() {
+  constructor() {
     this.x = 0
     this.y = 0
     this.width = 16
@@ -8,7 +8,7 @@ class Player {
     this.sprite = image.load('resources/player.png')
   }
 
-  function update() {
+  update() {
     if (keyboard.isDown('s')) {
       this.y = this.y + this.speed
     }
@@ -26,7 +26,7 @@ class Player {
     }
   }
 
-  function draw() {
+  draw() {
     this.sprite.draw(this.x, this.y)
   }
 }

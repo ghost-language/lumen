@@ -1,0 +1,47 @@
+// An NPC stands on a tile and has lines of dialogue. An NPC with a `gives` entry
+// hands that item over the first time the player talks to it, and says something
+// different from then on.
+class Npc {
+  constructor(sheet, tileX, tileY, tileSize, options) {
+    this.sheet = sheet
+    this.width = 14
+    this.height = 12
+    this.x = tileX * tileSize + 1
+    this.y = tileY * tileSize + 2
+    this.name = options.name
+    this.lines = options.lines
+    this.frame = options.frame
+    this.bobTime = math.random() * 3
+    this.gives = options.gives
+    this.given = false
+  }
+
+  update(dt) {
+    this.bobTime = this.bobTime + dt
+  }
+
+  centerX() { return this.x + this.width / 2 }
+  centerY() { return this.y + this.height / 2 }
+
+  // isNear reports whether a point is close enough to interact with.
+  isNear(x, y, radius) {
+    return math.distance(x, y, this.centerX(), this.centerY()) < radius
+  }
+
+  // talk returns the lines to show, which change once a gift has been handed over.
+  talk() {
+    if (this.gives != null and this.given) {
+      return ['Look after it. That is all I ask.']
+    }
+
+    return this.lines
+  }
+
+  draw() {
+    // A slow vertical bob makes a static sprite read as alive. sin() over the
+    // NPC's own clock keeps each one out of step with the others.
+    bob = math.round(math.sin(this.bobTime * 2) * 1)
+
+    this.sheet.draw(this.frame, this.x - 1, this.y - 4 + bob)
+  }
+}

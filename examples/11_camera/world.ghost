@@ -1,15 +1,15 @@
 class World {
-  function constructor() {
+  constructor() {
     this.rows = 20
     this.cols = 20
     this.grass = image.load('resources/grass.png')
   }
 
-  function update() {
+  update() {
     // 
   }
 
-  function draw() {
+  draw() {
     for (x = 0; x < this.rows; x++) {
       for (y = 0; y < this.cols; y++) {
         this.grass.draw(x * 16, y * 16)

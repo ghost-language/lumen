@@ -1,12 +1,12 @@
 class Spritesheet {
-  function constructor(path, size) {
+  constructor(path, size) {
     this.sprite = image.load(path)
     this.size = size
     this.animations = {}
     this.currentFrame = 0
   }
 
-  function draw(x, y, frame) {
+  draw(x, y, frame) {
     columns = this.sprite.getWidth() / this.size
     
     sx = (frame % columns) * this.size
@@ -15,14 +15,14 @@ class Spritesheet {
     this.sprite.clip(sx, sy, this.size).draw(x, y)
   }
 
-  function addAnimation(name, frames, speed) {
+  addAnimation(name, frames, speed) {
     this.animations[name] = {
       frames: frames,
       speed: speed,
     }
   }
 
-  function play(name, x, y) {
+  play(name, x, y) {
     animation = this.animations[name]
 
     this.currentFrame = this.currentFrame + animation.speed

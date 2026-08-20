@@ -3,8 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -20,12 +18,6 @@ var (
 	flagHelp    bool
 )
 
-type Console struct {
-	args []string
-}
-
-type Ghost *ghost.Ghost
-
 func init() {
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [options] [<filename>]\n", path.Base(os.Args[0]))
@@ -40,10 +32,8 @@ func init() {
 func main() {
 	flag.Parse()
 
-	args := flag.Args()
-
 	if flagVersion {
-		fmt.Printf("%s %s\n", path.Base(os.Args[0]), "v0.0.1")
+		fmt.Printf("%s %s\n", path.Base(os.Args[0]), engine.Version)
 		os.Exit(0)
 	}
 
@@ -52,72 +42,71 @@ func main() {
 		os.Exit(0)
 	}
 
-	console := &Console{args}
-
-	var f *os.File
-	var err error
-	var rootDirectory string
-
-	if len(console.args) == 0 {
-		// Do we have a main.ghost file present?
-		ex, err := os.Executable()
-
-		if err != nil {
-			panic(err)
-		}
-
-		rootDirectory = filepath.Dir(ex)
-		mainFile, err := filepath.Abs(rootDirectory + "/main.ghost")
-
-		if err != nil {
-			panic(err)
-		}
-
-		f, err = os.Open(mainFile)
-
-		if err != nil {
-			log.Fatalf("could not find main.ghost: %s", err)
-			showHelp()
-			os.Exit(2)
-		}
-	} else {
-		f, err = os.Open(console.args[0])
-
-		rootDirectory = filepath.Dir(console.args[0])
-
-		if err != nil {
-			log.Fatalf("could not open file: %s: %s", err, console.args[0])
-		}
-	}
-
-	b, err := io.ReadAll(f)
+	source, directory, err := readSource(flag.Args())
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "could not read file: %s: %s", err, console.args[0])
+		fmt.Fprintf(os.Stderr, "lumen: %s\n", err)
 		os.Exit(1)
 	}
 
 	lumen := engine.New("Lumen")
 
-	// Register ghost modules
 	modules.Register()
 
 	lumen.Ghost = ghost.New()
-	lumen.Ghost.SetSource(string(b))
-	lumen.Ghost.SetDirectory(rootDirectory)
-	result := lumen.Ghost.Execute()
+	lumen.Ghost.SetSource(source)
+	lumen.Ghost.SetDirectory(directory)
 
-	if _, ok := result.(*object.Error); ok {
+	// The game's source runs before the loop starts. It defines the callbacks
+	// the loop will drive and does any set-up that does not need the window.
+	if _, failed := lumen.Ghost.Execute().(*object.Error); failed {
 		os.Exit(1)
 	}
 
 	lumen.Run()
 }
 
+// readSource loads the game's entry file. With no argument, Lumen looks for a
+// main.ghost next to the executable, which is how a packaged game starts.
+func readSource(args []string) (string, string, error) {
+	file := ""
+
+	if len(args) == 0 {
+		executable, err := os.Executable()
+
+		if err != nil {
+			return "", "", err
+		}
+
+		file = filepath.Join(filepath.Dir(executable), "main.ghost")
+	} else {
+		file = args[0]
+	}
+
+	// A directory is a convenience: a game is a folder with a main.ghost in it.
+	if info, err := os.Stat(file); err == nil && info.IsDir() {
+		file = filepath.Join(file, "main.ghost")
+	}
+
+	contents, err := os.ReadFile(file)
+
+	if err != nil {
+		return "", "", fmt.Errorf("could not read %s: %w", file, err)
+	}
+
+	directory, err := filepath.Abs(filepath.Dir(file))
+
+	if err != nil {
+		return "", "", err
+	}
+
+	return string(contents), directory, nil
+}
+
 func showHelp() {
 	fmt.Println("Usage:")
 	fmt.Println()
-	fmt.Println("    lumen [flags] {file}")
+	fmt.Println("    lumen [flags] {file|directory}")
 	fmt.Println()
 	fmt.Println("Flags:")
 	fmt.Println()
@@ -128,7 +117,10 @@ func showHelp() {
 	fmt.Println()
 	fmt.Println("    lumen main.ghost")
 	fmt.Println()
-	fmt.Println("            Execute source file (main.ghost)")
+	fmt.Println("            Run a game from its entry file")
 	fmt.Println()
+	fmt.Println("    lumen examples/53_top_down")
+	fmt.Println()
+	fmt.Println("            Run the main.ghost inside a directory")
 	fmt.Println()
 }

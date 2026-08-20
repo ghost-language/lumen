@@ -2,9 +2,9 @@ import Camera from 'camera'
 import Player from 'player'
 import World from 'world'
 
-camera = Camera.new()
-player = Player.new()
-world = World.new()
+camera = new Camera()
+player = new Player()
+world = new World()
 
 function update() {
   world.update()

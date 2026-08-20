@@ -1,33 +1,33 @@
 class Player {
-  function constructor() {
+  constructor() {
     this.x = 100
     this.y = 100
   }
 
-  function update() {
+  update() {
     // 
   }
 
-  function draw() {
+  draw() {
     canvas.setColor(color.white)
     canvas.filledRectangle(this.x, this.y, 10, 10)
   }
 }
 
 class Camera {
-  function constructor() {
+  constructor() {
     this.x = 0
     this.y = 0
   }
 
-  function update() {
+  update() {
     this.x = this.x - 1
     this.y = this.y - 1
   }
 }
 
-camera = Camera.new()
-player = Player.new()
+camera = new Camera()
+player = new Player()
 
 function update() {
   camera.update()

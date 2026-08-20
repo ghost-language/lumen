@@ -1,12 +1,30 @@
-GOPATH:=$(shell go env GOPATH)
+.PHONY: build run clean examples
 
-.PHONY: build compile clean
-
+# Build for the host platform. Lumen links against SDL2 through cgo, so a build
+# always targets the machine it runs on unless a cross-compiler is set up.
 build: clean
-	GOOS=darwin go build -o dist/lumen cmd/*.go
+	go build -o dist/lumen ./cmd
 
-compile: clean
-	GOOS=darwin go build -tags static -ldflags "-s -w" -o dist/lumen cmd/*.go
+# A stripped release build.
+release: clean
+	go build -ldflags "-s -w" -o dist/lumen ./cmd
+
+# make run EXAMPLE=60_rpg
+EXAMPLE ?= 60_rpg
+
+run: build
+	./dist/lumen examples/$(EXAMPLE)
+
+# Start every example in turn for a few seconds, reporting any that fail. Useful
+# after changing the module layer.
+examples: build
+	@for dir in examples/*/; do \
+		name=$$(basename $$dir); \
+		[ -f "$$dir/main.ghost" ] || continue; \
+		printf '%-24s' "$$name"; \
+		output=$$(SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy timeout 3 ./dist/lumen "$$dir" 2>&1 | grep -Ei 'error|syntax' | head -3); \
+		if [ -n "$$output" ]; then echo "FAIL"; echo "$$output"; else echo "ok"; fi; \
+	done
 
 clean:
 	@rm -rf dist/lumen

@@ -1,6 +1,6 @@
 import Map from 'map'
 
-map = Map.new('resources/tilemap.png', 16)
+map = new Map('resources/tilemap.png', 16)
 
 map.addLayer([
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],

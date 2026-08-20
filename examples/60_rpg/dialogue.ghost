@@ -1,0 +1,124 @@
+// A dialogue box that reveals its text a character at a time, wraps to the width
+// of the box, and pages through several lines. It draws in screen space, so the
+// camera does not move it.
+class Dialogue {
+  constructor(bodyFont) {
+    this.font = bodyFont
+    this.active = false
+    this.lines = []
+    this.index = 0
+    this.revealed = 0
+    this.shown = 0
+    this.visible = ''
+    this.speaker = ''
+    this.charactersPerSecond = 45
+  }
+
+  start(speaker, lines) {
+    this.active = true
+    this.speaker = speaker
+    this.lines = lines
+    this.index = 0
+
+    this.resetLine()
+  }
+
+  resetLine() {
+    this.revealed = 0
+    this.shown = 0
+    this.visible = ''
+  }
+
+  // advance either finishes revealing the current line or moves on to the next,
+  // which is the behaviour players expect from a single confirm button.
+  advance(sounds) {
+    if (!this.active) {
+      return false
+    }
+
+    if (!this.isFinished()) {
+      this.visible = this.lines[this.index]
+      this.revealed = this.lines[this.index].length()
+      this.shown = this.revealed
+
+      return true
+    }
+
+    this.index = this.index + 1
+
+    this.resetLine()
+
+    if (this.index >= this.lines.length()) {
+      this.active = false
+    } else {
+      sounds.play('blip')
+    }
+
+    return true
+  }
+
+  update(dt) {
+    if (!this.active) {
+      return null
+    }
+
+    line = this.lines[this.index]
+
+    // The reveal position is kept as a fraction and only rounded down when it is
+    // used as an index. Rounding it before storing it would throw away the
+    // fraction each frame, and at typical speeds the text would never advance.
+    this.revealed = math.min(line.length(), this.revealed + this.charactersPerSecond * dt)
+
+    target = math.floor(this.revealed)
+
+    // Only the characters that just became visible are appended, so revealing a
+    // line costs time linear in its length rather than quadratic.
+    for (index = this.shown; index < target; index++) {
+      this.visible = this.visible + line[index]
+    }
+
+    this.shown = target
+  }
+
+  isFinished() {
+    return this.shown >= this.lines[this.index].length()
+  }
+
+  draw() {
+    if (!this.active) {
+      return null
+    }
+
+    boxHeight = 100
+    margin = 24
+    top = window.height - boxHeight - margin
+    width = window.width - margin * 2
+
+    canvas.setColor(color.rgb(16, 18, 32, 0.92))
+    canvas.filledRectangle(margin, top, width, boxHeight)
+
+    canvas.setColor(color.rgb(120, 150, 220))
+    canvas.setLineWidth(2)
+    canvas.rectangle(margin, top, width, boxHeight)
+
+    canvas.setFont(this.font)
+
+    canvas.setColor(color.yellow)
+    canvas.print(this.speaker, margin + 16, top + 10)
+
+    canvas.setColor(color.white)
+    canvas.printf(this.visible, margin + 16, top + 36, width - 32, 'left')
+
+    // The prompt only appears once the line has finished revealing, so it reads
+    // as "ready for input" rather than decoration.
+    if (this.isFinished()) {
+      canvas.setColor(color.rgb(180, 200, 255))
+
+      prompt = '[space]'
+
+      canvas.print(prompt, window.width - margin - 16 - this.font.getWidth(prompt), top + boxHeight - 26)
+    }
+
+    canvas.resetFont()
+  }
+}

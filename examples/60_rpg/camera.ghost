@@ -1,0 +1,84 @@
+// The camera is just a transform: it translates the world so the target sits in
+// the middle of the screen, and scales it up so 16-pixel tiles are legible.
+// Everything drawn between attach() and detach() is in world coordinates.
+class Camera {
+  constructor(zoom) {
+    this.x = 0
+    this.y = 0
+    this.zoom = zoom
+    this.bounds = null
+    this.shake = 0
+    this.shakeAmount = 0
+  }
+
+  // setBounds stops the camera showing anything outside the map.
+  setBounds(width, height) {
+    this.bounds = { width: width, height: height }
+  }
+
+  // follow eases the camera toward a target instead of snapping to it. The
+  // easing is scaled by dt so the feel does not change with the frame rate.
+  follow(target, dt) {
+    viewWidth = window.width / this.zoom
+    viewHeight = window.height / this.zoom
+
+    desiredX = target.x + target.width / 2 - viewWidth / 2
+    desiredY = target.y + target.height / 2 - viewHeight / 2
+
+    // 1 - pow(0.001, dt) approaches the target by the same proportion each
+    // second regardless of how many frames that second was split into.
+    ease = 1 - math.pow(0.001, dt)
+
+    this.x = math.lerp(this.x, desiredX, ease)
+    this.y = math.lerp(this.y, desiredY, ease)
+
+    if (this.bounds != null) {
+      this.x = math.clamp(this.x, 0, math.max(0, this.bounds.width - viewWidth))
+      this.y = math.clamp(this.y, 0, math.max(0, this.bounds.height - viewHeight))
+    }
+  }
+
+  // knock starts a screen shake, used when something lands a hit.
+  knock(amount, duration) {
+    this.shakeAmount = amount
+    this.shake = duration
+  }
+
+  update(dt) {
+    if (this.shake > 0) {
+      this.shake = math.max(0, this.shake - dt)
+    }
+  }
+
+  attach() {
+    offsetX = 0
+    offsetY = 0
+
+    if (this.shake > 0) {
+      offsetX = (math.random() - 0.5) * 2 * this.shakeAmount
+      offsetY = (math.random() - 0.5) * 2 * this.shakeAmount
+    }
+
+    canvas.push()
+    canvas.scale(this.zoom)
+
+    // Rounding to whole pixels keeps a pixel-art tileset from shimmering as the
+    // camera slides between them.
+    canvas.translate(math.round(-this.x + offsetX), math.round(-this.y + offsetY))
+  }
+
+  detach() {
+    canvas.pop()
+  }
+
+  // visibleTiles returns the range of tiles on screen, so the map only draws
+  // what the player can actually see.
+  visibleTiles(tileSize) {
+    return {
+      left: math.floor(this.x / tileSize) - 1,
+      top: math.floor(this.y / tileSize) - 1,
+      right: math.ceil((this.x + window.width / this.zoom) / tileSize) + 1,
+      bottom: math.ceil((this.y + window.height / this.zoom) / tileSize) + 1
+    }
+  }
+}

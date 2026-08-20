@@ -1,7 +1,7 @@
 import Spritesheet from 'spritesheet'
 
 class Map {
-  function constructor(filepath, root = 'resources') {
+  constructor(filepath, root = 'resources') {
     this.root = root
     this.map = this.loadMap(filepath)
     this.tilesets = this.loadTilesets()
@@ -9,19 +9,19 @@ class Map {
     console.log('map loaded')
   }
 
-  function loadMap(filepath) {
+  loadMap(filepath) {
     data = io.read(filepath)
 
     return json.decode(data)
   }
 
-  function loadTilesets() {
+  loadTilesets() {
     tilesets = {}
 
     for (i = 0; i < this.map.tilesets.length(); i++) {
       tileset = this.map.tilesets[i]
       tilesets[tileset.name] = {
-        spritesheet: Spritesheet.new(this.root + '/' + tileset.image, tileset.tilewidth),
+        spritesheet: new Spritesheet(this.root + '/' + tileset.image, tileset.tilewidth),
         firstgid: tileset.firstgid,
         lastgid: tileset.firstgid + tileset.tilecount,
         size: tileset.tilewidth
@@ -34,11 +34,11 @@ class Map {
     return tilesets
   }
 
-  function update() {
+  update() {
     // 
   }
 
-  function draw() {
+  draw() {
     for (i = 0; i < this.map.layers.length(); i++) {
       layer = this.map.layers[i]
 
@@ -48,7 +48,7 @@ class Map {
     }
   }
 
-  function drawTileLayer(layer) {
+  drawTileLayer(layer) {
     for (y = 0; y < layer.height; y++) {
       for (x = 0; x < layer.width; x++) {
         index = x + y * layer.width
@@ -67,7 +67,7 @@ class Map {
     }
   }
 
-  function getTileset(gid) {
+  getTileset(gid) {
     foundTileset = null
     for (tileset in this.tilesets) {
       if (gid >= tileset.firstgid and gid <= tileset.lastgid) {

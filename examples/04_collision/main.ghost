@@ -1,8 +1,8 @@
 import Player from 'player'
 import Enemy from 'enemy'
 
-player = Player.new()
-enemy = Enemy.new()
+player = new Player()
+enemy = new Enemy()
 
 function update() {
   enemy.update()
