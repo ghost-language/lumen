@@ -1,7 +1,7 @@
 import Entity from 'entity'
 
 class Player extends Entity {
-  function constructor(x = 0, y = 0) {
+  constructor(x = 0, y = 0) {
     this.x = x
     this.y = y
     this.size = 16
@@ -11,7 +11,7 @@ class Player extends Entity {
     this.damaged = false
   }
 
-  function update() {
+  update() {
     if (keyboard.isDown('s')) {
       this.y = this.y + this.speed
     }
@@ -29,7 +29,7 @@ class Player extends Entity {
     }
   }
 
-  function onCollision(other) {
+  onCollision(other) {
     if (this.overlaps(other)) {
       this.damaged = true
     } else {
@@ -37,7 +37,7 @@ class Player extends Entity {
     }
   }
 
-  function draw() {
+  draw() {
     canvas.setColor(color.white)
 
     if (this.damaged) {

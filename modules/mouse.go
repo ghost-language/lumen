@@ -4,6 +4,7 @@ import (
 	"ghostlang.org/x/ghost/library/modules"
 	"ghostlang.org/x/ghost/object"
 	"ghostlang.org/x/ghost/token"
+	"ghostlang.org/x/ghost/value"
 	"ghostlang.org/x/lumen/engine"
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -12,117 +13,176 @@ var MouseMethods = map[string]*object.LibraryFunction{}
 var MouseProperties = map[string]*object.LibraryProperty{}
 
 func init() {
-	// Methods
 	modules.RegisterMethod(MouseMethods, "showCursor", mouseShowCursorMethod)
 	modules.RegisterMethod(MouseMethods, "hideCursor", mouseHideCursorMethod)
+	modules.RegisterMethod(MouseMethods, "isVisible", mouseIsVisibleMethod)
 	modules.RegisterMethod(MouseMethods, "isButtonDown", mouseIsButtonDownMethod)
 	modules.RegisterMethod(MouseMethods, "isButtonUp", mouseIsButtonUpMethod)
 	modules.RegisterMethod(MouseMethods, "wasButtonPressed", mouseWasButtonPressedMethod)
 	modules.RegisterMethod(MouseMethods, "wasButtonReleased", mouseWasButtonReleasedMethod)
+	modules.RegisterMethod(MouseMethods, "getPosition", mouseGetPositionMethod)
+	modules.RegisterMethod(MouseMethods, "setPosition", mouseSetPositionMethod)
+	modules.RegisterMethod(MouseMethods, "getWorldPosition", mouseGetWorldPositionMethod)
+	modules.RegisterMethod(MouseMethods, "setRelativeMode", mouseSetRelativeModeMethod)
+	modules.RegisterMethod(MouseMethods, "setGrabbed", mouseSetGrabbedMethod)
 
-	// Properties
 	modules.RegisterProperty(MouseProperties, "x", mouseXProperty)
 	modules.RegisterProperty(MouseProperties, "y", mouseYProperty)
+	modules.RegisterProperty(MouseProperties, "wheel", mouseWheelProperty)
+	modules.RegisterProperty(MouseProperties, "wheelX", mouseWheelXProperty)
 }
 
 func mouseShowCursorMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
 	sdl.ShowCursor(sdl.ENABLE)
 
-	return nil
+	return value.NULL
 }
 
 func mouseHideCursorMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
 	sdl.ShowCursor(sdl.DISABLE)
 
-	return nil
+	return value.NULL
+}
+
+func mouseIsVisibleMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	state, err := sdl.ShowCursor(sdl.QUERY)
+
+	if err != nil {
+		return object.NewError("%d:%d: runtime error: mouse.isVisible() %s", tok.Line, tok.Column, err)
+	}
+
+	return &object.Boolean{Value: state == sdl.ENABLE}
 }
 
 func mouseIsButtonDownMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
-	var mask uint32
-
-	button := args[0].(*object.String)
-
-	switch button.Value {
-	case "left":
-		mask = 1
-	case "middle":
-		mask = 2
-	case "right":
-		mask = 4
-	}
-
-	isDown := engine.Lumen.CurrentMouseState & mask
-
-	return &object.Boolean{Value: isDown != 0}
+	return buttonState("mouse.isButtonDown", tok, args, func(current, previous uint32, mask uint32) bool {
+		return current&mask != 0
+	})
 }
 
 func mouseIsButtonUpMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
-	var mask uint32
-
-	button := args[0].(*object.String)
-
-	switch button.Value {
-	case "left":
-		mask = 1
-	case "middle":
-		mask = 2
-	case "right":
-		mask = 4
-	}
-
-	isDown := engine.Lumen.CurrentMouseState & mask
-
-	return &object.Boolean{Value: isDown == 0}
+	return buttonState("mouse.isButtonUp", tok, args, func(current, previous uint32, mask uint32) bool {
+		return current&mask == 0
+	})
 }
 
 func mouseWasButtonPressedMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
-	var mask uint32
-
-	button := args[0].(*object.String)
-
-	switch button.Value {
-	case "left":
-		mask = 1
-	case "middle":
-		mask = 2
-	case "right":
-		mask = 4
-	}
-
-	isDown := engine.Lumen.CurrentMouseState & mask
-	wasDown := engine.Lumen.PreviousMouseState & mask
-
-	return &object.Boolean{Value: isDown != 0 && wasDown == 0}
+	return buttonState("mouse.wasButtonPressed", tok, args, func(current, previous uint32, mask uint32) bool {
+		return current&mask != 0 && previous&mask == 0
+	})
 }
 
 func mouseWasButtonReleasedMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
-	var mask uint32
+	return buttonState("mouse.wasButtonReleased", tok, args, func(current, previous uint32, mask uint32) bool {
+		return current&mask == 0 && previous&mask != 0
+	})
+}
 
-	button := args[0].(*object.String)
+func mouseGetPositionMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	return integerList(int64(engine.Lumen.MouseX), int64(engine.Lumen.MouseY))
+}
 
-	switch button.Value {
-	case "left":
-		mask = 1
-	case "middle":
-		mask = 2
-	case "right":
-		mask = 4
+func mouseSetPositionMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if err := arity("mouse.setPosition", tok, args, 2); err != nil {
+		return err
 	}
 
-	isDown := engine.Lumen.CurrentMouseState & mask
-	wasDown := engine.Lumen.PreviousMouseState & mask
+	values, err := numbers("mouse.setPosition", tok, args)
 
-	return &object.Boolean{Value: isDown == 0 && wasDown != 0}
+	if err != nil {
+		return err
+	}
+
+	engine.Lumen.Window.WarpMouseInWindow(int32(values[0]), int32(values[1]))
+
+	return value.NULL
+}
+
+// mouseGetWorldPositionMethod maps the pointer through the inverse of the
+// current transform, so a game with a camera can ask where the mouse is in the
+// world rather than on the screen.
+func mouseGetWorldPositionMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	inverse, ok := engine.Lumen.Graphics.Transform().Inverse()
+
+	if !ok {
+		return object.NewError("%d:%d: runtime error: mouse.getWorldPosition() cannot invert the current transform", tok.Line, tok.Column)
+	}
+
+	x, y := inverse.Apply(float64(engine.Lumen.MouseX), float64(engine.Lumen.MouseY))
+
+	return list(x, y)
+}
+
+// mouseSetRelativeModeMethod hides the pointer and reports only movement deltas,
+// which is what a game wants while the player is dragging a camera around.
+func mouseSetRelativeModeMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if err := arity("mouse.setRelativeMode", tok, args, 1); err != nil {
+		return err
+	}
+
+	enabled, err := boolean("mouse.setRelativeMode", tok, args, 0)
+
+	if err != nil {
+		return err
+	}
+
+	sdl.SetRelativeMouseMode(enabled)
+
+	return value.NULL
+}
+
+func mouseSetGrabbedMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if err := arity("mouse.setGrabbed", tok, args, 1); err != nil {
+		return err
+	}
+
+	grabbed, err := boolean("mouse.setGrabbed", tok, args, 0)
+
+	if err != nil {
+		return err
+	}
+
+	engine.Lumen.Window.SetGrab(grabbed)
+
+	return value.NULL
 }
 
 func mouseXProperty(scope *object.Scope, tok token.Token) object.Object {
-	x, _, _ := sdl.GetMouseState()
-
-	return object.NewInt(int64(x))
+	return object.NewInt(int64(engine.Lumen.MouseX))
 }
 
 func mouseYProperty(scope *object.Scope, tok token.Token) object.Object {
-	_, y, _ := sdl.GetMouseState()
+	return object.NewInt(int64(engine.Lumen.MouseY))
+}
 
-	return object.NewInt(int64(y))
+// mouseWheelProperty reports how far the wheel turned during this frame.
+// Positive values scroll away from the player.
+func mouseWheelProperty(scope *object.Scope, tok token.Token) object.Object {
+	return object.NewInt(int64(engine.Lumen.WheelY))
+}
+
+func mouseWheelXProperty(scope *object.Scope, tok token.Token) object.Object {
+	return object.NewInt(int64(engine.Lumen.WheelX))
+}
+
+// buttonState resolves a button name and applies a predicate to the current and
+// previous button masks.
+func buttonState(name string, tok token.Token, args []object.Object, predicate func(current, previous, mask uint32) bool) object.Object {
+	if err := arity(name, tok, args, 1); err != nil {
+		return err
+	}
+
+	button, err := text(name, tok, args, 0)
+
+	if err != nil {
+		return err
+	}
+
+	mask, ok := engine.MouseButtonMask(button)
+
+	if !ok {
+		return object.NewError("%d:%d: runtime error: %s() does not recognise the button '%s'", tok.Line, tok.Column, name, button)
+	}
+
+	return &object.Boolean{Value: predicate(engine.Lumen.CurrentMouseState, engine.Lumen.PreviousMouseState, mask)}
 }

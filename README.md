@@ -1,156 +1,461 @@
 # Lumen
-A lightweight 2D game engine for Ghost.
 
-## Status
-Currently in development.
+A lightweight 2D game engine for [Ghost](https://github.com/ghost-language/ghost).
+
+Lumen gives Ghost a game loop, a renderer, input, audio, and file access, so a
+whole game can be written in Ghost and nothing else. It is built on SDL2 and
+takes its shape from [LÖVE](https://love2d.org): the same game loop, the same
+transform stack, the same drawing model.
+
+```ghost
+game = { x: 100, y: 100 }
+
+function load() {
+  game.sprite = image.load('resources/player.png')
+}
+
+function update(dt) {
+  if (keyboard.isDown('right', 'd')) {
+    game.x = game.x + 120 * dt
+  }
+}
+
+function draw() {
+  game.sprite.draw(game.x, game.y)
+}
+```
 
 ## Requirements
-Below are the requirements necessary if working with the Lumen source code directly:
+
+Lumen links against SDL2 through cgo, so the SDL development libraries have to
+be present to build it:
 
 - SDL2
 - SDL2_image
 - SDL2_ttf
-
-Requirements can be installed through brew on Mac:
+- SDL2_mixer
 
 ```bash
-brew install sdl2 sdl2_image sdl2_ttf
+# macOS
+brew install sdl2 sdl2_image sdl2_ttf sdl2_mixer
+
+# Debian / Ubuntu
+apt install libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-mixer-dev
 ```
 
-## Notes
-Lumen will come with a set of built-in modules to interact with and configure various aspects of the framework and game instance.
+Ghost is expected as a sibling checkout (`../ghost`), which is what the
+`replace` directive in `go.mod` points at.
 
-- [ ] Audio
-- [ ] Lumen
-- [x] Window
-- [x] Canvas
-- [x] Keyboard
-- [x] Mouse
-- [ ] Controller
+```bash
+make build                  # builds dist/lumen
+make run EXAMPLE=60_rpg     # builds and runs an example
+make examples               # starts every example briefly and reports failures
+```
 
-## Game Loop
-At the heart of every Lumen game, the game loop drives the lifecycle of the application. This looping mechanism is responsible for setting the initial state, collecting and processing input, updating state, and rendering graphics to the screen.
+## Running a game
 
-In the context of Lumen's game loop, the sequence is as follows:
+```bash
+lumen main.ghost      # run a specific file
+lumen examples/60_rpg # run the main.ghost inside a directory
+lumen                 # run the main.ghost next to the executable
+```
 
-1. `load()`
-2. `update()`
-3. `draw()`
+Asset paths (`image.load`, `font.load`, `audio.newSource`,
+`filesystem.readAsset`) resolve relative to the directory the entry file is in.
+
+## Game loop
+
+Lumen calls `load()` once, then `update(dt)` and `draw()` every frame until the
+game quits.
 
 ### `load()`
-Lumen begins with the `load()` function, which is invoked once at the very start. Primarily, this function is used to set the initial state of the game. For example, you might load assets, initialize variables, or set the screen size.
 
-```typescript
-function load() {
-  state.player = {
-    x: 0,
-    y: 0,
-    speed: 5,
-    sprite: image.load('player.png')
-  }
+Runs once, before the first frame. Load assets and build initial state here. If
+`load()` raises an error Lumen reports it and exits, rather than running a game
+whose state was never finished.
+
+### `update(dt)`
+
+`dt` is how many seconds the previous frame took. **Scale anything that moves by
+it.** A speed written as pixels-per-frame changes with the frame rate; a speed
+written as pixels-per-second does not.
+
+```ghost
+function update(dt) {
+  game.x = game.x + 90 * dt   // 90 pixels per second, on any machine
 }
 ```
 
-### `update()`
-After initializing the game state, `update()` is consistently executed per game frame. This function should handle game logic controlling character behaviors, AI progress, physics, and other progression-related tasks.
-
-```typescript
-function update() {
-  if (keyboard.isDown('right')) {
-    state.player.x = state.player.x + state.player.speed
-  }
-}
-```
+`dt` is capped at 0.25s, so a frame that stalls cannot teleport everything
+through a wall. A game that ignores the argument still works — Ghost drops
+arguments a function does not declare.
 
 ### `draw()`
-The `draw()` function is the final part of the cycle, executed after `update()`. The sole purpose of `draw()` is rendering; all calls to render the current game state onto the screen should be done here.
 
-```typescript
+Renders one frame. The draw state — transform, color, line width, blend mode,
+scissor — is reset to its defaults before `draw()` runs, so each frame is
+self-contained. The current font is the exception: it is a choice a game makes
+once and keeps.
+
+### Event callbacks
+
+Every callback below is optional; define the ones a game needs.
+
+| Callback | When |
+| --- | --- |
+| `keypressed(key, isRepeat)` | a key goes down |
+| `keyreleased(key)` | a key comes up |
+| `textinput(text)` | text is typed, between `keyboard.startTextInput()` and `stopTextInput()` |
+| `mousepressed(x, y, button, clicks)` | a mouse button goes down |
+| `mousereleased(x, y, button)` | a mouse button comes up |
+| `mousemoved(x, y, dx, dy)` | the pointer moves |
+| `wheelmoved(x, y)` | the wheel turns |
+| `resize(width, height)` | the window is resized |
+| `focus(hasFocus)` | the window gains or loses focus |
+| `joystickadded(count)` / `joystickremoved(count)` | a controller is plugged in or unplugged |
+| `quit()` | the window is closed; return `true` to cancel |
+
+Use `keypressed` rather than `keyboard.isDown` for menus and dialogue: it fires
+once per physical press, where `isDown` is true on every frame the key is held.
+
+## Coordinates and transforms
+
+The origin is the top-left of the window, x to the right and y down. Every
+coordinate passed to the canvas goes through the transform on top of the
+transform stack, which is how cameras and zoom work.
+
+```ghost
 function draw() {
-  state.player.sprite.draw(state.player.x, state.player.y)
+  canvas.push()                 // save the current transform
+  canvas.scale(3)               // 16px tiles drawn at 48px
+  canvas.translate(-camera.x, -camera.y)
+
+  map.draw()                    // world coordinates
+  player.draw()
+
+  canvas.pop()                  // back to screen coordinates
+
+  canvas.print('Score', 20, 20) // unaffected by the camera
 }
 ```
 
-After `draw()` is executed, the game loop returns to `update()` and the cycle repeats until the game is closed. These three functions are the core of Lumen's game loop, and are the only functions that are required to be defined in a Lumen game.
+Transforms **compose**: `canvas.scale(2)` after `canvas.scale(3)` gives 6x, it
+does not replace the 3x. `canvas.push('all')` also saves the color, line width,
+point size, blend mode, and scissor, and `canvas.pop()` restores them.
+
+`canvas.toWorld(x, y)` and `mouse.getWorldPosition()` map a screen position back
+through the current transform, which is how a game finds what the player clicked
+on while a camera is active.
+
+## Colors
+
+**Red, green, and blue run 0-255. Alpha runs 0-1.** The two ranges are
+deliberately different: a single range that accepts both and guesses from the
+value cannot tell `1` (nearly transparent) from `1.0` (fully opaque), and gets
+it silently wrong either way.
+
+```ghost
+color.rgb(255, 128, 0)          // opaque orange
+color.rgb(255, 128, 0, 0.5)     // the same orange at half opacity
+color.hex('#ff8800')            // #rgb, #rgba, #rrggbb, and #rrggbbaa
+color.hsl(30, 1, 0.5)           // hue in degrees, saturation and lightness 0-1
+color.white.withAlpha(0.25)
+```
+
+The current color tints everything drawn, images and text included, the way
+LÖVE's does. Set it back to `color.white` before drawing sprites you do not want
+tinted.
 
 ## Modules
-### Canvas
-#### Methods
-- `canvas.rectangle()`
-- `canvas.filledRectangle()`
-- `canvas.circle()`
-- `canvas.filledCircle()`
-- `canvas.line()`
-- `canvas.point()`
-- `canvas.clear()`
-- `canvas.setColor()`
-- `canvas.setFont()`
-- `canvas.resetFont()`
-- `canvas.print()`
-- `canvas.scale()`
-- `canvas.translate()`
 
-### Color
-#### Methods
-- `color.rgb()`
-- `color.hex()`
+### `canvas`
 
-#### Properties
-- `color.black`
-- `color.white`
+Drawing, the drawing state, and the transform stack.
 
-### Font
-#### Methods
-- `font.load()`
+**Shapes** — `rectangle(x, y, w, h)`, `filledRectangle(...)`,
+`circle(x, y, r, [segments])`, `filledCircle(...)`,
+`ellipse(x, y, rx, ry, [segments])`, `filledEllipse(...)`,
+`arc(x, y, r, startAngle, endAngle, [segments])`, `filledArc(...)`,
+`polygon(x1, y1, x2, y2, x3, y3, ...)` (or one list of coordinates),
+`filledPolygon(...)`, `line(x1, y1, x2, y2, ...)` (any number of points),
+`point(x, y, ...)`.
 
-### Image
-#### Methods
-- `image.load()`
+**State** — `clear([color])`, `setColor(color)` or `setColor(r, g, b, [a])`,
+`getColor()`, `setBackgroundColor(color)`, `setLineWidth(n)`, `getLineWidth()`,
+`setPointSize(n)`, `setBlendMode('alpha'|'add'|'multiply'|'none')`,
+`setScissor(x, y, w, h)`, `clearScissor()`.
 
-### Keyboard
-#### Methods
-- `keyboard.isDown()`
-- `keyboard.isUp()`
-- `keyboard.wasPressed()`
-- `keyboard.wasReleased()`
+**Text** — `print(text, x, y, [rotation, sx, sy, ox, oy])`,
+`printf(text, x, y, limit, ['left'|'center'|'right'], [rotation, sx, sy, ox, oy])`,
+`setFont(font)`, `getFont()`, `resetFont()`.
 
-### Mouse
-#### Methods
-- `mouse.showCursor()`
-- `mouse.hideCursor()`
-- `mouse.isButtonDown()`
-- `mouse.isButtonUp()`
-- `mouse.wasButtonPressed()`
-- `mouse.wasButtonReleased()`
+**Transforms** — `push(['all'])`, `pop()`, `origin()`, `translate(x, y)`,
+`rotate(radians)`, `scale(x, [y])`, `shear(x, y)`, `toScreen(x, y)`,
+`toWorld(x, y)`.
 
-#### Properties
-- `mouse.x`
-- `mouse.y`
+**Targets** — `newTarget(w, h)`, `setTarget([target])`,
+`newQuad(x, y, w, h)`, `screenshot(filename)`.
 
-### Window
-#### Methods
-- `window.setTitle()`
+**Properties** — `canvas.width`, `canvas.height` (of the render target when one
+is set, of the window otherwise).
 
-#### Properties
-- `window.fps`
-- `window.width`
-- `window.height`
+### `color`
+
+`rgb(r, g, b, [a])`, `rgba(...)`, `hex(string)`, `hsl(h, s, l, [a])`.
+
+Named colors: `black`, `white`, `transparent`, `red`, `green`, `blue`, `yellow`,
+`orange`, `purple`, `cyan`, `magenta`, `brown`, `gray`, `lightGray`, `darkGray`.
+
+### `image`
+
+`load(path)`, `newQuad(x, y, w, h)`.
+
+### `font`
+
+`load(path, size)`, `load(size)` or `system(size)` for the built-in font,
+`system()` for the current default.
+
+### `audio`
+
+`newSource(path, ['static'|'stream'])`, `play(source)`, `stop([source])`,
+`pause()`, `resume()`, `setVolume(0-1)`, `getVolume()`.
+
+`'static'` decodes the whole sound up front and can overlap with itself — use it
+for effects. `'stream'` decodes while playing — use it for music. WAV, OGG, and
+MP3 are supported.
+
+### `keyboard`
+
+`isDown(key, ...)`, `isUp(key, ...)`, `wasPressed(key, ...)`,
+`wasReleased(key, ...)`, `startTextInput()`, `stopTextInput()`,
+`isTextInputActive()`.
+
+Each takes any number of key names and is true if any of them matches, so one
+action can be bound to several keys: `keyboard.isDown('left', 'a')`. Names are
+SDL key names and are matched case-insensitively (`'left'`, `'space'`,
+`'escape'`, `'return'`, `'f1'`, `'a'`). An unrecognised name is an error rather
+than a silent false.
+
+### `mouse`
+
+`showCursor()`, `hideCursor()`, `isVisible()`, `isButtonDown(button)`,
+`isButtonUp(button)`, `wasButtonPressed(button)`, `wasButtonReleased(button)`,
+`getPosition()`, `setPosition(x, y)`, `getWorldPosition()`,
+`setRelativeMode(bool)`, `setGrabbed(bool)`.
+
+Buttons are `'left'`, `'middle'`, `'right'`, `'x1'`, `'x2'`.
+
+**Properties** — `mouse.x`, `mouse.y`, `mouse.wheel`, `mouse.wheelX`.
+
+### `joystick`
+
+`isDown(index, button)`, `isUp(...)`, `wasPressed(...)`, `wasReleased(...)`,
+`getAxis(index, axis, [deadZone])`, `getName(index)`, `isConnected(index)`,
+`vibrate(index, strength, [strength2], [seconds])`.
+
+**Property** — `joystick.count`.
+
+Controllers are numbered from 1. Buttons use SDL game-controller names: `'a'`,
+`'b'`, `'x'`, `'y'`, `'start'`, `'back'`, `'guide'`, `'leftshoulder'`,
+`'rightshoulder'`, `'leftstick'`, `'rightstick'`, `'dpup'`, `'dpdown'`,
+`'dpleft'`, `'dpright'`. Axes are `'leftx'`, `'lefty'`, `'rightx'`, `'righty'`,
+`'triggerleft'`, `'triggerright'`; sticks report -1 to 1 and triggers 0 to 1,
+with a 0.15 dead zone by default. Checking a controller that is not plugged in
+reads as "not pressed" rather than raising.
+
+### `timer`
+
+`getDelta()`, `getFps()`, `getTime()`, `sleep(seconds)`.
+
+**Properties** — `timer.delta`, `timer.averageDelta`, `timer.fps`, `timer.time`
+(seconds since the game started), `timer.frame`.
+
+### `window`
+
+`setTitle(title)`, `setMode(w, h, [fullscreen])`, `setSize(w, h)`,
+`setFullscreen(bool)`, `toggleFullscreen()`, `setResizable(bool)`,
+`setBorderless(bool)`, `setVsync(bool)`, `setIcon(image)`, `setPosition(x, y)`,
+`center()`, `maximize()`, `minimize()`, `restore()`,
+`getDesktopDimensions()`, `getDimensions()`.
+
+**Properties** — `window.width`, `window.height`, `window.title`, `window.fps`,
+`window.fullscreen`, `window.focused`.
+
+### `filesystem`
+
+Saved games belong in the player's own data directory, not next to the program:
+a game installed read-only cannot write to its own folder. Ghost's built-in `io`
+module reads and writes next to the source, which is right for assets and wrong
+for saves, so Lumen adds this.
+
+Saves land in `~/.local/share/lumen/<identity>` on Linux (honouring
+`XDG_DATA_HOME`), `~/Library/Application Support/lumen/<identity>` on macOS, and
+`%AppData%\lumen\<identity>` on Windows.
+
+`setIdentity(name)` (call once in `load()`), `getSaveDirectory()`,
+`write(name, contents)`, `append(name, contents)`, `read(name)`, `exists(name)`,
+`remove(name)`, `createDirectory(name)`, `getDirectoryItems([name])`,
+`readAsset(path)`.
+
+`read()` returns `null` when the file does not exist, so "no save yet" is an
+ordinary case rather than an error. Save paths cannot escape the save directory.
+
+`readAsset(path)` is the read-only counterpart, resolved against the game's own
+directory — use it for maps, dialogue, and other shipped data.
+
+### `system`
+
+`getClipboardText()`, `setClipboardText(text)`, `openUrl(url)` (http and https
+only), `getPowerInfo()`.
+
+**Properties** — `system.os`, `system.processorCount`.
+
+### `lumen`
+
+`quit()`, `setTargetFps(n)` (0 for uncapped), `getTargetFps()`.
+
+**Property** — `lumen.version`.
+
+### `math`
+
+Lumen extends Ghost's own `math` module rather than competing with it. Added:
+`floor`, `ceil`, `round`, `sqrt`, `pow`, `exp`, `log`, `sign`, `asin`, `acos`,
+`atan`, `atan2`, `degrees`, `radians`, `clamp(v, low, high)`,
+`lerp(from, to, amount)`, `distance(x1, y1, x2, y2)`, `angle(x1, y1, x2, y2)`,
+`random()`, `random(n)`, `random(low, high)`, `randomSeed(n)`,
+`noise(x, [y])`.
 
 ## Objects
-### Color
-Represents a color.
 
-### Font
-Represents a font.
-
-#### Methods
-- `print()`
+Ghost cannot expose properties on objects a host program defines, only methods,
+so these are all method calls.
 
 ### Image
-Represents an image.
 
-#### Methods
-- `draw()`
-- `clip()`
-- `getWidth()` (need to update ghost to include object properties)
-- `getHeight()` (need to update ghost to include object properties)
+`draw(x, y, [rotation, sx, sy, ox, oy])`,
+`drawQuad(quad, x, y, [rotation, sx, sy, ox, oy])`,
+`clip(x, y, size)` or `clip(x, y, w, h)`, `getWidth()`, `getHeight()`,
+`getDimensions()`, `getPixel(x, y)`, `setFilter('nearest'|'linear')`.
+
+Rotation is in radians, applied about the origin offset `(ox, oy)`. Negative
+scale flips: `sprite.draw(x, y, 0, -1, 1)` mirrors horizontally.
+
+`clip()` returns a lightweight view onto part of the image, which is how one
+spritesheet becomes many sprites. `getPixel()` reads from the source image,
+which lets collision or spawn data be baked into a map image.
+
+### Quad
+
+`getX()`, `getY()`, `getWidth()`, `getHeight()`, `setViewport(x, y, w, h)`.
+
+A quad is a rectangle of a texture. Building one per animation frame up front and
+reusing it beats allocating one per draw.
+
+### Font
+
+`print(text, x, y, [...])`, `printf(text, x, y, limit, [align], [...])`,
+`getWidth(text)`, `getHeight()`, `getLineHeight()`, `setLineHeight(n)`,
+`getAscent()`, `getDescent()`, `getBaseline()`, `getWrap(text, limit)`,
+`getSize()`.
+
+`getWidth()` is what centring text and sizing a dialogue box need. Rendered
+strings are cached, so drawing the same text every frame costs almost nothing;
+text that changes every frame is evicted automatically.
+
+### Color
+
+`getRed()`, `getGreen()`, `getBlue()`, `getAlpha()`, `toHex()`,
+`withAlpha(0-1)`, `lerp(other, amount)`.
+
+### Target
+
+`draw(x, y, [...])`, `getWidth()`, `getHeight()`, `getDimensions()`.
+
+An off-screen surface. Draw into it with `canvas.setTarget(target)`, return to
+the window with `canvas.setTarget()`, then draw it like any image.
+
+### Source
+
+`play()`, `stop()`, `pause()`, `resume()`, `isPlaying()`, `isPaused()`,
+`setLooping(bool)`, `isLooping()`, `setVolume(0-1)`, `getVolume()`,
+`fadeIn(seconds)`, `fadeOut(seconds)`, `clone()`.
+
+## Writing Ghost for Lumen
+
+A few of Ghost's rules surprise people coming from other languages, and every
+one of them bites hardest inside a game loop.
+
+**Assignment is local to the function it happens in.** A bare `score = score + 1`
+inside `update()` creates a new local each frame; the outer `score` never
+changes. Keep mutable state on a map or a class instance, where assignment goes
+through a property and mutates in place:
+
+```ghost
+game = { score: 0 }
+
+function update(dt) {
+  game.score = game.score + 1   // works
+}
+```
+
+**`and` and `or` evaluate both sides.** They do not short-circuit, so a guard
+cannot protect the test beside it:
+
+```ghost
+if (j >= 0 and list[j].y > 0) { }   // list[j] is read even when j is -1
+```
+
+Split it into nested `if`s instead. A negative or out-of-range list index reads
+as `null` rather than raising, so the failure shows up later as "cannot read
+property of null".
+
+**Module names are global.** Naming a variable or parameter `font`, `image`,
+`color`, `canvas`, `window`, `timer`, `audio`, `system`, `math`, or `json` gets
+the module instead of the value. Name them `bodyFont`, `sprite`, and so on.
+
+**`default` is a keyword.** It cannot be used as a method name, which is why the
+built-in font is `font.system(size)`.
+
+## Examples
+
+`make run EXAMPLE=<name>`, or `lumen examples/<name>`.
+
+| Example | Shows |
+| --- | --- |
+| `01_draw` | shapes and colors |
+| `02_input` | reading the keyboard |
+| `03_modular` | splitting a game across files |
+| `04_collision` | rectangle overlap |
+| `05_translate` | moving the world under a camera |
+| `06_spritesheets` | slicing an image into tiles |
+| `07_animations` | frame animation |
+| `08_tilemap` | drawing a grid of tiles |
+| `11_camera` | following a player |
+| `12_mouse` | pointer position and buttons |
+| `13_mouse_select` | click-and-drag selection |
+| `50_conway` | Conway's Game of Life |
+| `51_player_animations` | directional walk cycles |
+| `52_tiled_maps` | loading a map exported from Tiled |
+| `53_top_down` | a tiled world with a following camera |
+| `60_rpg` | **a complete top-down RPG** |
+
+`60_rpg` is the one to read first if you are building something: a Tiled map with
+per-layer collision and view culling, a smoothed camera with bounds and screen
+shake, dt-driven walk animations, depth-sorted characters, NPCs and typewriter
+dialogue, a scissor-clipped inventory, saving and loading, sound effects, gamepad
+support, and a screen fade.
+
+## Differences from LÖVE
+
+Lumen follows LÖVE's model but is not a port, and does not try to be.
+
+- Drawing methods live on the objects being drawn (`sprite.draw(x, y)`) rather
+  than on the graphics module (`love.graphics.draw(sprite, x, y)`), which is the
+  shape the rest of Ghost's standard library already has.
+- The graphics module is `canvas`; render targets are `Target` objects.
+- Color channels are 0-255 and alpha is 0-1, where LÖVE uses 0-1 for both.
+- The draw state resets every frame, where LÖVE carries color and line width
+  across frames.
+- Not implemented: shaders, particle systems, physics (Box2D), sprite batches,
+  meshes, threads, video, and touch. Simple axis-aligned collision is a few lines
+  of Ghost — `04_collision` and `60_rpg` both show it.

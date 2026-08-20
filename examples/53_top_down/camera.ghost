@@ -1,5 +1,5 @@
 class Camera {
-  function constructor() {
+  constructor() {
     this.x = 0
     this.y = 0
     this.width = 100 * 16
@@ -7,7 +7,7 @@ class Camera {
     this.zoom = 4
   }
 
-  function update() {
+  update() {
     if (keyboard.wasPressed('=')) {
       this.zoom = this.zoom + 1
 
@@ -25,7 +25,7 @@ class Camera {
     }
   }
 
-  function follow(target) {
+  follow(target) {
     this.x = -target.x + window.width / (this.zoom * 2) - (target.width / 2)
     this.y = -target.y + window.height / (this.zoom * 2) - (target.height / 2)
 
@@ -47,7 +47,9 @@ class Camera {
     }
   }
 
-  function draw() {
+  draw() {
+    // Transforms compose rather than replace, so this zoom multiplies the scale
+    // the caller already applied.
     canvas.scale(this.zoom)
     canvas.translate(this.x, this.y)
   }

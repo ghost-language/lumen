@@ -1,0 +1,163 @@
+import Spritesheet from 'spritesheet'
+
+// The player character: eight-way input resolved to a facing, axis-separated
+// collision against the tilemap, and dt-scaled movement so walking speed is the
+// same on a 30fps laptop and a 144Hz monitor.
+class Player {
+  constructor(sheet, tileX, tileY, tileSize) {
+    this.sheet = sheet
+    this.width = 14
+    this.height = 12
+    this.x = tileX * tileSize + 1
+    this.y = tileY * tileSize + 2
+    this.speed = 52
+    this.facing = 'down'
+    this.moving = false
+    this.animationTime = 0
+    this.stepTime = 0
+    this.health = 6
+    this.maxHealth = 6
+    this.coins = 0
+    this.items = []
+
+    // Frame indices into characters.png, which is a 12-column sheet of 16x16
+    // characters. Each direction has a two-frame walk and a one-frame idle.
+    this.sheet.add('down', [148, 149], 0.16)
+    this.sheet.add('up', [150, 151], 0.16)
+    this.sheet.add('right', [152, 153], 0.16)
+    this.sheet.add('left', [154, 155], 0.16)
+    this.sheet.add('down_idle', [144], 0)
+    this.sheet.add('up_idle', [145], 0)
+    this.sheet.add('right_idle', [146], 0)
+    this.sheet.add('left_idle', [147], 0)
+  }
+
+  // input reads keyboard and gamepad together and returns a direction vector.
+  // Both are always polled, so a player can switch between them mid-game.
+  input() {
+    x = 0
+    y = 0
+
+    if (keyboard.isDown('left', 'a')) { x = x - 1 }
+    if (keyboard.isDown('right', 'd')) { x = x + 1 }
+    if (keyboard.isDown('up', 'w')) { y = y - 1 }
+    if (keyboard.isDown('down', 's')) { y = y + 1 }
+
+    if (joystick.isConnected(1)) {
+      if (joystick.isDown(1, 'dpleft')) { x = x - 1 }
+      if (joystick.isDown(1, 'dpright')) { x = x + 1 }
+      if (joystick.isDown(1, 'dpup')) { y = y - 1 }
+      if (joystick.isDown(1, 'dpdown')) { y = y + 1 }
+
+      x = x + joystick.getAxis(1, 'leftx')
+      y = y + joystick.getAxis(1, 'lefty')
+    }
+
+    return { x: math.clamp(x, -1, 1), y: math.clamp(y, -1, 1) }
+  }
+
+  update(dt, map, sounds) {
+    direction = this.input()
+
+    length = math.sqrt(direction.x * direction.x + direction.y * direction.y)
+    this.moving = length > 0.1
+
+    if (this.moving) {
+      // Normalising stops diagonal movement being faster than straight movement.
+      dx = direction.x / length * this.speed * dt
+      dy = direction.y / length * this.speed * dt
+
+      this.moveX(dx, map)
+      this.moveY(dy, map)
+
+      this.face(direction)
+
+      this.animationTime = this.animationTime + dt
+      this.stepTime = this.stepTime + dt
+
+      if (this.stepTime > 0.32) {
+        this.stepTime = 0
+        sounds.play('step')
+      }
+    } else {
+      this.animationTime = 0
+      this.stepTime = 0.3
+    }
+  }
+
+  // face picks a sprite direction, preferring vertical only when the player is
+  // moving mostly vertically. Without the bias, diagonal movement flickers
+  // between two facings.
+  face(direction) {
+    if (math.abs(direction.x) > math.abs(direction.y)) {
+      if (direction.x < 0) { this.facing = 'left' } else { this.facing = 'right' }
+
+      return null
+    }
+
+    if (direction.y < 0) { this.facing = 'up' } else { this.facing = 'down' }
+  }
+
+  // Movement is resolved one axis at a time: a player pressing into a wall
+  // diagonally then slides along it instead of sticking.
+  moveX(amount, map) {
+    target = this.x + amount
+
+    if (this.canOccupy(target, this.y, map)) {
+      this.x = target
+    }
+  }
+
+  moveY(amount, map) {
+    target = this.y + amount
+
+    if (this.canOccupy(this.x, target, map)) {
+      this.y = target
+    }
+  }
+
+  // canOccupy tests the four corners of the player's collision box. A box this
+  // small never spans more than one tile, so the corners are enough.
+  canOccupy(x, y, map) {
+    right = x + this.width - 1
+    bottom = y + this.height - 1
+
+    return !map.isSolidAt(x, y)
+      and !map.isSolidAt(right, y)
+      and !map.isSolidAt(x, bottom)
+      and !map.isSolidAt(right, bottom)
+  }
+
+  // facingPoint is the spot just in front of the player, which is what
+  // interaction checks are measured against.
+  facingPoint() {
+    x = this.x + this.width / 2
+    y = this.y + this.height / 2
+
+    switch (this.facing) {
+      case 'up' { y = y - 12 }
+      case 'down' { y = y + 12 }
+      case 'left' { x = x - 12 }
+      case 'right' { x = x + 12 }
+    }
+
+    return { x: x, y: y }
+  }
+
+  centerX() { return this.x + this.width / 2 }
+  centerY() { return this.y + this.height / 2 }
+
+  animation() {
+    if (this.moving) {
+      return this.facing
+    }
+
+    return this.facing + '_idle'
+  }
+
+  draw() {
+    // The sprite is 16x16 but the collision box is smaller and sits at its feet,
+    // so the sprite is drawn offset to line up with it.
+    this.sheet.play(this.animation(), this.animationTime, this.x - 1, this.y - 4)
+  }
+}

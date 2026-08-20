@@ -1,6 +1,6 @@
 import Map from 'map'
 
-map = Map.new('resources/map.json')
+map = new Map('resources/map.json')
 
 function update() {
   map.update()

@@ -1,0 +1,137 @@
+import Spritesheet from 'spritesheet'
+
+// Tilemap loads a map exported from Tiled as JSON. Layers named in
+// `solidLayers` become collision: any tile placed on them blocks movement.
+class Tilemap {
+  constructor(path, solidLayers) {
+    data = json.decode(filesystem.readAsset(path))
+
+    this.width = data.width
+    this.height = data.height
+    this.tileSize = data.tilewidth
+    this.pixelWidth = data.width * data.tilewidth
+    this.pixelHeight = data.height * data.tileheight
+    this.layers = data.layers
+    this.tilesets = this.loadTilesets(data.tilesets)
+    this.solid = this.buildCollision(data, solidLayers)
+  }
+
+  loadTilesets(tilesets) {
+    loaded = []
+
+    for (index = 0; index < tilesets.length(); index++) {
+      tileset = tilesets[index]
+
+      loaded.push({
+        sheet: new Spritesheet('resources/' + tileset.image, tileset.tilewidth, tileset.tileheight),
+        firstgid: tileset.firstgid,
+        lastgid: tileset.firstgid + tileset.tilecount - 1
+      })
+    }
+
+    return loaded
+  }
+
+  // buildCollision flattens the solid layers into one lookup so a movement check
+  // is a single list index rather than a walk over every layer.
+  buildCollision(data, solidLayers) {
+    solid = []
+
+    for (index = 0; index < this.width * this.height; index++) {
+      solid.push(false)
+    }
+
+    for (index = 0; index < data.layers.length(); index++) {
+      layer = data.layers[index]
+
+      if (!this.isSolidLayer(layer.name, solidLayers)) {
+        continue
+      }
+
+      for (cell = 0; cell < layer.data.length(); cell++) {
+        if (layer.data[cell] != 0) {
+          solid[cell] = true
+        }
+      }
+    }
+
+    return solid
+  }
+
+  isSolidLayer(name, solidLayers) {
+    for (index = 0; index < solidLayers.length(); index++) {
+      if (solidLayers[index] == name) {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  // isSolidAt answers a world-pixel position. Anything outside the map counts as
+  // solid so the player cannot walk off the edge.
+  isSolidAt(x, y) {
+    tileX = math.floor(x / this.tileSize)
+    tileY = math.floor(y / this.tileSize)
+
+    if (tileX < 0 or tileY < 0 or tileX >= this.width or tileY >= this.height) {
+      return true
+    }
+
+    return this.solid[tileX + tileY * this.width]
+  }
+
+  // tilesetFor finds which tileset a global tile id belongs to.
+  tilesetFor(gid) {
+    for (index = 0; index < this.tilesets.length(); index++) {
+      tileset = this.tilesets[index]
+
+      if (gid >= tileset.firstgid and gid <= tileset.lastgid) {
+        return tileset
+      }
+    }
+
+    return null
+  }
+
+  // draw renders every layer, but only the tiles inside `view`. A 50x50 map with
+  // six layers is 15,000 tiles; culling to the camera cuts that to a few hundred.
+  draw(view) {
+    left = math.max(0, view.left)
+    top = math.max(0, view.top)
+    right = math.min(this.width - 1, view.right)
+    bottom = math.min(this.height - 1, view.bottom)
+
+    for (index = 0; index < this.layers.length(); index++) {
+      layer = this.layers[index]
+
+      if (layer.type != 'tilelayer' or !layer.visible) {
+        continue
+      }
+
+      this.drawLayer(layer, left, top, right, bottom)
+    }
+  }
+
+  drawLayer(layer, left, top, right, bottom) {
+    for (y = top; y <= bottom; y++) {
+      row = y * this.width
+
+      for (x = left; x <= right; x++) {
+        gid = layer.data[x + row]
+
+        if (gid == 0) {
+          continue
+        }
+
+        tileset = this.tilesetFor(gid)
+
+        if (tileset == null) {
+          continue
+        }
+
+        tileset.sheet.draw(gid - tileset.firstgid, x * this.tileSize, y * this.tileSize)
+      }
+    }
+  }
+}

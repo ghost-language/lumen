@@ -1,6 +1,6 @@
-import Player from './player'
+import Player from 'player'
 
-player = Player.new()
+player = new Player()
 
 function update() {
   player.update()

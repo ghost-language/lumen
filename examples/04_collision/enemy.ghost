@@ -1,5 +1,5 @@
 class Enemy {
-  function constructor() {
+  constructor() {
     this.x = 175
     this.y = 100
     this.size = 50
@@ -7,11 +7,11 @@ class Enemy {
     this.height = this.size
   }
 
-  function update() {
+  update() {
     // 
   }
 
-  function draw() {
+  draw() {
     canvas.setColor(color.rgb(255, 0, 0))
     canvas.rectangle(this.x, this.y, this.size, this.size)
   }

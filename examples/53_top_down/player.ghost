@@ -1,7 +1,7 @@
 import Spritesheet from 'spritesheet'
 
 class Player {
-  function constructor(x = 0, y = 0) {
+  constructor(x = 0, y = 0) {
     this.x = x
     this.y = y
     this.isMoving = false
@@ -12,7 +12,7 @@ class Player {
     this.width = this.size
     this.height = this.size
     this.direction = 'down'
-    this.sprite = Spritesheet.new('resources/characters.png', this.size)
+    this.sprite = new Spritesheet('resources/characters.png', this.size)
 
     characters = [
       {
@@ -50,7 +50,7 @@ class Player {
     this.sprite.addAnimation('left_idle', characters[character].left_idle, 0)
   }
 
-  function update() {
+  update() {
     this.previousX = this.x
     this.previousY = this.y
 
@@ -83,7 +83,7 @@ class Player {
     }
   }
 
-  function draw() {
+  draw() {
     direction = this.direction
 
     if (!this.isMoving) {
