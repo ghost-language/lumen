@@ -7,4 +7,4 @@ require (
 	github.com/veandco/go-sdl2 v0.4.35
 )
 
-replace ghostlang.org/x/ghost => /Users/kai/.claude-worktrees/ghost/nervous-johnson
+replace ghostlang.org/x/ghost => ../ghost
