@@ -283,10 +283,14 @@ reads as "not pressed" rather than raising.
 
 ### `filesystem`
 
-Saved games belong in the player's own config directory, not next to the
-program: a game installed read-only cannot write to its own folder. Ghost's
-built-in `io` module reads and writes next to the source, which is right for
-assets and wrong for saves, so Lumen adds this.
+Saved games belong in the player's own data directory, not next to the program:
+a game installed read-only cannot write to its own folder. Ghost's built-in `io`
+module reads and writes next to the source, which is right for assets and wrong
+for saves, so Lumen adds this.
+
+Saves land in `~/.local/share/lumen/<identity>` on Linux (honouring
+`XDG_DATA_HOME`), `~/Library/Application Support/lumen/<identity>` on macOS, and
+`%AppData%\lumen\<identity>` on Windows.
 
 `setIdentity(name)` (call once in `load()`), `getSaveDirectory()`,
 `write(name, contents)`, `append(name, contents)`, `read(name)`, `exists(name)`,

@@ -51,7 +51,7 @@ drawn last, so they overlap whoever is behind them.
 `camera.attach()` / `camera.detach()`; the HUD and dialogue are drawn outside,
 in screen coordinates, unaffected by zoom.
 
-**Saves go to the save directory.** `filesystem` writes to the player's config
+**Saves go to the save directory.** `filesystem` writes to the player's data
 directory, not next to the game, and `filesystem.read()` returns `null` when
 there is no save yet.
 

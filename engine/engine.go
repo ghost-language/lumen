@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"ghostlang.org/x/ghost/ghost"
 	"github.com/veandco/go-sdl2/sdl"
@@ -200,17 +201,40 @@ func (engine *Engine) SetSaveIdentity(identity string) error {
 // SaveDirectory returns the directory this game's saved data lives in, creating
 // it on first use.
 func (engine *Engine) SaveDirectory() (string, error) {
-	config, err := os.UserConfigDir()
+	base, err := userDataDir()
 
 	if err != nil {
 		return "", err
 	}
 
-	directory := filepath.Join(config, "lumen", engine.saveIdentity)
+	directory := filepath.Join(base, "lumen", engine.saveIdentity)
 
 	if err := os.MkdirAll(directory, 0o755); err != nil {
 		return "", err
 	}
 
 	return directory, nil
+}
+
+// userDataDir returns the per-user directory for application data, which is
+// where a saved game belongs. Go's os.UserConfigDir is the right answer on
+// macOS and Windows, but on Linux it resolves to ~/.config, which is for
+// configuration. Saves are data, so Linux follows the XDG data directory —
+// ~/.local/share — the same place LOVE puts them.
+func userDataDir() (string, error) {
+	if runtime.GOOS != "linux" && runtime.GOOS != "freebsd" && runtime.GOOS != "openbsd" && runtime.GOOS != "netbsd" {
+		return os.UserConfigDir()
+	}
+
+	if data := os.Getenv("XDG_DATA_HOME"); data != "" && filepath.IsAbs(data) {
+		return data, nil
+	}
+
+	home, err := os.UserHomeDir()
+
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(home, ".local", "share"), nil
 }
