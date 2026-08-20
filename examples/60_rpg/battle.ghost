@@ -701,6 +701,13 @@ class Battle {
   confirmMenu() {
     chosen = this.menu.value()
 
+    // A menu with nothing selectable in it has nothing to confirm. Ordinary
+    // play cannot reach this, since the menu only reports a confirmation for an
+    // enabled row, but every branch below would otherwise dereference the null.
+    if (chosen == null) {
+      return null
+    }
+
     switch (this.phase) {
       case 'command' { this.chooseCommand(chosen) }
       case 'spell' {

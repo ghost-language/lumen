@@ -10,6 +10,15 @@ lumen examples/60_rpg
 
 | | |
 | --- | --- |
+| ![The world](screenshots/field.png) | ![Talking to an NPC](screenshots/dialogue.png) |
+| Walking the map, with the party's health in the corner and a marker over whoever is in reach. | Typewriter dialogue that wraps to the box and pages on a keypress. |
+| ![A battle](screenshots/battle.png) | ![Choosing a spell](screenshots/battle-spell.png) |
+| Front-view turn-based combat. The active hero is picked out, and the panel explains whatever the cursor is on. | Spells list their cost and grey out when there is not enough magic to cast them. |
+| ![Equipping](screenshots/equip.png) | ![A status sheet](screenshots/status.png) |
+| Equipment shows what a piece would do to that hero's numbers before it is equipped. | The full sheet: stats, gear, spells, and what the next level costs. |
+
+| | |
+| --- | --- |
 | move | arrow keys / WASD / gamepad stick or d-pad |
 | confirm | space or E (gamepad A) |
 | cancel | escape or Q (gamepad B) |

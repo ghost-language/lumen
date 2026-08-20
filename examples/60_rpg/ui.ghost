@@ -173,6 +173,12 @@ class Menu {
       return null
     }
 
+    // The index is clamped rather than trusted. Callers set it directly to open
+    // a menu on a particular entry, and a stale index left over from a longer
+    // list would otherwise read past the end - which in Ghost is null rather
+    // than an error, and so would surface somewhere far from the cause.
+    this.index = math.max(0, math.min(this.index, this.rows.length() - 1))
+
     return this.rows[this.index]
   }
 
