@@ -4,7 +4,7 @@ import Spritesheet from 'spritesheet'
 // collision against the tilemap, and dt-scaled movement so walking speed is the
 // same on a 30fps laptop and a 144Hz monitor.
 class Player {
-  constructor(sheet, tileX, tileY, tileSize) {
+  constructor(sheet, tileX, tileY, tileSize, characterIndex) {
     this.sheet = sheet
     this.width = 14
     this.height = 12
@@ -15,21 +15,23 @@ class Player {
     this.moving = false
     this.animationTime = 0
     this.stepTime = 0
-    this.health = 6
-    this.maxHealth = 6
-    this.coins = 0
-    this.items = []
 
-    // Frame indices into characters.png, which is a 12-column sheet of 16x16
-    // characters. Each direction has a two-frame walk and a one-frame idle.
-    this.sheet.add('down', [148, 149], 0.16)
-    this.sheet.add('up', [150, 151], 0.16)
-    this.sheet.add('right', [152, 153], 0.16)
-    this.sheet.add('left', [154, 155], 0.16)
-    this.sheet.add('down_idle', [144], 0)
-    this.sheet.add('up_idle', [145], 0)
-    this.sheet.add('right_idle', [146], 0)
-    this.sheet.add('left_idle', [147], 0)
+    // How far the player has walked since the last encounter roll.
+    this.walked = 0
+
+    // characters.png holds twenty characters of twelve frames each: four idle
+    // poses followed by four two-frame walks. Deriving the frames from the
+    // character index means changing who the player is takes one number.
+    base = characterIndex * 12
+
+    this.sheet.add('down_idle', [base], 0)
+    this.sheet.add('up_idle', [base + 1], 0)
+    this.sheet.add('right_idle', [base + 2], 0)
+    this.sheet.add('left_idle', [base + 3], 0)
+    this.sheet.add('down', [base + 4, base + 5], 0.16)
+    this.sheet.add('up', [base + 6, base + 7], 0.16)
+    this.sheet.add('right', [base + 8, base + 9], 0.16)
+    this.sheet.add('left', [base + 10, base + 11], 0.16)
   }
 
   // input reads keyboard and gamepad together and returns a direction vector.
@@ -67,8 +69,12 @@ class Player {
       dx = direction.x / length * this.speed * dt
       dy = direction.y / length * this.speed * dt
 
+      before = { x: this.x, y: this.y }
+
       this.moveX(dx, map)
       this.moveY(dy, map)
+
+      this.walked = this.walked + math.distance(before.x, before.y, this.x, this.y)
 
       this.face(direction)
 

@@ -1,0 +1,260 @@
+import * from 'data'
+
+// A Combatant is anything that can take a turn in battle: a party member or a
+// monster. Heroes carry equipment and levels, monsters carry flat stats and the
+// rewards for beating them, but both are hit, healed, and ordered by the same
+// code, so the battle never has to ask which kind it is holding.
+class Combatant {
+  constructor(config) {
+    this.id = config.id
+    this.name = config.name
+    this.character = config.character
+    this.isHero = config.isHero
+    this.level = config.level
+    this.maxHealth = config.maxHealth
+    this.health = config.maxHealth
+    this.maxMagic = config.maxMagic
+    this.magic = config.maxMagic
+    this.strength = config.strength
+    this.baseDefence = config.defence
+    this.agility = config.agility
+    this.spells = config.spells
+    this.experience = 0
+    this.experienceReward = config.experienceReward
+    this.goldReward = config.goldReward
+    this.role = config.role
+
+    this.equipment = { weapon: null, armour: null, shield: null }
+
+    this.guarding = false
+    this.buff = 0
+
+    // Set when the combatant is hit, so the view can flash whoever was struck.
+    this.flash = 0
+  }
+
+  isAlive() {
+    return this.health > 0
+  }
+
+  // attackPower is what the damage formula reads: raw strength plus whatever is
+  // in hand.
+  attackPower() {
+    return this.strength + this.equipmentBonus('attack')
+  }
+
+  // defencePower folds in armour, any Guard spell still running, and the
+  // doubling that comes from spending a turn defending.
+  defencePower() {
+    total = this.baseDefence + this.equipmentBonus('defence') + this.buff
+
+    if (this.guarding) {
+      total = total * 2
+    }
+
+    return total
+  }
+
+  // equipmentBonus totals one stat across every equipped slot.
+  equipmentBonus(stat) {
+    total = 0
+    slots = ['weapon', 'armour', 'shield']
+
+    for (index = 0; index < slots.length(); index++) {
+      equipped = this.equipment[slots[index]]
+
+      if (equipped == null) {
+        continue
+      }
+
+      found = findItem(equipped)
+
+      if (found == null) {
+        continue
+      }
+
+      total = total + found[stat]
+    }
+
+    return total
+  }
+
+  equip(slot, itemId) {
+    this.equipment[slot] = itemId
+  }
+
+  equippedName(slot) {
+    equipped = this.equipment[slot]
+
+    if (equipped == null) {
+      return '-'
+    }
+
+    found = findItem(equipped)
+
+    if (found == null) {
+      return '-'
+    }
+
+    return found.name
+  }
+
+  takeDamage(amount) {
+    this.health = math.max(0, this.health - amount)
+    this.flash = 0.25
+
+    return amount
+  }
+
+  // healBy returns how much was actually restored, which is what the battle log
+  // should report: "healed 40" when only 12 was missing reads as a bug.
+  healBy(amount) {
+    before = this.health
+    this.health = math.min(this.maxHealth, this.health + amount)
+
+    return this.health - before
+  }
+
+  restoreMagic(amount) {
+    before = this.magic
+    this.magic = math.min(this.maxMagic, this.magic + amount)
+
+    return this.magic - before
+  }
+
+  canCast(spell) {
+    if (spell == null) {
+      return false
+    }
+
+    return this.magic >= spell.cost
+  }
+
+  spend(cost) {
+    this.magic = math.max(0, this.magic - cost)
+  }
+
+  // beginTurn clears the flags that only last one round.
+  beginTurn() {
+    this.guarding = false
+  }
+
+  update(dt) {
+    if (this.flash > 0) {
+      this.flash = math.max(0, this.flash - dt)
+    }
+  }
+
+  healthFraction() {
+    if (this.maxHealth <= 0) {
+      return 0
+    }
+
+    return this.health / this.maxHealth
+  }
+
+  // gainExperience adds experience and reports every level gained, so the
+  // battle can announce them one at a time.
+  gainExperience(amount) {
+    this.experience = this.experience + amount
+
+    gained = []
+
+    while (this.level < 40) {
+      needed = experienceForLevel(this.level + 1)
+
+      if (this.experience < needed) {
+        break
+      }
+
+      this.level = this.level + 1
+
+      gained.push(this.levelUp())
+    }
+
+    return gained
+  }
+
+  // levelUp raises the stats a level brings and returns a description of the
+  // gain. Growth is proportional to the hero's own aptitudes, so a mage keeps
+  // gaining magic and a knight keeps gaining health.
+  levelUp() {
+    healthGain = 4 + math.floor(this.maxHealth / 12)
+    magicGain = 0
+
+    if (this.maxMagic > 0) {
+      magicGain = 2 + math.floor(this.maxMagic / 10)
+    }
+
+    strengthGain = 1 + math.floor(this.strength / 10)
+    defenceGain = 1 + math.floor(this.baseDefence / 12)
+    agilityGain = 1 + math.floor(this.agility / 14)
+
+    this.maxHealth = this.maxHealth + healthGain
+    this.health = this.maxHealth
+    this.maxMagic = this.maxMagic + magicGain
+    this.magic = this.maxMagic
+    this.strength = this.strength + strengthGain
+    this.baseDefence = this.baseDefence + defenceGain
+    this.agility = this.agility + agilityGain
+
+    return { level: this.level, health: healthGain, magic: magicGain, strength: strengthGain }
+  }
+}
+
+// newHero builds a party member from the table in data.ghost.
+function newHero(id) {
+  template = findHero(id)
+
+  hero = new Combatant({
+    id: template.id,
+    name: template.name,
+    character: template.character,
+    role: template.role,
+    isHero: true,
+    level: 1,
+    maxHealth: template.maxHealth,
+    maxMagic: template.maxMagic,
+    strength: template.strength,
+    defence: template.defence,
+    agility: template.agility,
+    spells: template.spells,
+    experienceReward: 0,
+    goldReward: 0
+  })
+
+  hero.equip('weapon', template.weapon)
+  hero.equip('armour', template.armour)
+  hero.equip('shield', template.shield)
+
+  return hero
+}
+
+// newMonster builds a monster from the table. `suffix` distinguishes two of the
+// same kind in one battle, so the party can be told which goblin fell.
+function newMonster(id, suffix) {
+  template = findMonster(id)
+
+  displayName = template.name
+
+  if (suffix != '') {
+    displayName = displayName + ' ' + suffix
+  }
+
+  return new Combatant({
+    id: template.id,
+    name: displayName,
+    character: template.character,
+    role: '',
+    isHero: false,
+    level: 1,
+    maxHealth: template.maxHealth,
+    maxMagic: 30,
+    strength: template.attack,
+    defence: template.defence,
+    agility: template.agility,
+    spells: template.spells,
+    experienceReward: template.experience,
+    goldReward: template.gold
+  })
+}

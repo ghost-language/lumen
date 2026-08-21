@@ -57,11 +57,35 @@ make examples               # starts every example briefly and reports failures
 ```bash
 lumen main.ghost      # run a specific file
 lumen examples/60_rpg # run the main.ghost inside a directory
-lumen                 # run the main.ghost next to the executable
+lumen game.lumen      # run a packaged game
+lumen                 # run the main.ghost beside the binary, or in the
+                      # working directory
 ```
 
 Asset paths (`image.load`, `font.load`, `audio.newSource`,
 `filesystem.readAsset`) resolve relative to the directory the entry file is in.
+
+## Shipping a game
+
+A game is a folder. To hand it to someone who does not have Lumen, package it.
+
+```bash
+lumen package mygame -o mygame.lumen   # one file; players run `lumen mygame.lumen`
+lumen fuse mygame -o mygame            # a standalone executable; players just run it
+```
+
+A `.lumen` file is a zip of the game's sources and assets with `main.ghost` at
+the root. `fuse` appends that archive to a copy of the Lumen binary, so the
+result is one file with both the engine and the game in it.
+
+A packaged game is unpacked into a cache directory the first time it runs, and
+run from there. That is deliberate rather than incidental: Ghost resolves
+`import` and its own `io` module against the real filesystem, so serving Lumen's
+loaders out of the zip while Ghost's imports still needed real paths would give
+a game two disagreeing views of its own files. Unpacking costs a moment on first
+launch and keeps every path in the system pointing at the same thing. Archives
+are keyed by a hash of their contents, so a second launch reuses what is there
+and a changed game never reads a stale mixture.
 
 ## Game loop
 
@@ -378,7 +402,18 @@ the window with `canvas.setTarget()`, then draw it like any image.
 
 `play()`, `stop()`, `pause()`, `resume()`, `isPlaying()`, `isPaused()`,
 `setLooping(bool)`, `isLooping()`, `setVolume(0-1)`, `getVolume()`,
-`fadeIn(seconds)`, `fadeOut(seconds)`, `clone()`.
+`fadeIn(seconds)`, `fadeOut(seconds)`, `clone()`,
+`setPanning(left, right)`, `setPosition(angle, distance)`, `clearEffects()`.
+
+`setPanning` takes a volume per speaker, each 0 to 1, so `setPanning(1, 0)` is
+hard left. `setPosition` is the convenient form for a sound with a place in the
+world: an angle in degrees, where 0 is ahead and 90 is to the right, and a
+distance from 0 to 1. Both apply to `'static'` sources only — SDL_mixer places
+channels, and music does not play on one.
+
+A sound that cannot find a free channel is dropped rather than raising. In a
+loud moment the least important effect should go missing, not the frame that
+triggered it.
 
 ## Writing Ghost for Lumen
 
@@ -437,13 +472,70 @@ built-in font is `font.system(size)`.
 | `51_player_animations` | directional walk cycles |
 | `52_tiled_maps` | loading a map exported from Tiled |
 | `53_top_down` | a tiled world with a following camera |
-| `60_rpg` | **a complete top-down RPG** |
+| `60_rpg` | **a complete top-down RPG with turn-based battles** |
 
-`60_rpg` is the one to read first if you are building something: a Tiled map with
-per-layer collision and view culling, a smoothed camera with bounds and screen
-shake, dt-driven walk animations, depth-sorted characters, NPCs and typewriter
-dialogue, a scissor-clipped inventory, saving and loading, sound effects, gamepad
-support, and a screen fade.
+`60_rpg` is the one to read first if you are building something. It has a Tiled
+map with per-layer collision and view culling, a smoothed camera with bounds and
+screen shake, dt-driven walk animations, depth-sorted characters, NPCs and
+typewriter dialogue, weighted random encounters, front-view turn-based battles
+with spells and items, levelling, a party with equipment and a shared pack,
+scrolling menus, saving and loading, sound, and gamepad support.
+
+## What Lumen still needs
+
+Lumen can now carry a real game from an empty folder to a file you hand someone.
+`60_rpg` is the proof: a world, battles, menus, saving, sound, and a single-file
+build, in Ghost and nothing else. What follows is an honest account of what is
+still missing, roughly in the order it will bite.
+
+**Cross-compiling.** This is the sharpest edge. Lumen links SDL2 through cgo, so
+`lumen fuse` produces a binary for the machine that ran it, and only that. There
+is no way to build a Windows executable from a Mac. Shipping to three platforms
+today means building on three platforms. Until that is solved with CI that
+builds and fuses per platform, "shippable" has an asterisk on it.
+
+**A test suite.** There is none, for the engine or for Ghost games. The engine's
+correctness currently rests on running the examples and looking at them. The
+pieces to fix that already exist — SDL's dummy video driver runs the whole engine
+headless, and `canvas.screenshot()` can capture a frame — so golden-image tests
+of the drawing paths are reachable, and worth having before the module surface
+grows further.
+
+**Asset hot-reloading.** Changing a sprite or a line of dialogue means restarting
+the game. For a tool people iterate in, watching the game directory and
+reloading changed images, fonts, and sounds is among the highest-value things
+left.
+
+**Error recovery.** A runtime error in `draw()` is reported and the frame is
+abandoned. That is right for a released game and wrong for one being written: an
+error screen showing the message, the line, and a stack would beat reading
+stderr behind the window.
+
+**Text input polish.** The pieces are there — `keyboard.startTextInput()` and the
+`textinput` callback — but every game that wants a name entry field has to build
+caret movement, selection, and clipboard handling itself.
+
+**Sprite batching.** Each `image.draw()` is a separate call into SDL. The tile
+culling in `60_rpg` exists because of it. A batch that collects draws sharing a
+texture into one call would remove the ceiling that culling works around.
+
+**Shaders and particles.** Neither exists. Particles can be written in Ghost and
+will be fine for most games; shaders cannot be worked around, and rule out
+lighting, palette swaps, and screen effects that LÖVE games lean on.
+
+**Physics.** There is no Box2D equivalent. Axis-aligned collision is a few lines
+of Ghost, which covers a top-down RPG and most puzzle games, and covers nothing
+that needs slopes, joints, or stacking.
+
+**Ghost-side gaps that surface as engine gaps.** Ghost has no string slicing (the
+dialogue box in `60_rpg` builds its typewriter effect a character at a time), no
+list removal or sorting (the party rebuilds lists to remove an item, and sorts by
+hand), and no way for a host program to expose properties on its own objects, so
+everything Lumen hands back is a method call. None of these belong to Lumen, but
+every one of them is felt while writing a game in it.
+
+None of that stops a game shipping today on the platform it was built on. It is
+the difference between an engine that works and one that gets out of your way.
 
 ## Differences from LÖVE
 

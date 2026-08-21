@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"ghostlang.org/x/ghost/object"
@@ -23,6 +24,23 @@ type Source struct {
 	Music     *mix.Music
 
 	channel int
+	spatial *spatial
+}
+
+// spatial is where a source sits in the stereo field. SDL_mixer applies these
+// effects to a channel rather than to a sound, and a static source is only
+// assigned a channel when it starts playing, so the settings are kept here and
+// re-applied on every play.
+type spatial struct {
+	// panning is set by setPanning; positional is set by setPosition. Only one
+	// of the two is in force at a time, because each replaces the other's effect
+	// on the channel.
+	positional bool
+
+	left     uint8
+	right    uint8
+	angle    int16
+	distance uint8
 }
 
 // audioMaxVolume is SDL_mixer's full-scale volume.
@@ -103,6 +121,12 @@ func (source *Source) Method(method string, args []object.Object) (object.Object
 		return source.fadeIn(args)
 	case "fadeOut":
 		return source.fadeOut(args)
+	case "setPanning":
+		return source.setPanning(args)
+	case "setPosition":
+		return source.setPosition(args)
+	case "clearEffects":
+		return source.clearEffects()
 	case "clone":
 		return source.clone()
 	case "toString":
@@ -137,6 +161,13 @@ func (source *Source) play(args []object.Object) (object.Object, bool) {
 
 	source.Chunk.Volume(source.mixVolume())
 
+	// With every channel busy there is nowhere to put this sound. Dropping it is
+	// the right answer: a game in the middle of a loud moment should lose the
+	// least important effect, not have the frame that triggered it fail.
+	if mix.GroupAvailable(-1) < 0 {
+		return value.NULL, true
+	}
+
 	channel, err := source.Chunk.Play(-1, loops)
 
 	if err != nil {
@@ -144,6 +175,8 @@ func (source *Source) play(args []object.Object) (object.Object, bool) {
 	}
 
 	source.channel = channel
+
+	source.applySpatial()
 
 	return value.NULL, true
 }
@@ -279,6 +312,8 @@ func (source *Source) fadeIn(args []object.Object) (object.Object, bool) {
 
 	source.channel = channel
 
+	source.applySpatial()
+
 	return value.NULL, true
 }
 
@@ -307,6 +342,112 @@ func (source *Source) fadeOut(args []object.Object) (object.Object, bool) {
 	return value.NULL, true
 }
 
+// setPanning places the sound in the stereo field directly: two volumes between
+// 0 and 1, one per speaker. source.setPanning(1, 0) is hard left.
+func (source *Source) setPanning(args []object.Object) (object.Object, bool) {
+	if len(args) != 2 {
+		return object.NewError("source.setPanning() expects 2 arguments. got=%d", len(args)), true
+	}
+
+	if source.Streaming {
+		return object.NewError("source.setPanning() is only available for 'static' sources"), true
+	}
+
+	left, err := Float("source.setPanning", args, 0)
+
+	if err != nil {
+		return err, true
+	}
+
+	right, err := Float("source.setPanning", args, 1)
+
+	if err != nil {
+		return err, true
+	}
+
+	source.spatial = &spatial{
+		left:  uint8(clamp(left, 0, 1) * 255),
+		right: uint8(clamp(right, 0, 1) * 255),
+	}
+
+	source.applySpatial()
+
+	return value.NULL, true
+}
+
+// setPosition places the sound around the listener: an angle in degrees, where
+// 0 is straight ahead and 90 is to the right, and a distance from 0 (at the
+// listener) to 1 (as far away as the mix allows). It is the convenient form for
+// world sounds, where a game knows where a thing is but not what that means in
+// terms of speaker volumes.
+func (source *Source) setPosition(args []object.Object) (object.Object, bool) {
+	if len(args) != 2 {
+		return object.NewError("source.setPosition() expects 2 arguments. got=%d", len(args)), true
+	}
+
+	if source.Streaming {
+		return object.NewError("source.setPosition() is only available for 'static' sources"), true
+	}
+
+	angle, err := Float("source.setPosition", args, 0)
+
+	if err != nil {
+		return err, true
+	}
+
+	distance, err := Float("source.setPosition", args, 1)
+
+	if err != nil {
+		return err, true
+	}
+
+	// Wrap the angle so a game can accumulate rotation without normalising it.
+	angle = math.Mod(angle, 360)
+
+	if angle < 0 {
+		angle = angle + 360
+	}
+
+	source.spatial = &spatial{
+		positional: true,
+		angle:      int16(angle),
+		distance:   uint8(clamp(distance, 0, 1) * 255),
+	}
+
+	source.applySpatial()
+
+	return value.NULL, true
+}
+
+// clearEffects returns the source to plain centred stereo.
+func (source *Source) clearEffects() (object.Object, bool) {
+	source.spatial = nil
+
+	if source.channel >= 0 {
+		mix.SetPanning(source.channel, 255, 255)
+		mix.SetPosition(source.channel, 0, 0)
+	}
+
+	return value.NULL, true
+}
+
+// applySpatial pushes the source's position onto whichever channel it is
+// playing on. Doing nothing when the source is idle is correct: the settings are
+// stored, and play() applies them once a channel exists.
+func (source *Source) applySpatial() {
+	if source.spatial == nil || source.channel < 0 {
+		return
+	}
+
+	if source.spatial.positional {
+		mix.SetPosition(source.channel, source.spatial.angle, source.spatial.distance)
+
+		return
+	}
+
+	mix.SetPanning(source.channel, source.spatial.left, source.spatial.right)
+}
+
 // clone returns an independent handle to the same sound, letting one effect
 // play several overlapping copies at different volumes.
 func (source *Source) clone() (object.Object, bool) {
@@ -314,13 +455,20 @@ func (source *Source) clone() (object.Object, bool) {
 		return object.NewError("source.clone() is only available for 'static' sources"), true
 	}
 
-	return &Source{
+	clone := &Source{
 		Path:    source.Path,
 		Looping: source.Looping,
 		Volume:  source.Volume,
 		Chunk:   source.Chunk,
 		channel: -1,
-	}, true
+	}
+
+	if source.spatial != nil {
+		settings := *source.spatial
+		clone.spatial = &settings
+	}
+
+	return clone, true
 }
 
 // =============================================================================
