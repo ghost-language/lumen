@@ -204,9 +204,9 @@ func mathAngleMethod(scope *object.Scope, tok token.Token, args ...object.Object
 	return object.NewFloat(math.Atan2(values[3]-values[1], values[2]-values[0]))
 }
 
-// mathRandomMethod mirrors LOVE's love.math.random: no arguments give a float in
-// [0, 1), one argument gives a whole number in [1, n], and two give a whole
-// number in [low, high].
+// mathRandomMethod reads its range from how many arguments it is given: none
+// gives a float in [0, 1), one gives a whole number in [1, n], and two give a
+// whole number in [low, high].
 func mathRandomMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
 	if err := arityRange("math.random", tok, args, 0, 2); err != nil {
 		return err

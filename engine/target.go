@@ -8,7 +8,7 @@ import (
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-// Target is an off-screen render target, LOVE's Canvas. Drawing into one and
+// Target is an off-screen surface a game can draw into. Drawing into one and
 // then drawing the result as a texture is how effects like screen fades, light
 // maps, and fixed-resolution pixel-art scaling are built.
 type Target struct {
@@ -101,12 +101,23 @@ func (target *Target) Release() {
 
 // SetTarget routes subsequent drawing into an off-screen target. Passing nil
 // restores drawing to the window.
+//
+// A target is its own screen, so the transform goes back to the identity while
+// one is set: a game that has fixed its logical size wants (0, 0) of a target
+// to be the target's own corner, not the corner of the letterboxed window its
+// coordinate space is scaled into. Clearing the target puts that scaling back.
 func (engine *Engine) SetTarget(target *Target) error {
 	engine.Graphics.Target = target
 
 	if target == nil {
+		engine.Graphics.Base = engine.ViewportTransform()
+		engine.Graphics.SetTransform(engine.Graphics.Base)
+
 		return engine.Renderer.SetRenderTarget(nil)
 	}
+
+	engine.Graphics.Base = IdentityTransform()
+	engine.Graphics.SetTransform(IdentityTransform())
 
 	return engine.Renderer.SetRenderTarget(target.Texture)
 }

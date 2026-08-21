@@ -16,6 +16,10 @@ func init() {
 	modules.RegisterMethod(WindowMethods, "setTitle", windowSetTitleMethod)
 	modules.RegisterMethod(WindowMethods, "setMode", windowSetModeMethod)
 	modules.RegisterMethod(WindowMethods, "setSize", windowSetSizeMethod)
+	modules.RegisterMethod(WindowMethods, "setLogicalSize", windowSetLogicalSizeMethod)
+	modules.RegisterMethod(WindowMethods, "clearLogicalSize", windowClearLogicalSizeMethod)
+	modules.RegisterMethod(WindowMethods, "getLogicalSize", windowGetLogicalSizeMethod)
+	modules.RegisterMethod(WindowMethods, "setPixelPerfect", windowSetPixelPerfectMethod)
 	modules.RegisterMethod(WindowMethods, "setFullscreen", windowSetFullscreenMethod)
 	modules.RegisterMethod(WindowMethods, "toggleFullscreen", windowToggleFullscreenMethod)
 	modules.RegisterMethod(WindowMethods, "setResizable", windowSetResizableMethod)
@@ -34,6 +38,7 @@ func init() {
 	modules.RegisterProperty(WindowProperties, "width", windowWidthProperty)
 	modules.RegisterProperty(WindowProperties, "height", windowHeightProperty)
 	modules.RegisterProperty(WindowProperties, "title", windowTitleProperty)
+	modules.RegisterProperty(WindowProperties, "scale", windowScaleProperty)
 	modules.RegisterProperty(WindowProperties, "fullscreen", windowFullscreenProperty)
 	modules.RegisterProperty(WindowProperties, "focused", windowFocusedProperty)
 }
@@ -112,7 +117,7 @@ func windowSetFullscreenMethod(scope *object.Scope, tok token.Token, args ...obj
 		return err
 	}
 
-	if modeErr := engine.Lumen.SetMode(engine.Lumen.Width, engine.Lumen.Height, fullscreen); modeErr != nil {
+	if modeErr := engine.Lumen.SetFullscreen(fullscreen); modeErr != nil {
 		return object.NewError("%d:%d: runtime error: window.setFullscreen() %s", tok.Line, tok.Column, modeErr)
 	}
 
@@ -122,11 +127,69 @@ func windowSetFullscreenMethod(scope *object.Scope, tok token.Token, args ...obj
 func windowToggleFullscreenMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
 	fullscreen := !engine.Lumen.IsFullscreen()
 
-	if err := engine.Lumen.SetMode(engine.Lumen.Width, engine.Lumen.Height, fullscreen); err != nil {
+	if err := engine.Lumen.SetFullscreen(fullscreen); err != nil {
 		return object.NewError("%d:%d: runtime error: window.toggleFullscreen() %s", tok.Line, tok.Column, err)
 	}
 
 	return &object.Boolean{Value: fullscreen}
+}
+
+// windowSetLogicalSizeMethod fixes the size of the coordinate space the game
+// draws in. Lumen scales that space to fill the window, keeping its shape and
+// centring what is left over, so going fullscreen makes the game bigger rather
+// than showing more of it.
+func windowSetLogicalSizeMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if err := arity("window.setLogicalSize", tok, args, 2); err != nil {
+		return err
+	}
+
+	width, err := integer("window.setLogicalSize", tok, args, 0)
+
+	if err != nil {
+		return err
+	}
+
+	height, err := integer("window.setLogicalSize", tok, args, 1)
+
+	if err != nil {
+		return err
+	}
+
+	if sizeErr := engine.Lumen.SetLogicalSize(int32(width), int32(height)); sizeErr != nil {
+		return object.NewError("%d:%d: runtime error: window.setLogicalSize() %s", tok.Line, tok.Column, sizeErr)
+	}
+
+	return value.NULL
+}
+
+// windowClearLogicalSizeMethod goes back to drawing in window pixels.
+func windowClearLogicalSizeMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	engine.Lumen.ClearLogicalSize()
+
+	return value.NULL
+}
+
+func windowGetLogicalSizeMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	return integerList(int64(engine.Lumen.DrawWidth()), int64(engine.Lumen.DrawHeight()))
+}
+
+// windowSetPixelPerfectMethod limits the scaling of a logical size to whole
+// numbers, so one pixel of the game is always a square block of screen pixels.
+// Pixel art needs it; a game drawing shapes and text does not.
+func windowSetPixelPerfectMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if err := arity("window.setPixelPerfect", tok, args, 1); err != nil {
+		return err
+	}
+
+	enabled, err := boolean("window.setPixelPerfect", tok, args, 0)
+
+	if err != nil {
+		return err
+	}
+
+	engine.Lumen.SetPixelPerfect(enabled)
+
+	return value.NULL
 }
 
 func windowSetResizableMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
@@ -270,16 +333,22 @@ func windowFpsProperty(scope *object.Scope, tok token.Token) object.Object {
 	return object.NewInt(int64(engine.Lumen.CurrentFps))
 }
 
+// windowWidthProperty and windowHeightProperty report the size of the space the
+// game draws in. Without a logical size that is the window itself; with one it
+// is the logical size, which is what a game laying out its interface wants
+// either way. window.getDimensions() still reports the real window.
 func windowWidthProperty(scope *object.Scope, tok token.Token) object.Object {
-	width, _ := engine.Lumen.Window.GetSize()
-
-	return object.NewInt(int64(width))
+	return object.NewInt(int64(engine.Lumen.DrawWidth()))
 }
 
 func windowHeightProperty(scope *object.Scope, tok token.Token) object.Object {
-	_, height := engine.Lumen.Window.GetSize()
+	return object.NewInt(int64(engine.Lumen.DrawHeight()))
+}
 
-	return object.NewInt(int64(height))
+// windowScaleProperty is how many screen pixels one unit of the game's
+// coordinate space covers.
+func windowScaleProperty(scope *object.Scope, tok token.Token) object.Object {
+	return object.NewFloat(engine.Lumen.ViewportScale())
 }
 
 func windowTitleProperty(scope *object.Scope, tok token.Token) object.Object {

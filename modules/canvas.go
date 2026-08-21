@@ -542,8 +542,12 @@ func canvasPopMethod(scope *object.Scope, tok token.Token, args ...object.Object
 	return value.NULL
 }
 
+// canvasOriginMethod throws away whatever transforms have been applied and goes
+// back to drawing in the game's own coordinate space, which is the base
+// transform rather than the identity: a game that has fixed its logical size
+// still wants its scaling after asking for the origin back.
 func canvasOriginMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
-	engine.Lumen.Graphics.SetTransform(engine.IdentityTransform())
+	engine.Lumen.Graphics.SetTransform(engine.Lumen.Graphics.Base)
 
 	return value.NULL
 }

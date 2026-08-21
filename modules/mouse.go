@@ -78,8 +78,12 @@ func mouseWasButtonReleasedMethod(scope *object.Scope, tok token.Token, args ...
 	})
 }
 
+// mouseGetPositionMethod reports the pointer in the coordinate space the game
+// draws in, which is the window until the game fixes a logical size.
 func mouseGetPositionMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
-	return integerList(int64(engine.Lumen.MouseX), int64(engine.Lumen.MouseY))
+	x, y := engine.Lumen.MousePosition()
+
+	return list(x, y)
 }
 
 func mouseSetPositionMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
@@ -93,7 +97,9 @@ func mouseSetPositionMethod(scope *object.Scope, tok token.Token, args ...object
 		return err
 	}
 
-	engine.Lumen.Window.WarpMouseInWindow(int32(values[0]), int32(values[1]))
+	x, y := engine.Lumen.ToWindow(values[0], values[1])
+
+	engine.Lumen.Window.WarpMouseInWindow(x, y)
 
 	return value.NULL
 }
@@ -108,7 +114,9 @@ func mouseGetWorldPositionMethod(scope *object.Scope, tok token.Token, args ...o
 		return object.NewError("%d:%d: runtime error: mouse.getWorldPosition() cannot invert the current transform", tok.Line, tok.Column)
 	}
 
-	x, y := inverse.Apply(float64(engine.Lumen.MouseX), float64(engine.Lumen.MouseY))
+	// The transform maps the game's coordinates onto the renderer's pixels, so
+	// inverting it has to start from the pointer in those same pixels.
+	x, y := inverse.Apply(engine.Lumen.MousePixels())
 
 	return list(x, y)
 }
@@ -148,11 +156,15 @@ func mouseSetGrabbedMethod(scope *object.Scope, tok token.Token, args ...object.
 }
 
 func mouseXProperty(scope *object.Scope, tok token.Token) object.Object {
-	return object.NewInt(int64(engine.Lumen.MouseX))
+	x, _ := engine.Lumen.MousePosition()
+
+	return object.NewFloat(x)
 }
 
 func mouseYProperty(scope *object.Scope, tok token.Token) object.Object {
-	return object.NewInt(int64(engine.Lumen.MouseY))
+	_, y := engine.Lumen.MousePosition()
+
+	return object.NewFloat(y)
 }
 
 // mouseWheelProperty reports how far the wheel turned during this frame.

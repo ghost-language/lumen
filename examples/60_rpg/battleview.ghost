@@ -38,7 +38,7 @@ class BattleView {
   // drawBackdrop is a plain horizon: a lighter band of sky over dark ground, so
   // the monsters have something to stand on.
   drawBackdrop(battle) {
-    horizon = 300
+    horizon = 260
 
     canvas.setColor(color.rgb(26, 28, 48))
     canvas.filledRectangle(0, 0, window.width, horizon)
@@ -83,12 +83,12 @@ class BattleView {
 
       x = spacing * (index + 1) - size / 2
       bob = math.sin(battle.time * 2 + index * 1.3) * 4
-      y = 128 + bob
+      y = 96 + bob
 
       // A struck monster flashes white by being drawn twice: once normally,
       // once tinted, with the tint fading out over a quarter of a second.
       canvas.setColor(color.rgb(0, 0, 0, 0.35))
-      canvas.filledEllipse(x + size / 2, 278, size * 0.4, 10)
+      canvas.filledEllipse(x + size / 2, 238, size * 0.4, 10)
 
       canvas.setColor(color.white)
       this.sheet.image.drawQuad(this.sheet.quads[monster.character * 12], x, y, 0, scale, scale)
@@ -98,7 +98,7 @@ class BattleView {
         this.sheet.image.drawQuad(this.sheet.quads[monster.character * 12], x, y, 0, scale, scale)
       }
 
-      this.drawMonsterLabel(battle, monster, x + size / 2, 288)
+      this.drawMonsterLabel(battle, monster, x + size / 2, 248)
     }
   }
 
@@ -110,7 +110,7 @@ class BattleView {
     canvas.setColor(theme.text)
     canvas.print(monster.name, centreX - width / 2, y)
 
-    drawBar(centreX - 30, y + 20, 60, 5, monster.healthFraction(), barColor(monster.healthFraction()))
+    drawBar(centreX - 30, y + 24, 60, 5, monster.healthFraction(), barColor(monster.healthFraction()))
 
     // Mark whichever monster the target cursor is on.
     if (battle.phase == 'target' and battle.menu != null) {
@@ -133,11 +133,12 @@ class BattleView {
     members = battle.party.members
     count = members.length()
 
-    boxWidth = 176
+    boxWidth = 184
+    boxHeight = 84
     gap = 12
     total = count * boxWidth + (count - 1) * gap
     left = (window.width - total) / 2
-    top = 332
+    top = 288
 
     living = battle.party.living()
     active = null
@@ -154,12 +155,12 @@ class BattleView {
       member = members[index]
       x = left + index * (boxWidth + gap)
 
-      drawPanel(x, top, boxWidth, 76)
+      drawPanel(x, top, boxWidth, boxHeight)
 
       if (member == active) {
         canvas.setColor(theme.accent)
         canvas.setLineWidth(2)
-        canvas.rectangle(x - 3, top - 3, boxWidth + 6, 82)
+        canvas.rectangle(x - 3, top - 3, boxWidth + 6, boxHeight + 6)
       }
 
       nameColor = theme.text
@@ -177,24 +178,24 @@ class BattleView {
       fraction = member.healthFraction()
 
       canvas.setColor(theme.dim)
-      canvas.print('HP', x + 12, top + 30)
-      drawBar(x + 40, top + 34, 92, 7, fraction, barColor(fraction))
+      canvas.print('HP', x + 12, top + 32)
+      drawBar(x + 46, top + 38, 84, 7, fraction, barColor(fraction))
 
       canvas.setColor(theme.text)
-      canvas.print(member.health.toString(), x + 140, top + 30)
+      canvas.print(member.health.toString(), x + 138, top + 32)
 
       if (member.maxMagic > 0) {
         canvas.setColor(theme.dim)
-        canvas.print('MP', x + 12, top + 50)
-        drawBar(x + 40, top + 54, 92, 7, member.magic / member.maxMagic, color.rgb(110, 160, 240))
+        canvas.print('MP', x + 12, top + 56)
+        drawBar(x + 46, top + 62, 84, 7, member.magic / member.maxMagic, color.rgb(110, 160, 240))
 
         canvas.setColor(theme.text)
-        canvas.print(member.magic.toString(), x + 140, top + 50)
+        canvas.print(member.magic.toString(), x + 138, top + 56)
       }
 
       if (member.flash > 0) {
         canvas.setColor(color.rgb(255, 80, 80, member.flash))
-        canvas.filledRectangle(x, top, boxWidth, 76)
+        canvas.filledRectangle(x, top, boxWidth, boxHeight)
       }
     }
 
@@ -202,11 +203,14 @@ class BattleView {
   }
 
   // drawBottom is either the message being read or the menu being chosen from.
+  // Both sit against the bottom of the screen; the menu is as tall as it needs
+  // to be, and the message box is a fixed shape so text never moves as one
+  // message follows another.
   drawBottom(battle) {
-    top = 424
-    height = window.height - top - 16
     left = 24
     width = window.width - 48
+    height = 160
+    top = window.height - 16 - height
 
     message = battle.currentMessage()
 
@@ -215,12 +219,12 @@ class BattleView {
 
       canvas.setFont(this.fonts.body)
       canvas.setColor(theme.text)
-      canvas.printf(message, left + 20, top + 18, width - 40, 'left')
+      canvas.printf(message, left + 20, top + 22, width - 40, 'left')
 
       // The prompt pulses so it reads as waiting rather than stuck.
       if (math.sin(battle.time * 6) > 0) {
         canvas.setColor(theme.dim)
-        canvas.print('>', left + width - 32, top + height - 32)
+        canvas.print('>', left + width - 34, top + height - 38)
       }
 
       canvas.resetFont()
@@ -233,9 +237,13 @@ class BattleView {
     }
 
     if (battle.menu != null) {
-      battle.menu.draw(left, window.height - 16 - battle.menu.height(), this.fonts.body)
+      menuTop = window.height - 16 - battle.menu.height()
 
-      this.drawHint(battle, left + battle.menu.width + 16, top)
+      battle.menu.draw(left, menuTop, this.fonts.body)
+
+      // The hint lines up with the top of the menu it explains, whatever the
+      // menu's height turned out to be.
+      this.drawHint(battle, left + battle.menu.width + 16, menuTop)
     }
   }
 
@@ -260,11 +268,11 @@ class BattleView {
 
     width = window.width - x - 24
 
-    drawPanel(x, y, width, 96)
+    drawPanel(x, y, width, 104)
 
     canvas.setFont(this.fonts.small)
     canvas.setColor(theme.dim)
-    canvas.printf(text, x + 16, y + 16, width - 32, 'left')
+    canvas.printf(text, x + 16, y + 18, width - 32, 'left')
     canvas.resetFont()
   }
 }

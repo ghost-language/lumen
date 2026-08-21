@@ -2,7 +2,7 @@ package engine
 
 import "github.com/veandco/go-sdl2/sdl"
 
-// MouseButtonMask maps LOVE's button names onto SDL's button bitmask.
+// MouseButtonMask maps the button names a game uses onto SDL's button bitmask.
 func MouseButtonMask(button string) (uint32, bool) {
 	switch button {
 	case "left", "1":

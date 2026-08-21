@@ -89,7 +89,7 @@ class Dialogue {
       return null
     }
 
-    boxHeight = 100
+    boxHeight = 112
     margin = 24
     top = window.height - boxHeight - margin
     width = window.width - margin * 2
@@ -107,7 +107,7 @@ class Dialogue {
     canvas.print(this.speaker, margin + 16, top + 10)
 
     canvas.setColor(color.white)
-    canvas.printf(this.visible, margin + 16, top + 36, width - 32, 'left')
+    canvas.printf(this.visible, margin + 16, top + 44, width - 32, 'left')
 
     // The prompt only appears once the line has finished revealing, so it reads
     // as "ready for input" rather than decoration.
@@ -116,7 +116,7 @@ class Dialogue {
 
       prompt = '[space]'
 
-      canvas.print(prompt, window.width - margin - 16 - this.font.getWidth(prompt), top + boxHeight - 26)
+      canvas.print(prompt, window.width - margin - 16 - this.font.getWidth(prompt), top + boxHeight - 32)
     }
 
     canvas.resetFont()

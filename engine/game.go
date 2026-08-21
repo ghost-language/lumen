@@ -33,5 +33,8 @@ func (engine *Engine) draw() {
 
 	engine.SetTarget(nil)
 	engine.Renderer.SetClipRect(nil)
+
+	engine.drawLetterbox()
+
 	engine.Renderer.Present()
 }

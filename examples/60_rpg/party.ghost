@@ -251,7 +251,14 @@ class Party {
 
   loadSave(saved) {
     this.gold = saved.gold
+
+    // A pack that was empty when the game was saved comes back as null rather
+    // than as an empty list, because that is what JSON does to it.
     this.pack = saved.pack
+
+    if (this.pack == null) {
+      this.pack = []
+    }
 
     for (index = 0; index < saved.members.length(); index++) {
       record = saved.members[index]

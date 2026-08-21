@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"ghostlang.org/x/ghost/ghost"
@@ -37,8 +38,13 @@ func main() {
 		switch os.Args[1] {
 		case "package":
 			run(packageGame(os.Args[2:]))
+		case "build":
+			run(buildGame("build", os.Args[2:]))
 		case "fuse":
-			run(fuseGame(os.Args[2:]))
+			// The older name for the same thing. `build` is what everyone
+			// reaches for first, so that is the one the help talks about, and
+			// this stays an alias so existing scripts keep working.
+			run(buildGame("fuse", os.Args[2:]))
 		}
 	}
 
@@ -112,9 +118,9 @@ func packageGame(args []string) error {
 	return nil
 }
 
-// fuseGame builds a standalone executable from a game directory.
-func fuseGame(args []string) error {
-	source, target, err := subcommandArgs("fuse", args)
+// buildGame builds a standalone executable from a game directory.
+func buildGame(name string, args []string) error {
+	source, target, err := subcommandArgs(name, args)
 
 	if err != nil {
 		return err
@@ -122,13 +128,17 @@ func fuseGame(args []string) error {
 
 	if target == "" {
 		target = filepath.Base(source)
+
+		if runtime.GOOS == "windows" {
+			target += ".exe"
+		}
 	}
 
 	if err := engine.FuseGame(source, target); err != nil {
 		return err
 	}
 
-	fmt.Printf("fused %s -> %s\n", source, target)
+	fmt.Printf("built %s -> %s\n", source, target)
 
 	return nil
 }
@@ -218,8 +228,17 @@ func readTarget(target string) (string, string, error) {
 		return readEntry(filepath.Join(directory, "main.ghost"))
 	}
 
+	info, err := os.Stat(target)
+
+	// Naming something that is not there is nearly always a mistyped path or a
+	// subcommand that does not exist, and neither is helped by being told that
+	// a game needs a main.ghost.
+	if err != nil {
+		return "", "", fmt.Errorf("no such file or directory: %s\n\nRun `lumen -h` for usage", target)
+	}
+
 	// A game is usually a folder with a main.ghost in it.
-	if info, err := os.Stat(target); err == nil && info.IsDir() {
+	if info.IsDir() {
 		return readEntry(filepath.Join(target, "main.ghost"))
 	}
 
@@ -252,14 +271,14 @@ func showHelp() {
 	fmt.Println("Usage:")
 	fmt.Println()
 	fmt.Println("    lumen [flags] [file|directory|archive]")
+	fmt.Println("    lumen build <directory> [-o game]")
 	fmt.Println("    lumen package <directory> [-o game.lumen]")
-	fmt.Println("    lumen fuse <directory> [-o game]")
 	fmt.Println()
 	fmt.Println("Flags:")
 	fmt.Println()
 	fmt.Println("    -h  show help")
 	fmt.Println("    -v  show version")
-	fmt.Println("    -o  output path for package and fuse")
+	fmt.Println("    -o  output path for build and package")
 	fmt.Println()
 	fmt.Println("Running a game:")
 	fmt.Println()
@@ -271,14 +290,15 @@ func showHelp() {
 	fmt.Println()
 	fmt.Println("Shipping a game:")
 	fmt.Println()
+	fmt.Println("    lumen build mygame -o mygame")
+	fmt.Println()
+	fmt.Println("            Build a standalone executable with the engine and the")
+	fmt.Println("            game in one file. Players just run it. Builds for the")
+	fmt.Println("            machine it runs on. (`lumen fuse` does the same thing.)")
+	fmt.Println()
 	fmt.Println("    lumen package mygame -o mygame.lumen")
 	fmt.Println()
 	fmt.Println("            Build a single-file archive. Players run it with")
 	fmt.Println("            `lumen mygame.lumen`.")
-	fmt.Println()
-	fmt.Println("    lumen fuse mygame -o mygame")
-	fmt.Println()
-	fmt.Println("            Build a standalone executable with the engine and the")
-	fmt.Println("            game in one file. Players just run it.")
 	fmt.Println()
 }
