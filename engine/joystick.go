@@ -92,8 +92,7 @@ func (joystick *Joystick) WasReleased(button sdl.GameControllerButton) bool {
 	return !joystick.current[button] && joystick.previous[button]
 }
 
-// Axis returns an axis position. Sticks report -1 to 1 and triggers 0 to 1, the
-// same ranges LOVE uses.
+// Axis returns an axis position. Sticks report -1 to 1 and triggers 0 to 1.
 func (joystick *Joystick) Axis(axis sdl.GameControllerAxis) float64 {
 	return float64(joystick.Controller.Axis(axis)) / 32767.0
 }

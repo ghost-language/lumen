@@ -10,9 +10,9 @@ import (
 	"github.com/veandco/go-sdl2/mix"
 )
 
-// Source is a playable sound. Like LOVE, sources come in two flavours: 'static'
-// sources are decoded into memory up front and are what sound effects should
-// use, while 'stream' sources are decoded as they play and are meant for music.
+// Source is a playable sound. Sources come in two flavours: 'static' sources
+// are decoded into memory up front and are what sound effects should use, while
+// 'stream' sources are decoded as they play and are meant for music.
 // SDL_mixer plays one stream at a time, so starting a second one replaces the
 // first, which matches how background music is normally used anyway.
 type Source struct {
@@ -521,7 +521,7 @@ func (source *Source) Release() {
 	}
 }
 
-// SourceKindFromName maps LOVE's source kind names onto the streaming flag.
+// SourceKindFromName maps the source kind a game names onto the streaming flag.
 func SourceKindFromName(name string) (bool, bool) {
 	switch strings.ToLower(name) {
 	case "static":

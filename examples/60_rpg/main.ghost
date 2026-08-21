@@ -27,27 +27,52 @@ import Sounds from 'sounds'
 import Spritesheet from 'spritesheet'
 import Tilemap from 'tilemap'
 
+// The whole game is laid out for a canvas this size. Nothing is measured
+// against the window, so the interface cannot drift as the window changes.
+canvasWidth = 800
+canvasHeight = 600
+
+// How far the world is magnified while walking around. Whole numbers only:
+// a fractional zoom lands 16-pixel tiles on fractions of a pixel and opens a
+// seam between every one of them.
+fieldZoom = 3
+
 game = {
   mode: 'field',
   showDebug: false,
   message: '',
   messageTime: 0,
   fade: 1,
-  encounterAt: 240
+  encounterAt: 240,
+  transition: null,
+  pendingMonsters: null
 }
 
 function load() {
   window.setTitle('Lumen RPG')
-  window.setMode(800, 600)
+
+  // Lumen scales this canvas to fill the window, keeping its shape and
+  // centring what is left over. The game therefore draws in the same 800x600
+  // whatever the window is doing: fullscreen makes everything bigger rather
+  // than showing more map with the same tiny text in the corner of it.
+  window.setLogicalSize(canvasWidth, canvasHeight)
+  window.setMode(startingWidth(), startingHeight())
+
   filesystem.setIdentity('lumen-rpg')
 
-  game.fonts = { body: font.system(20), small: font.system(16) }
+  game.fonts = { body: font.system(24), small: font.system(19) }
 
   game.sounds = new Sounds(['blip', 'step', 'chime', 'hit', 'spell', 'fanfare'])
   game.sounds.setVolume(0.7)
 
-  // Trees and water block movement; everything else is walkable.
-  game.map = new Tilemap('resources/map.json', ['Trees', 'Water'])
+  // Water, woodland, fences and buildings block movement. The road layer takes
+  // collision away again, which is what makes the bridge over the river a
+  // bridge rather than a picture of one.
+  game.map = new Tilemap(
+    'resources/map.json',
+    ['Water', 'Trees', 'Props', 'Structures'],
+    ['Paths']
+  )
 
   game.characters = new Spritesheet('resources/characters.png', 16, 16)
 
@@ -60,7 +85,7 @@ function load() {
   game.player = new Player(game.characters, 25, 25, game.map.tileSize, findHero('aldric').character)
   game.spawn = { x: game.player.x, y: game.player.y }
 
-  game.camera = new Camera(3)
+  game.camera = new Camera(fieldZoom)
   game.camera.setBounds(game.map.pixelWidth, game.map.pixelHeight)
 
   game.dialogue = new Dialogue(game.fonts.body)
@@ -74,6 +99,31 @@ function load() {
   canvas.setBackgroundColor(color.rgb(12, 14, 22))
 
   console.log('Lumen ' + lumen.version + ' - saves in ' + filesystem.getSaveDirectory())
+}
+
+// startingScale opens the window at a whole multiple of the canvas where the
+// display has room for one, so the game starts out as big as it can be without
+// running off the edge of the screen. The player can go fullscreen from there.
+function startingScale() {
+  desktop = window.getDesktopDimensions()
+
+  if (desktop[0] >= canvasWidth * 2 + 100 and desktop[1] >= canvasHeight * 2 + 100) {
+    return 2
+  }
+
+  if (desktop[0] >= canvasWidth * 1.5 + 80 and desktop[1] >= canvasHeight * 1.5 + 80) {
+    return 1.5
+  }
+
+  return 1
+}
+
+function startingWidth() {
+  return math.floor(canvasWidth * startingScale())
+}
+
+function startingHeight() {
+  return math.floor(canvasHeight * startingScale())
 }
 
 function buildNpcs(sheet, tileSize) {
@@ -128,6 +178,12 @@ function update(dt) {
 
   if (game.messageTime > 0) {
     game.messageTime = math.max(0, game.messageTime - dt)
+  }
+
+  if (game.mode == 'transition') {
+    updateTransition(dt)
+
+    return null
   }
 
   if (game.mode == 'battle') {
@@ -198,7 +254,7 @@ function checkEncounter() {
   game.player.walked = 0
   game.encounterAt = math.random(160, 420)
 
-  startBattle(rollEncounter())
+  beginTransition('battle', rollEncounter())
 }
 
 // rollEncounter picks a group by weight from those the party is strong enough
@@ -255,14 +311,139 @@ function startBattle(monsterIds) {
   game.battle = new Battle(game.party, monsterIds, game.fonts, game.sounds)
 }
 
+// =============================================================================
+// Transitions
+//
+// A battle never simply appears. The screen flashes, the camera is knocked, and
+// bars close over the world from alternating sides; the fight is built behind
+// them and fades up out of the black. The same bars run backwards on the way
+// out. None of it is decoration: the flash is what makes an encounter land as
+// an interruption, and the bars are what cover the frame where one screen's
+// worth of state is thrown away and another is built.
+//
+// The world keeps being drawn underneath all of it. That is what lets the same
+// code run in both directions, and it is why the wipe is drawn after the field
+// and before the fade rather than in place of anything.
+
+// transitionTime is how long a wipe takes, in seconds. Long enough to read as
+// deliberate, short enough that a player walking into fights all afternoon
+// never waits on it.
+transitionTime = 0.85
+
+// barCount is how many bars the screen is cut into. More reads as a finer
+// shutter; fewer as a heavier one.
+barCount = 12
+
+function beginTransition(into, monsterIds) {
+  game.mode = 'transition'
+  game.transition = { into: into, time: 0 }
+  game.pendingMonsters = monsterIds
+
+  if (into == 'battle') {
+    game.dialogue.active = false
+
+    game.sounds.play('spell')
+    game.camera.knock(2, 0.35)
+  }
+}
+
+function updateTransition(dt) {
+  game.transition.time = game.transition.time + dt
+
+  progress = math.min(1, game.transition.time / transitionTime)
+
+  // The shake started by the flash still has to be driven, since the rest of
+  // the world is deliberately frozen while the wipe runs.
+  game.camera.update(dt)
+
+  if (progress < 1) {
+    return null
+  }
+
+  if (game.transition.into == 'battle') {
+    startBattle(game.pendingMonsters)
+
+    // The fight arrives behind the closed bars and fades up out of them.
+    game.fade = 1
+  } else {
+    game.mode = 'field'
+  }
+
+  game.transition = null
+  game.pendingMonsters = null
+}
+
+// drawTransition paints over the world, which is still being drawn underneath
+// it: the wipe covers a frozen field on the way in and a restored one on the
+// way out.
+function drawTransition() {
+  elapsed = game.transition.time
+  progress = math.min(1, elapsed / transitionTime)
+
+  if (game.transition.into == 'field') {
+    progress = 1 - progress
+  }
+
+  drawTransitionFlash(elapsed)
+  drawTransitionBars(progress)
+}
+
+// drawTransitionFlash is three quick washes of white over the first half of the
+// wipe, fading as they go.
+function drawTransitionFlash(elapsed) {
+  if (game.transition.into != 'battle') {
+    return null
+  }
+
+  if (elapsed > 0.42) {
+    return null
+  }
+
+  strength = math.abs(math.sin(elapsed * 22)) * (1 - elapsed / 0.42)
+
+  canvas.setColor(color.rgb(255, 255, 255, strength * 0.75))
+  canvas.filledRectangle(0, 0, window.width, window.height)
+}
+
+// drawTransitionBars closes black bars in from alternating sides. Alternating
+// them is the whole trick: bars that all travel the same way read as a curtain,
+// and bars that interlock read as a shutter.
+function drawTransitionBars(progress) {
+  // The bars only start moving once the flashes are under way, so the two
+  // halves of the wipe overlap rather than queueing behind one another.
+  covered = math.clamp((progress - 0.3) / 0.7, 0, 1)
+
+  if (covered <= 0) {
+    return null
+  }
+
+  height = window.height / barCount
+  width = covered * window.width
+
+  canvas.setColor(color.rgb(0, 0, 0))
+
+  for (index = 0; index < barCount; index++) {
+    x = 0
+
+    if (index % 2 == 1) {
+      x = window.width - width
+    }
+
+    // The extra pixel of height closes the seam a fractional bar height would
+    // otherwise leave between one bar and the next.
+    canvas.filledRectangle(x, index * height, width, height + 1)
+  }
+}
+
 // endBattle returns to the world, handling the three ways a fight can finish.
 function endBattle() {
   outcome = game.battle.result
 
   game.battle = null
-  game.mode = 'field'
-  game.fade = 0.7
   game.player.walked = 0
+
+  // The world comes back behind the same bars it left behind, opening this time.
+  beginTransition('field', null)
 
   if (outcome == 'victory') {
     game.sounds.play('fanfare')
@@ -278,6 +459,10 @@ function endBattle() {
 
     game.player.x = game.spawn.x
     game.player.y = game.spawn.y
+
+    // The camera goes with them. Easing across half the map behind the closing
+    // bars would show the whole world flying past when they open again.
+    game.camera.snapTo(game.player)
 
     notify('The party wakes where they began. Half the purse is gone.')
   }
@@ -298,7 +483,8 @@ function keypressed(key) {
     case 'M' { toggleSound() }
   }
 
-  if (game.mode == 'battle') {
+  // A battle, and the wipe on either side of it, own the keyboard entirely.
+  if (game.mode != 'field') {
     return null
   }
 
@@ -350,7 +536,7 @@ function wheelmoved(x, y) {
 // Gamepad buttons are polled rather than delivered as events, so the field
 // confirm is checked here where a press can be seen as an edge.
 function gamepadCheck() {
-  if (game.mode == 'battle') {
+  if (game.mode != 'field') {
     return null
   }
 
@@ -465,8 +651,15 @@ function loadGame() {
     game.npcs[index].given = false
   }
 
-  for (index = 0; index < save.opened.length(); index++) {
-    game.npcs[save.opened[index]].given = true
+  // An empty list survives a trip through JSON as null, so every list read back
+  // out of a save is checked before it is walked. A game that has been saved
+  // before anyone handed anything over would otherwise fail to load at all.
+  opened = save.opened
+
+  if (opened != null) {
+    for (index = 0; index < opened.length(); index++) {
+      game.npcs[opened[index]].given = true
+    }
   }
 
   notify('Loaded')
@@ -506,6 +699,10 @@ function draw() {
 
   game.dialogue.draw()
   game.fieldMenu.draw()
+
+  if (game.transition != null) {
+    drawTransition()
+  }
 
   drawNotification()
   drawFade()
@@ -590,10 +787,10 @@ function drawNotification() {
   alpha = math.min(1, game.messageTime / 0.5)
 
   canvas.setColor(color.rgb(20, 22, 36, alpha * 0.9))
-  canvas.filledRectangle(x, 70, width, 34)
+  canvas.filledRectangle(x, 70, width, 40)
 
   canvas.setColor(color.rgb(255, 255, 255, alpha))
-  canvas.print(game.message, x + 16, 76)
+  canvas.print(game.message, x + 16, 77)
 
   canvas.resetFont()
 }

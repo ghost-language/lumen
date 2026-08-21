@@ -2,8 +2,10 @@ import Spritesheet from 'spritesheet'
 
 // Tilemap loads a map exported from Tiled as JSON. Layers named in
 // `solidLayers` become collision: any tile placed on them blocks movement.
+// Layers named in `openLayers` take it away again, which is how a bridge drawn
+// over the river is walked across rather than swum.
 class Tilemap {
-  constructor(path, solidLayers) {
+  constructor(path, solidLayers, openLayers) {
     data = json.decode(filesystem.readAsset(path))
 
     this.width = data.width
@@ -13,7 +15,7 @@ class Tilemap {
     this.pixelHeight = data.height * data.tileheight
     this.layers = data.layers
     this.tilesets = this.loadTilesets(data.tilesets)
-    this.solid = this.buildCollision(data, solidLayers)
+    this.solid = this.buildCollision(data, solidLayers, openLayers)
   }
 
   loadTilesets(tilesets) {
@@ -33,8 +35,10 @@ class Tilemap {
   }
 
   // buildCollision flattens the solid layers into one lookup so a movement check
-  // is a single list index rather than a walk over every layer.
-  buildCollision(data, solidLayers) {
+  // is a single list index rather than a walk over every layer. The open layers
+  // are applied afterwards, so a bridge tile always wins over the water beneath
+  // it however the layers happen to be ordered in the file.
+  buildCollision(data, solidLayers, openLayers) {
     solid = []
 
     for (index = 0; index < this.width * this.height; index++) {
@@ -44,7 +48,7 @@ class Tilemap {
     for (index = 0; index < data.layers.length(); index++) {
       layer = data.layers[index]
 
-      if (!this.isSolidLayer(layer.name, solidLayers)) {
+      if (!this.named(layer.name, solidLayers)) {
         continue
       }
 
@@ -55,12 +59,32 @@ class Tilemap {
       }
     }
 
+    for (index = 0; index < data.layers.length(); index++) {
+      layer = data.layers[index]
+
+      if (!this.named(layer.name, openLayers)) {
+        continue
+      }
+
+      for (cell = 0; cell < layer.data.length(); cell++) {
+        if (layer.data[cell] != 0) {
+          solid[cell] = false
+        }
+      }
+    }
+
     return solid
   }
 
-  isSolidLayer(name, solidLayers) {
-    for (index = 0; index < solidLayers.length(); index++) {
-      if (solidLayers[index] == name) {
+  // named reports whether a layer is in one of the lists the map was built with.
+  // A missing list is an empty one: a map with no bridges passes nothing.
+  named(name, names) {
+    if (names == null) {
+      return false
+    }
+
+    for (index = 0; index < names.length(); index++) {
+      if (names[index] == name) {
         return true
       }
     }
@@ -95,7 +119,7 @@ class Tilemap {
   }
 
   // draw renders every layer, but only the tiles inside `view`. A 50x50 map with
-  // six layers is 15,000 tiles; culling to the camera cuts that to a few hundred.
+  // nine layers is 22,500 tiles; culling to the camera cuts that to a few hundred.
   draw(view) {
     left = math.max(0, view.left)
     top = math.max(0, view.top)

@@ -43,6 +43,8 @@ func (engine *Engine) initSDL() {
 	engine.createSDLWindow()
 	engine.createSDLRenderer()
 	engine.loadAndSetDefaultFont()
+
+	engine.UpdateViewport()
 }
 
 func (engine *Engine) createSDLWindow() {
@@ -112,8 +114,16 @@ func (engine *Engine) loadAndSetDefaultFont() {
 	engine.CurrentFont = font
 }
 
-// SetMode resizes the window and switches fullscreen on or off.
+// SetMode resizes the window and switches fullscreen on or off. The size is
+// remembered as the game's windowed size even when the call puts it fullscreen,
+// so leaving fullscreen restores the window rather than leaving a desktop-sized
+// window behind.
 func (engine *Engine) SetMode(width, height int32, fullscreen bool) error {
+	if width > 0 && height > 0 {
+		engine.WindowedWidth = width
+		engine.WindowedHeight = height
+	}
+
 	flags := uint32(0)
 
 	if fullscreen {
@@ -125,13 +135,21 @@ func (engine *Engine) SetMode(width, height int32, fullscreen bool) error {
 	}
 
 	if !fullscreen {
-		engine.Window.SetSize(width, height)
+		engine.Window.SetSize(engine.WindowedWidth, engine.WindowedHeight)
 		engine.Window.SetPosition(sdl.WINDOWPOS_CENTERED, sdl.WINDOWPOS_CENTERED)
 	}
 
 	engine.Width, engine.Height = engine.Window.GetSize()
 
+	engine.UpdateViewport()
+
 	return nil
+}
+
+// SetFullscreen switches fullscreen on or off at the size the window already
+// has, which for a windowed game is the size it was given at start-up.
+func (engine *Engine) SetFullscreen(fullscreen bool) error {
+	return engine.SetMode(engine.WindowedWidth, engine.WindowedHeight, fullscreen)
 }
 
 // IsFullscreen reports whether the window currently covers the display.

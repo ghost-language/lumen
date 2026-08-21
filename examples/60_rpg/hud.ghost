@@ -24,10 +24,11 @@ class Hud {
 
   // drawParty is a compact stack of name-and-bar rows in the top-left corner.
   drawParty(party) {
-    width = 168
-    rowHeight = 34
+    left = 14
+    width = 180
+    rowHeight = 38
 
-    drawPanel(14, 14, width, party.members.length() * rowHeight + 16)
+    drawPanel(left, 14, width, party.members.length() * rowHeight + 16)
 
     for (index = 0; index < party.members.length(); index++) {
       member = party.members[index]
@@ -40,20 +41,20 @@ class Hud {
       }
 
       canvas.setColor(nameColor)
-      canvas.print(member.name, 26, y)
+      canvas.print(member.name, left + 12, y)
 
       canvas.setColor(theme.dim)
       health = member.health.toString()
-      canvas.print(health, 168 - this.smallFont.getWidth(health), y)
+      canvas.print(health, left + width - 12 - this.smallFont.getWidth(health), y)
 
       fraction = member.healthFraction()
 
-      drawBar(26, y + 20, 128, 5, fraction, barColor(fraction))
+      drawBar(left + 12, y + 24, width - 24, 5, fraction, barColor(fraction))
     }
   }
 
   drawGold(party) {
-    y = 14 + party.members.length() * 34 + 24
+    y = 14 + party.members.length() * 38 + 24
 
     canvas.setColor(theme.accent)
     canvas.filledCircle(26, y + 8, 7)
@@ -68,7 +69,8 @@ class Hud {
 
   drawDebug() {
     canvas.setColor(theme.good)
-    canvas.print('fps ' + window.fps.toString(), window.width - 96, 16)
-    canvas.print('dt  ' + (timer.averageDelta * 1000).round(1).toString() + 'ms', window.width - 96, 34)
+    canvas.print('fps ' + window.fps.toString(), window.width - 120, 16)
+    canvas.print('dt  ' + (timer.averageDelta * 1000).round(1).toString() + 'ms', window.width - 120, 38)
+    canvas.print('x' + window.scale.round(2).toString(), window.width - 120, 60)
   }
 }

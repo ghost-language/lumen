@@ -113,8 +113,11 @@ class Menu {
     this.rows = rows
     this.index = 0
     this.columns = 1
-    this.rowHeight = 26
-    this.width = 220
+
+    // Row height and panel width are sized for the body font. Text that grows
+    // has to be given somewhere to grow into, or rows start touching.
+    this.rowHeight = 30
+    this.width = 250
     this.title = ''
     this.maxVisible = 8
     this.scroll = 0
@@ -278,10 +281,10 @@ class Menu {
       rowCount = 1
     }
 
-    extra = 24
+    extra = 26
 
     if (this.title != '') {
-      extra = extra + 30
+      extra = extra + 36
     }
 
     return rowCount * this.rowHeight + extra
@@ -299,9 +302,9 @@ class Menu {
       canvas.print(this.title, x + 16, top)
 
       canvas.setColor(color.rgb(70, 88, 128))
-      canvas.line(x + 14, top + 26, x + this.width - 14, top + 26)
+      canvas.line(x + 14, top + 30, x + this.width - 14, top + 30)
 
-      top = top + 32
+      top = top + 38
     }
 
     if (this.isEmpty()) {

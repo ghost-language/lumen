@@ -7,9 +7,9 @@ import (
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-// Graphics holds the mutable drawing state the canvas module manipulates. It is
-// the Lumen equivalent of LOVE's graphics state: a current color, stroke width,
-// blend mode, scissor box, render target, and a stack of affine transforms.
+// Graphics holds the mutable drawing state the canvas module manipulates: a
+// current color, stroke width, blend mode, scissor box, render target, and a
+// stack of affine transforms.
 type Graphics struct {
 	Color           *Color
 	BackgroundColor *Color
@@ -19,7 +19,12 @@ type Graphics struct {
 	Transforms      []Transform
 	Target          *Target
 	Scissor         *sdl.Rect
-	stateStack      []graphicsState
+
+	// Base is the transform every frame starts from. It is the identity unless
+	// the game has fixed its coordinate space with a logical size, in which
+	// case it is the scale and offset that maps that space onto the window.
+	Base       Transform
+	stateStack []graphicsState
 }
 
 // graphicsState is the snapshot canvas.push('all') saves and canvas.pop()
@@ -42,6 +47,7 @@ func NewGraphics() *Graphics {
 		LineWidth:       1,
 		PointSize:       1,
 		BlendMode:       sdl.BLENDMODE_BLEND,
+		Base:            IdentityTransform(),
 		Transforms:      []Transform{IdentityTransform()},
 	}
 }
@@ -102,16 +108,16 @@ func (graphics *Graphics) Pop() {
 }
 
 // Reset returns the draw state to its frame-start defaults, so every frame draws
-// the same way regardless of what the previous one left behind. LOVE only resets
-// the transform and carries color, stroke width, and blend mode across frames,
-// which is a well-worn source of "why is the whole world tinted" bugs: a fade
-// drawn at the end of one frame silently tints the next. Lumen resets those too.
+// the same way regardless of what the previous one left behind. Carrying color,
+// stroke width, and blend mode across frames — as engines that reset only the
+// transform do — is a well-worn source of "why is the whole world tinted" bugs:
+// a fade drawn at the end of one frame silently tints the next.
 //
 // The current font is deliberately left alone. Choosing a font is a decision a
 // game makes once, usually in load(), not something it re-states every frame.
 func (graphics *Graphics) Reset() {
 	graphics.Transforms = graphics.Transforms[:0]
-	graphics.Transforms = append(graphics.Transforms, IdentityTransform())
+	graphics.Transforms = append(graphics.Transforms, graphics.Base)
 	graphics.stateStack = graphics.stateStack[:0]
 
 	graphics.Color = NewColor(255, 255, 255, 255)
@@ -327,9 +333,10 @@ func (engine *Engine) ArcPoints(x, y, radius, start, end float64, segments int, 
 	return points
 }
 
-// DrawTexture draws a texture through the current transform with LOVE's draw
-// arguments: position, rotation in radians, per-axis scale, and an origin offset
-// applied before rotation and scaling. Passing the corners through the transform
+// DrawTexture draws a texture through the current transform with the standard
+// draw arguments: position, rotation in radians, per-axis scale, and an origin
+// offset applied before rotation and scaling. Passing the corners through the
+// transform
 // (rather than leaning on SDL's rotated blit) keeps camera transforms, sprite
 // rotation, and negative scale flips composing correctly.
 func (engine *Engine) DrawTexture(texture *sdl.Texture, source *sdl.Rect, textureWidth, textureHeight int32, x, y, rotation, scaleX, scaleY, originX, originY float64) {
@@ -422,7 +429,7 @@ func (engine *Engine) ClearScissor() {
 	engine.Renderer.SetClipRect(nil)
 }
 
-// BlendModeFromName maps LOVE's blend mode names onto SDL blend modes.
+// BlendModeFromName maps the blend mode names a game uses onto SDL's.
 func BlendModeFromName(name string) (sdl.BlendMode, bool) {
 	switch name {
 	case "alpha":

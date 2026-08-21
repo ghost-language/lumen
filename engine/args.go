@@ -2,9 +2,9 @@ package engine
 
 import "ghostlang.org/x/ghost/object"
 
-// DrawArguments carries the positional arguments every drawable accepts, laid
-// out the same way as LOVE's love.graphics.draw: position, rotation in radians,
-// per-axis scale, and an origin offset applied before rotation and scale.
+// DrawArguments carries the positional arguments every drawable accepts, in the
+// order they are always written: position, rotation in radians, per-axis scale,
+// and an origin offset applied before rotation and scale.
 type DrawArguments struct {
 	X        float64
 	Y        float64

@@ -67,16 +67,23 @@ Asset paths (`image.load`, `font.load`, `audio.newSource`,
 
 ## Shipping a game
 
-A game is a folder. To hand it to someone who does not have Lumen, package it.
+A game is a folder. To hand it to someone who does not have Lumen, build it.
 
 ```bash
-lumen package mygame -o mygame.lumen   # one file; players run `lumen mygame.lumen`
-lumen fuse mygame -o mygame            # a standalone executable; players just run it
+lumen build mygame -o mygame            # a standalone executable; players just run it
+lumen package mygame -o mygame.lumen    # one file; players run `lumen mygame.lumen`
 ```
 
 A `.lumen` file is a zip of the game's sources and assets with `main.ghost` at
-the root. `fuse` appends that archive to a copy of the Lumen binary, so the
-result is one file with both the engine and the game in it.
+the root. `build` appends that archive to a copy of the Lumen binary, so the
+result is one file with both the engine and the game in it. `lumen fuse` is an
+older name for the same command and still works.
+
+On macOS a built binary is re-signed with an ad-hoc signature as the last step,
+because appending anything to an executable invalidates its existing signature
+and the system kills a binary whose signature does not match its contents. That
+needs `codesign`, which arrives with the Xcode command line tools; shipping to
+other people's machines wants a real identity and notarisation on top.
 
 A packaged game is unpacked into a cache directory the first time it runs, and
 run from there. That is deliberate rather than incidental: Ghost resolves
@@ -186,9 +193,8 @@ color.hsl(30, 1, 0.5)           // hue in degrees, saturation and lightness 0-1
 color.white.withAlpha(0.25)
 ```
 
-The current color tints everything drawn, images and text included, the way
-LÖVE's does. Set it back to `color.white` before drawing sprites you do not want
-tinted.
+The current color tints everything drawn, images and text included. Set it back
+to `color.white` before drawing sprites you do not want tinted.
 
 ## Modules
 
@@ -218,7 +224,9 @@ Drawing, the drawing state, and the transform stack.
 `toWorld(x, y)`.
 
 **Targets** — `newTarget(w, h)`, `setTarget([target])`,
-`newQuad(x, y, w, h)`, `screenshot(filename)`.
+`newQuad(x, y, w, h)`, `screenshot(filename)`. Setting a target resets the
+transform, because a target is its own screen: (0, 0) is its own corner, not the
+window's. Clearing it restores the transform the window draws with.
 
 **Properties** — `canvas.width`, `canvas.height` (of the render target when one
 is set, of the window otherwise).
@@ -297,13 +305,41 @@ reads as "not pressed" rather than raising.
 ### `window`
 
 `setTitle(title)`, `setMode(w, h, [fullscreen])`, `setSize(w, h)`,
-`setFullscreen(bool)`, `toggleFullscreen()`, `setResizable(bool)`,
-`setBorderless(bool)`, `setVsync(bool)`, `setIcon(image)`, `setPosition(x, y)`,
-`center()`, `maximize()`, `minimize()`, `restore()`,
+`setLogicalSize(w, h)`, `clearLogicalSize()`, `getLogicalSize()`,
+`setPixelPerfect(bool)`, `setFullscreen(bool)`, `toggleFullscreen()`,
+`setResizable(bool)`, `setBorderless(bool)`, `setVsync(bool)`, `setIcon(image)`,
+`setPosition(x, y)`, `center()`, `maximize()`, `minimize()`, `restore()`,
 `getDesktopDimensions()`, `getDimensions()`.
 
-**Properties** — `window.width`, `window.height`, `window.title`, `window.fps`,
-`window.fullscreen`, `window.focused`.
+**Properties** — `window.width`, `window.height`, `window.scale`, `window.title`,
+`window.fps`, `window.fullscreen`, `window.focused`.
+
+#### A fixed canvas
+
+By default a game draws in window pixels, so a bigger window shows more of the
+world at the same size and leaves the interface stranded in the corner it was
+placed in. That is the right answer for an application and the wrong one for a
+game, where the layout of the screen is part of the design.
+
+```js
+window.setLogicalSize(320, 180)   // the game now draws in a 320x180 space
+window.setPixelPerfect(true)      // ...scaled by whole numbers only
+```
+
+With a logical size set, Lumen scales that space to fill as much of the window
+as it can, keeps its proportions, centres it, and paints black bars around what
+is left. Going fullscreen makes the game bigger rather than wider.
+`window.width` and `window.height` report the logical size — the space the game
+actually draws in — and mouse positions and `mousepressed` arrive in the same
+coordinates, so nothing in a game has to know that scaling is happening.
+`window.getDimensions()` still reports the real window, and `window.scale` is
+how many screen pixels one game pixel currently covers.
+
+`setPixelPerfect(true)` rounds that scale down to a whole number, which is what
+keeps pixel art from developing uneven edges; it costs more of the screen to the
+bars, and is worth it for a small canvas and not for a large one. Scaling *down*
+stays fractional either way, since a window smaller than the game still has to
+show all of it.
 
 ### `filesystem`
 
@@ -489,7 +525,7 @@ build, in Ghost and nothing else. What follows is an honest account of what is
 still missing, roughly in the order it will bite.
 
 **Cross-compiling.** This is the sharpest edge. Lumen links SDL2 through cgo, so
-`lumen fuse` produces a binary for the machine that ran it, and only that. There
+`lumen build` produces a binary for the machine that ran it, and only that. There
 is no way to build a Windows executable from a Mac. Shipping to three platforms
 today means building on three platforms. Until that is solved with CI that
 builds and fuses per platform, "shippable" has an asterisk on it.
@@ -521,7 +557,7 @@ texture into one call would remove the ceiling that culling works around.
 
 **Shaders and particles.** Neither exists. Particles can be written in Ghost and
 will be fine for most games; shaders cannot be worked around, and rule out
-lighting, palette swaps, and screen effects that LÖVE games lean on.
+lighting, palette swaps, and whole-screen effects.
 
 **Physics.** There is no Box2D equivalent. Axis-aligned collision is a few lines
 of Ghost, which covers a top-down RPG and most puzzle games, and covers nothing

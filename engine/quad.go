@@ -8,9 +8,9 @@ import (
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-// Quad is a rectangular region of a texture, the same idea as LOVE's Quad. It
-// is what lets one tileset or character sheet be drawn as many separate sprites
-// without slicing the source image into individual files.
+// Quad is a rectangular region of a texture. It is what lets one tileset or
+// character sheet be drawn as many separate sprites without slicing the source
+// image into individual files.
 type Quad struct {
 	X      int32
 	Y      int32

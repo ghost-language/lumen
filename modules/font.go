@@ -16,8 +16,8 @@ func init() {
 }
 
 // fontLoadMethod loads a TrueType font at a pixel size. Called with a size
-// alone it returns Lumen's built-in font, which mirrors how LOVE's newFont()
-// falls back to its own font when given no file.
+// alone it returns Lumen's built-in font, so a game that only wants readable
+// text at a chosen size never has to ship a font file to get one.
 func fontLoadMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
 	if len(args) == 1 {
 		return fontSystemMethod(scope, tok, args...)

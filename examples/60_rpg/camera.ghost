@@ -19,23 +19,52 @@ class Camera {
   // follow eases the camera toward a target instead of snapping to it. The
   // easing is scaled by dt so the feel does not change with the frame rate.
   follow(target, dt) {
-    viewWidth = window.width / this.zoom
-    viewHeight = window.height / this.zoom
-
-    desiredX = target.x + target.width / 2 - viewWidth / 2
-    desiredY = target.y + target.height / 2 - viewHeight / 2
+    desired = this.desiredPosition(target)
 
     // 1 - pow(0.001, dt) approaches the target by the same proportion each
     // second regardless of how many frames that second was split into.
     ease = 1 - math.pow(0.001, dt)
 
-    this.x = math.lerp(this.x, desiredX, ease)
-    this.y = math.lerp(this.y, desiredY, ease)
+    this.x = math.lerp(this.x, desired.x, ease)
+    this.y = math.lerp(this.y, desired.y, ease)
 
-    if (this.bounds != null) {
-      this.x = math.clamp(this.x, 0, math.max(0, this.bounds.width - viewWidth))
-      this.y = math.clamp(this.y, 0, math.max(0, this.bounds.height - viewHeight))
+    this.clampToBounds()
+  }
+
+  // snapTo puts the camera on the target at once, for the moments when there is
+  // nothing to ease across: the party is somewhere else now, and easing there
+  // would fly the whole map past the player on the way.
+  snapTo(target) {
+    desired = this.desiredPosition(target)
+
+    this.x = desired.x
+    this.y = desired.y
+
+    this.clampToBounds()
+  }
+
+  // desiredPosition is where the camera would sit with the target centred.
+  desiredPosition(target) {
+    viewWidth = window.width / this.zoom
+    viewHeight = window.height / this.zoom
+
+    return {
+      x: target.x + target.width / 2 - viewWidth / 2,
+      y: target.y + target.height / 2 - viewHeight / 2
     }
+  }
+
+  // clampToBounds stops the camera showing anything past the edge of the map.
+  clampToBounds() {
+    if (this.bounds == null) {
+      return null
+    }
+
+    viewWidth = window.width / this.zoom
+    viewHeight = window.height / this.zoom
+
+    this.x = math.clamp(this.x, 0, math.max(0, this.bounds.width - viewWidth))
+    this.y = math.clamp(this.y, 0, math.max(0, this.bounds.height - viewHeight))
   }
 
   // knock starts a screen shake, used when something lands a hit.

@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -62,10 +64,21 @@ func PackageGame(source, target string) error {
 // operating system ignores trailing bytes in an executable, so the result runs
 // as a normal program.
 func FuseGame(source, target string) error {
+	if _, err := os.Stat(filepath.Join(source, "main.ghost")); err != nil {
+		return fmt.Errorf("no main.ghost in %s", source)
+	}
+
 	executable, err := os.Executable()
 
 	if err != nil {
 		return err
+	}
+
+	// Writing over the running engine would truncate the very file being read
+	// from, and on most systems fails part way through with an error that says
+	// nothing about why.
+	if sameFile(executable, target) {
+		return fmt.Errorf("refusing to build over the running engine: choose another -o path")
 	}
 
 	// A binary that already carries a game is fused again from its engine half,
@@ -84,13 +97,17 @@ func FuseGame(source, target string) error {
 		return err
 	}
 
-	defer output.Close()
-
+	// Closed explicitly at the end rather than deferred, because the file has
+	// to be complete and closed before it is signed.
 	if _, err := io.CopyN(output, engine, engineSize); err != nil {
+		output.Close()
+
 		return err
 	}
 
 	if err := writeArchive(output, source); err != nil {
+		output.Close()
+
 		return err
 	}
 
@@ -100,12 +117,65 @@ func FuseGame(source, target string) error {
 	binary.LittleEndian.PutUint64(trailer, uint64(engineSize))
 
 	if _, err := output.Write(trailer); err != nil {
+		output.Close()
+
 		return err
 	}
 
-	_, err = output.WriteString(archiveMagic)
+	if _, err := output.WriteString(archiveMagic); err != nil {
+		return err
+	}
 
-	return err
+	// The file has to be closed before it can be signed: codesign rewrites it.
+	if err := output.Close(); err != nil {
+		return err
+	}
+
+	return signExecutable(target)
+}
+
+// signExecutable re-signs a freshly built binary on macOS. Every executable on
+// Apple silicon carries a signature, appending a game to one invalidates it,
+// and the system kills a binary whose signature does not match its contents —
+// so a game built without this step dies instantly with nothing but "killed".
+// An ad-hoc signature is enough to run locally; shipping to other machines
+// wants a real developer identity and notarisation.
+func signExecutable(target string) error {
+	if runtime.GOOS != "darwin" {
+		return nil
+	}
+
+	codesign, err := exec.LookPath("codesign")
+
+	if err != nil {
+		return fmt.Errorf("built %s, but it cannot run until it is signed: codesign is not installed (it comes with the Xcode command line tools)", target)
+	}
+
+	command := exec.Command(codesign, "--force", "--sign", "-", target)
+
+	if output, err := command.CombinedOutput(); err != nil {
+		return fmt.Errorf("built %s, but signing it failed: %s: %s", target, err, strings.TrimSpace(string(output)))
+	}
+
+	return nil
+}
+
+// sameFile reports whether two paths lead to the same file, following the
+// symlinks and relative paths that either of them might be written as.
+func sameFile(first, second string) bool {
+	firstInfo, err := os.Stat(first)
+
+	if err != nil {
+		return false
+	}
+
+	secondInfo, err := os.Stat(second)
+
+	if err != nil {
+		return false
+	}
+
+	return os.SameFile(firstInfo, secondInfo)
 }
 
 // writeArchive zips everything under source into the given writer.

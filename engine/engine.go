@@ -32,6 +32,22 @@ type Engine struct {
 	IsRunning  bool
 	HasFocus   bool
 
+	// LogicalWidth and LogicalHeight are the size of the coordinate space the
+	// game draws in, which is not always the size of the window. Zero means the
+	// game draws straight into window pixels. See viewport.go.
+	LogicalWidth  int32
+	LogicalHeight int32
+	PixelPerfect  bool
+
+	// WindowedWidth and WindowedHeight remember how big the window was before
+	// it went fullscreen, so leaving fullscreen puts it back.
+	WindowedWidth  int32
+	WindowedHeight int32
+
+	// OutputWidth and OutputHeight are the renderer's size in real pixels.
+	OutputWidth  int32
+	OutputHeight int32
+
 	// Delta is the number of seconds the previous frame took. Every piece of
 	// game logic that moves should scale by it so speeds stay the same
 	// regardless of frame rate.
@@ -62,6 +78,8 @@ type Engine struct {
 	Joysticks             []*Joystick
 
 	saveIdentity string
+	viewScale    float64
+	viewport     sdl.Rect
 	lastTicks    uint64
 	errors       errorReporter
 	loadFailed   bool
@@ -74,9 +92,12 @@ func New(title string) *Engine {
 	Lumen.TargetFps = 60
 	Lumen.Width = 800
 	Lumen.Height = 600
+	Lumen.WindowedWidth = 800
+	Lumen.WindowedHeight = 600
 	Lumen.HasFocus = true
 	Lumen.MasterVolume = 1
 	Lumen.Graphics = NewGraphics()
+	Lumen.viewScale = 1
 	Lumen.saveIdentity = "lumen"
 
 	Lumen.initSDL()
@@ -219,8 +240,8 @@ func (engine *Engine) SaveDirectory() (string, error) {
 // userDataDir returns the per-user directory for application data, which is
 // where a saved game belongs. Go's os.UserConfigDir is the right answer on
 // macOS and Windows, but on Linux it resolves to ~/.config, which is for
-// configuration. Saves are data, so Linux follows the XDG data directory —
-// ~/.local/share — the same place LOVE puts them.
+// configuration. Saves are data, so Linux follows the XDG data directory:
+// ~/.local/share.
 func userDataDir() (string, error) {
 	if runtime.GOOS != "linux" && runtime.GOOS != "freebsd" && runtime.GOOS != "openbsd" && runtime.GOOS != "netbsd" {
 		return os.UserConfigDir()

@@ -64,7 +64,7 @@ class FieldMenu {
       row('Rest', 'rest', null, true),
       row('Save', 'save', null, true),
       row('Close', 'close', null, true)
-    ], { width: 220, title: 'Menu' })
+    ], { width: 250, title: 'Menu' })
   }
 
   showItems() {
@@ -85,7 +85,7 @@ class FieldMenu {
       rows.push(row(found.name, found.id, detail, true))
     }
 
-    this.menu = new Menu(rows, { width: 300, title: 'Pack' })
+    this.menu = new Menu(rows, { width: 330, title: 'Pack' })
   }
 
   showItemTarget() {
@@ -104,7 +104,7 @@ class FieldMenu {
       ))
     }
 
-    this.menu = new Menu(rows, { width: 260, title: 'Use on' })
+    this.menu = new Menu(rows, { width: 290, title: 'Use on' })
   }
 
   showHeroes(next) {
@@ -118,7 +118,7 @@ class FieldMenu {
       rows.push(row(member.name, member, member.role, true))
     }
 
-    this.menu = new Menu(rows, { width: 260, title: 'Who' })
+    this.menu = new Menu(rows, { width: 290, title: 'Who' })
   }
 
   showSlots() {
@@ -128,7 +128,7 @@ class FieldMenu {
       row('Weapon', 'weapon', this.hero.equippedName('weapon'), true),
       row('Armour', 'armour', this.hero.equippedName('armour'), true),
       row('Shield', 'shield', this.hero.equippedName('shield'), true)
-    ], { width: 340, title: this.hero.name })
+    ], { width: 380, title: this.hero.name })
   }
 
   // showSlotItems lists what is in the pack for this slot, plus an option to
@@ -153,7 +153,7 @@ class FieldMenu {
       rows.push(row(found.name, found.id, changeLabel(change), true))
     }
 
-    this.menu = new Menu(rows, { width: 340, title: slotTitle(this.slot) })
+    this.menu = new Menu(rows, { width: 380, title: slotTitle(this.slot) })
   }
 
   showStatus() {
@@ -335,7 +335,7 @@ class FieldMenu {
     }
 
     x = 48
-    y = 118
+    y = 112
 
     this.menu.draw(x, y, this.fonts.body)
     this.drawDetail(x + this.menu.width + 20, y)
@@ -375,24 +375,24 @@ class FieldMenu {
       return null
     }
 
-    drawPanel(x, y, width, 110)
+    drawPanel(x, y, width, 116)
 
     canvas.setFont(this.fonts.small)
     canvas.setColor(theme.dim)
-    canvas.printf(text, x + 16, y + 18, width - 32, 'left')
+    canvas.printf(text, x + 16, y + 20, width - 32, 'left')
     canvas.resetFont()
   }
 
   // drawEquipDetail shows what the highlighted piece would do to the hero's
   // numbers, which is the question the player is actually asking.
   drawEquipDetail(x, y, width, row) {
-    drawPanel(x, y, width, 190)
+    drawPanel(x, y, width, 200)
 
     canvas.setFont(this.fonts.small)
 
     if (row.value == 'none') {
       canvas.setColor(theme.dim)
-      canvas.printf('Remove what is equipped and put it back in the pack.', x + 16, y + 18, width - 32, 'left')
+      canvas.printf('Remove what is equipped and put it back in the pack.', x + 16, y + 20, width - 32, 'left')
       canvas.resetFont()
 
       return null
@@ -407,19 +407,19 @@ class FieldMenu {
     }
 
     canvas.setColor(theme.accent)
-    canvas.print(found.name, x + 16, y + 14)
+    canvas.print(found.name, x + 16, y + 16)
 
     canvas.setColor(theme.dim)
-    canvas.printf(found.text, x + 16, y + 40, width - 32, 'left')
+    canvas.printf(found.text, x + 16, y + 46, width - 32, 'left')
 
     change = this.party.previewEquip(this.hero, this.slot, found.id)
 
     canvas.setColor(theme.dim)
-    canvas.print('Attack', x + 16, y + 108)
-    canvas.print('Defence', x + 16, y + 136)
+    canvas.print('Attack', x + 16, y + 120)
+    canvas.print('Defence', x + 16, y + 150)
 
-    this.drawChange(x + 110, y + 108, this.hero.attackPower(), change.attack)
-    this.drawChange(x + 110, y + 136, this.hero.defencePower(), change.defence)
+    this.drawChange(x + 110, y + 120, this.hero.attackPower(), change.attack)
+    this.drawChange(x + 110, y + 150, this.hero.defencePower(), change.defence)
 
     canvas.resetFont()
   }
@@ -441,7 +441,7 @@ class FieldMenu {
     }
 
     canvas.setColor(tint)
-    canvas.print('-> ' + (current + delta).toString(), x + 44, y)
+    canvas.print('-> ' + (current + delta).toString(), x + 52, y)
   }
 
   // drawPartyStrip keeps everyone's health visible while menus are open, so a
@@ -449,8 +449,9 @@ class FieldMenu {
   drawPartyStrip() {
     canvas.setFont(this.fonts.small)
 
-    top = window.height - 92
-    boxWidth = 200
+    top = window.height - 100
+    boxWidth = 220
+    boxHeight = 80
     gap = 16
     total = this.party.members.length() * boxWidth + (this.party.members.length() - 1) * gap
     left = (window.width - total) / 2
@@ -459,7 +460,7 @@ class FieldMenu {
       member = this.party.members[index]
       x = left + index * (boxWidth + gap)
 
-      drawPanel(x, top, boxWidth, 72)
+      drawPanel(x, top, boxWidth, boxHeight)
 
       canvas.setColor(theme.text)
       canvas.print(member.name, x + 12, top + 8)
@@ -470,15 +471,15 @@ class FieldMenu {
 
       fraction = member.healthFraction()
 
-      drawBar(x + 12, top + 34, boxWidth - 24, 7, fraction, barColor(fraction))
+      drawBar(x + 12, top + 36, boxWidth - 24, 7, fraction, barColor(fraction))
 
       canvas.setColor(theme.dim)
-      canvas.print(member.health.toString() + '/' + member.maxHealth.toString(), x + 12, top + 46)
+      canvas.print(member.health.toString() + '/' + member.maxHealth.toString(), x + 12, top + 50)
 
       if (member.maxMagic > 0) {
         magic = 'MP ' + member.magic.toString()
         canvas.setColor(color.rgb(130, 170, 240))
-        canvas.print(magic, x + boxWidth - 12 - this.fonts.small.getWidth(magic), top + 46)
+        canvas.print(magic, x + boxWidth - 12 - this.fonts.small.getWidth(magic), top + 50)
       }
     }
 
@@ -490,11 +491,11 @@ class FieldMenu {
   }
 
   drawStatusSheet() {
-    x = 120
-    y = 90
-    width = window.width - 240
+    x = 110
+    y = 84
+    width = window.width - 220
 
-    drawPanel(x, y, width, 380)
+    drawPanel(x, y, width, 400)
 
     canvas.setFont(this.fonts.body)
 
@@ -502,10 +503,10 @@ class FieldMenu {
     canvas.print(this.hero.name, x + 28, y + 22)
 
     canvas.setColor(theme.dim)
-    canvas.print(this.hero.role + '  -  Level ' + this.hero.level.toString(), x + 28, y + 52)
+    canvas.print(this.hero.role + '  -  Level ' + this.hero.level.toString(), x + 28, y + 56)
 
     canvas.setColor(color.rgb(70, 88, 128))
-    canvas.line(x + 24, y + 84, x + width - 24, y + 84)
+    canvas.line(x + 24, y + 92, x + width - 24, y + 92)
 
     canvas.setFont(this.fonts.small)
 
@@ -520,7 +521,7 @@ class FieldMenu {
     ]
 
     for (index = 0; index < lines.length(); index++) {
-      rowY = y + 104 + index * 26
+      rowY = y + 112 + index * 30
 
       canvas.setColor(theme.dim)
       canvas.print(lines[index][0], x + 28, rowY)
@@ -536,29 +537,29 @@ class FieldMenu {
     ]
 
     for (index = 0; index < equipment.length(); index++) {
-      rowY = y + 104 + index * 26
+      rowY = y + 112 + index * 30
 
       canvas.setColor(theme.dim)
-      canvas.print(equipment[index][0], x + 360, rowY)
+      canvas.print(equipment[index][0], x + 340, rowY)
 
       canvas.setColor(theme.text)
-      canvas.print(equipment[index][1], x + 450, rowY)
+      canvas.print(equipment[index][1], x + 440, rowY)
     }
 
     if (this.hero.spells.length() > 0) {
       canvas.setColor(theme.dim)
-      canvas.print('Spells', x + 360, y + 190)
+      canvas.print('Spells', x + 340, y + 220)
 
       for (index = 0; index < this.hero.spells.length(); index++) {
         spell = findSpell(this.hero.spells[index])
 
         canvas.setColor(theme.text)
-        canvas.print(spell.name + '  ' + spell.cost.toString() + ' MP', x + 450, y + 190 + index * 24)
+        canvas.print(spell.name + '  ' + spell.cost.toString() + ' MP', x + 440, y + 220 + index * 28)
       }
     }
 
     canvas.setColor(theme.dim)
-    canvas.print('any key to go back', x + 28, y + 340)
+    canvas.print('any key to go back', x + 28, y + 360)
 
     canvas.resetFont()
   }
@@ -571,14 +572,14 @@ class FieldMenu {
     alpha = math.min(1, this.noticeTime / 0.5)
 
     canvas.setColor(color.rgb(18, 20, 34, alpha * 0.92))
-    canvas.filledRectangle(x, 24, width, 40)
+    canvas.filledRectangle(x, 24, width, 46)
 
     canvas.setColor(theme.border)
     canvas.setLineWidth(2)
-    canvas.rectangle(x, 24, width, 40)
+    canvas.rectangle(x, 24, width, 46)
 
     canvas.setColor(color.rgb(255, 255, 255, alpha))
-    canvas.print(this.notice, x + 20, 32)
+    canvas.print(this.notice, x + 20, 34)
 
     canvas.resetFont()
   }

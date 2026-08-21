@@ -31,7 +31,7 @@ func (engine *Engine) handleEvents() {
 }
 
 // handleQuitEvent lets the game veto shutdown by returning true from quit(),
-// which is how LOVE's love.quit callback works.
+// which is what a game asking "save before you go?" needs.
 func (engine *Engine) handleQuitEvent() {
 	result := engine.callback("quit")
 
@@ -63,8 +63,14 @@ func (engine *Engine) handleTextInputEvent(event *sdl.TextInputEvent) {
 
 func (engine *Engine) handleMouseButtonEvent(event *sdl.MouseButtonEvent) {
 	name := &object.String{Value: MouseButtonName(event.Button)}
-	x := object.NewInt(int64(event.X))
-	y := object.NewInt(int64(event.Y))
+
+	// SDL reports the pointer in window coordinates. A game reads it in the
+	// coordinate space it draws in, which is the same thing until the game
+	// fixes a logical size, and never the same thing afterwards.
+	pointX, pointY := engine.ToLogical(event.X, event.Y)
+
+	x := object.NewFloat(pointX)
+	y := object.NewFloat(pointY)
 
 	if event.Type == sdl.MOUSEBUTTONDOWN {
 		engine.callback("mousepressed", x, y, name, object.NewInt(int64(event.Clicks)))
@@ -76,11 +82,14 @@ func (engine *Engine) handleMouseButtonEvent(event *sdl.MouseButtonEvent) {
 }
 
 func (engine *Engine) handleMouseMotionEvent(event *sdl.MouseMotionEvent) {
+	pointX, pointY := engine.ToLogical(event.X, event.Y)
+	scale := engine.ViewportScale()
+
 	engine.callback("mousemoved",
-		object.NewInt(int64(event.X)),
-		object.NewInt(int64(event.Y)),
-		object.NewInt(int64(event.XRel)),
-		object.NewInt(int64(event.YRel)),
+		object.NewFloat(pointX),
+		object.NewFloat(pointY),
+		object.NewFloat(float64(event.XRel)/scale),
+		object.NewFloat(float64(event.YRel)/scale),
 	)
 }
 
@@ -99,6 +108,10 @@ func (engine *Engine) handleWindowEvent(event *sdl.WindowEvent) {
 	case sdl.WINDOWEVENT_SIZE_CHANGED, sdl.WINDOWEVENT_RESIZED:
 		engine.Width = event.Data1
 		engine.Height = event.Data2
+
+		// A game with a fixed coordinate space has to be re-fitted to the new
+		// window before anything is drawn into it.
+		engine.UpdateViewport()
 
 		engine.callback("resize",
 			object.NewInt(int64(event.Data1)),
