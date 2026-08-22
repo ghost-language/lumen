@@ -90,6 +90,8 @@ func (target *Target) draw(args []object.Object) (object.Object, bool) {
 
 // Release frees the target's texture.
 func (target *Target) Release() {
+	Lumen.FlushTexture(target.Texture)
+
 	if target.Texture != nil {
 		target.Texture.Destroy()
 		target.Texture = nil
@@ -107,6 +109,10 @@ func (target *Target) Release() {
 // to be the target's own corner, not the corner of the letterboxed window its
 // coordinate space is scaled into. Clearing the target puts that scaling back.
 func (engine *Engine) SetTarget(target *Target) error {
+	// Queued sprites belong to the surface that was current when they were
+	// drawn, so they have to land before the target changes underneath them.
+	engine.Flush()
+
 	engine.Graphics.Target = target
 
 	if target == nil {

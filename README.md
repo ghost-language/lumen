@@ -178,6 +178,46 @@ point size, blend mode, and scissor, and `canvas.pop()` restores them.
 through the current transform, which is how a game finds what the player clicked
 on while a camera is active.
 
+`canvas.getVisible()` goes the other way and reports `[x, y, width, height]`:
+the region of the current coordinate space that is on screen. A game with a
+world larger than the window uses it to loop over only the part of the world the
+player can see, without having to redo the camera's arithmetic itself.
+
+```ghost
+visible = canvas.getVisible()
+
+left = math.max(0, math.floor(visible[0] / tileSize))
+right = math.min(map.width - 1, math.ceil((visible[0] + visible[2]) / tileSize))
+```
+
+## Drawing performance
+
+Sprites are not handed to SDL one at a time. Consecutive draws that share a
+texture, blend mode, and scissor box are collected into a single call, and any
+sprite whose transformed corners fall entirely off screen is dropped before it
+gets that far. A tilemap drawing a few thousand tiles from one tileset costs one
+call, not a few thousand.
+
+Two things are worth knowing, because both are visible from Ghost:
+
+**A primitive between two sprites ends the batch.** Batching only ever merges
+draws with the ones immediately before them, because reordering them would put
+sprites through each other. Drawing a rectangle between every two sprites is
+therefore correct but slow. Drawing the sprites together and the primitives
+together is the same picture for a fraction of the calls.
+
+**Changing texture ends it too.** Sprites clipped from one sheet batch together;
+alternating between two sheets does not. This is the usual argument for packing a
+game's art into as few sheets as it can stand.
+
+Neither is something a game has to manage, and neither changes what is drawn —
+they are the two things that decide whether a frame is one call or a thousand.
+
+Loading the same file twice hands back the same image rather than uploading a
+second copy of it, and `clip()` reuses the view it made for a region last time,
+so a spritesheet costs one texture and a fixed set of views however many times a
+frame reaches for them.
+
 ## Colors
 
 **Red, green, and blue run 0-255. Alpha runs 0-1.** The two ranges are
@@ -221,7 +261,7 @@ Drawing, the drawing state, and the transform stack.
 
 **Transforms** — `push(['all'])`, `pop()`, `origin()`, `translate(x, y)`,
 `rotate(radians)`, `scale(x, [y])`, `shear(x, y)`, `toScreen(x, y)`,
-`toWorld(x, y)`.
+`toWorld(x, y)`, `getVisible()`.
 
 **Targets** — `newTarget(w, h)`, `setTarget([target])`,
 `newQuad(x, y, w, h)`, `screenshot(filename)`. Setting a target resets the
@@ -551,10 +591,6 @@ stderr behind the window.
 `textinput` callback — but every game that wants a name entry field has to build
 caret movement, selection, and clipboard handling itself.
 
-**Sprite batching.** Each `image.draw()` is a separate call into SDL. The tile
-culling in `60_rpg` exists because of it. A batch that collects draws sharing a
-texture into one call would remove the ceiling that culling works around.
-
 **Shaders and particles.** Neither exists. Particles can be written in Ghost and
 will be fine for most games; shaders cannot be worked around, and rule out
 lighting, palette swaps, and whole-screen effects.
@@ -584,6 +620,10 @@ Lumen follows LÖVE's model but is not a port, and does not try to be.
 - Color channels are 0-255 and alpha is 0-1, where LÖVE uses 0-1 for both.
 - The draw state resets every frame, where LÖVE carries color and line width
   across frames.
-- Not implemented: shaders, particle systems, physics (Box2D), sprite batches,
-  meshes, threads, video, and touch. Simple axis-aligned collision is a few lines
-  of Ghost — `04_collision` and `60_rpg` both show it.
+- Batching is automatic rather than an object a game builds. There is no
+  `SpriteBatch` to fill: consecutive draws that share a texture are collected
+  into one call as they are made, and off-screen sprites are dropped before they
+  reach SDL. See **Drawing performance** below for what keeps that working.
+- Not implemented: shaders, particle systems, physics (Box2D), meshes, threads,
+  video, and touch. Simple axis-aligned collision is a few lines of Ghost —
+  `04_collision` and `60_rpg` both show it.

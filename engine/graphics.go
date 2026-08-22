@@ -134,6 +134,10 @@ func (graphics *Graphics) Reset() {
 // SDL. Every draw call goes through it so state changes made from Ghost take
 // effect without the module layer having to touch SDL directly.
 func (engine *Engine) applyDrawState() {
+	// Primitives are drawn immediately, so any sprites queued before them have
+	// to reach the screen first or they would be painted on top.
+	engine.Flush()
+
 	color := engine.Graphics.Color
 
 	engine.Renderer.SetDrawColor(color.Red, color.Green, color.Blue, color.Alpha)
@@ -375,23 +379,120 @@ func (engine *Engine) DrawTexture(texture *sdl.Texture, source *sdl.Rect, textur
 	coordinates := [4]sdl.FPoint{{X: u0, Y: v0}, {X: u1, Y: v0}, {X: u1, Y: v1}, {X: u0, Y: v1}}
 
 	color := engine.Graphics.Color.SDL()
-	vertices := make([]sdl.Vertex, 4)
+
+	// The corners are built on the stack rather than in a fresh slice. A tilemap
+	// draws thousands of these a frame, and a per-sprite allocation there is the
+	// difference between a flat heap and a garbage collector running constantly.
+	var quad [4]sdl.Vertex
+
+	minX, minY := math.Inf(1), math.Inf(1)
+	maxX, maxY := math.Inf(-1), math.Inf(-1)
 
 	for index, corner := range corners {
 		px, py := transform.Apply(corner[0], corner[1])
 
-		vertices[index] = sdl.Vertex{
+		minX = math.Min(minX, px)
+		minY = math.Min(minY, py)
+		maxX = math.Max(maxX, px)
+		maxY = math.Max(maxY, py)
+
+		quad[index] = sdl.Vertex{
 			Position: sdl.FPoint{X: float32(px), Y: float32(py)},
 			Color:    color,
 			TexCoord: coordinates[index],
 		}
 	}
 
-	engine.Renderer.SetDrawBlendMode(engine.Graphics.BlendMode)
-	engine.Renderer.SetClipRect(engine.Graphics.Scissor)
-	texture.SetBlendMode(engine.Graphics.BlendMode)
+	// A sprite that lands entirely outside what is being drawn into costs
+	// nothing to skip and a full draw call to keep. Games scroll a camera over
+	// a world much larger than the screen, so most of what they ask to draw on
+	// any given frame is off-screen.
+	if engine.culled(minX, minY, maxX, maxY) {
+		return
+	}
 
-	engine.Renderer.RenderGeometry(texture, vertices, []int32{0, 1, 2, 0, 2, 3})
+	engine.batchQuad(texture, engine.Graphics.BlendMode, engine.Graphics.Scissor, &quad)
+}
+
+// culled reports whether a bounding box in render coordinates falls entirely
+// outside the surface currently being drawn into.
+//
+// The box is the axis-aligned bounds of the sprite's transformed corners, so a
+// rotated sprite tests against a box larger than itself. That errs towards
+// drawing something that turns out to be invisible, which is the safe direction
+// to err in.
+func (engine *Engine) culled(minX, minY, maxX, maxY float64) bool {
+	var width, height float64
+
+	if target := engine.Graphics.Target; target != nil {
+		width = float64(target.Width)
+		height = float64(target.Height)
+	} else {
+		width = float64(engine.OutputWidth)
+		height = float64(engine.OutputHeight)
+	}
+
+	// Before the viewport has been measured there is nothing meaningful to test
+	// against, and guessing would drop the whole frame.
+	if width <= 0 || height <= 0 {
+		return false
+	}
+
+	return maxX < 0 || maxY < 0 || minX > width || minY > height
+}
+
+// VisibleBounds returns the rectangle, in the coordinate space of the current
+// transform, that covers everything currently on screen.
+//
+// The engine already skips sprites that fall outside it, but skipping them one
+// at a time still costs the game the work of asking. A tilemap that reads these
+// bounds can loop over the rows and columns that are actually visible instead
+// of walking the whole world every frame, which is the difference between
+// drawing a screenful and drawing a map.
+//
+// The second return value is false when the transform cannot be inverted, which
+// happens when a scale of zero has collapsed the plane and nothing is visible.
+func (engine *Engine) VisibleBounds() (x, y, width, height float64, ok bool) {
+	inverse, invertible := engine.Graphics.Transform().Inverse()
+
+	if !invertible {
+		return 0, 0, 0, 0, false
+	}
+
+	var outputWidth, outputHeight float64
+
+	if target := engine.Graphics.Target; target != nil {
+		outputWidth = float64(target.Width)
+		outputHeight = float64(target.Height)
+	} else {
+		// OutputSize() rather than the cached OutputWidth, because a game may
+		// ask for these bounds before the first frame has measured the window.
+		// It costs a call into SDL, but this runs once per layer rather than
+		// once per sprite.
+		width, height := engine.OutputSize()
+
+		outputWidth = float64(width)
+		outputHeight = float64(height)
+	}
+
+	corners := [4][2]float64{{0, 0}, {outputWidth, 0}, {outputWidth, outputHeight}, {0, outputHeight}}
+
+	minX, minY := math.Inf(1), math.Inf(1)
+	maxX, maxY := math.Inf(-1), math.Inf(-1)
+
+	// All four corners are mapped back, not just two: under a rotated transform
+	// the screen is a diamond in world space, and its bounding box is wider than
+	// the box through either diagonal alone.
+	for _, corner := range corners {
+		px, py := inverse.Apply(corner[0], corner[1])
+
+		minX = math.Min(minX, px)
+		minY = math.Min(minY, py)
+		maxX = math.Max(maxX, px)
+		maxY = math.Max(maxY, py)
+	}
+
+	return minX, minY, maxX - minX, maxY - minY, true
 }
 
 // SetScissor limits drawing to the given rectangle, expressed in the coordinate
@@ -424,6 +525,8 @@ func (engine *Engine) SetScissor(x, y, width, height float64) {
 
 // ClearScissor removes any active scissor rectangle.
 func (engine *Engine) ClearScissor() {
+	engine.Flush()
+
 	engine.Graphics.Scissor = nil
 
 	engine.Renderer.SetClipRect(nil)
@@ -448,6 +551,9 @@ func BlendModeFromName(name string) (sdl.BlendMode, bool) {
 // Screenshot writes the current contents of the window to a PNG file. It reads
 // back from the renderer, so it captures exactly what the player sees.
 func (engine *Engine) Screenshot(path string) error {
+	// Read back what the game actually drew, not what happened to be flushed.
+	engine.Flush()
+
 	width, height, err := engine.Renderer.GetOutputSize()
 
 	if err != nil {

@@ -2,15 +2,16 @@ class Spritesheet {
   constructor(path, size) {
     this.sprite = image.load(path)
     this.size = size
+    // The column count never changes, so it is worked out once here rather than
+    // on every tile of every frame.
+    this.columns = this.sprite.getWidth() / size
     this.animations = {}
     this.currentFrame = 0
   }
 
   draw(frame, x, y) {
-    columns = this.sprite.getWidth() / this.size
-    
-    sx = (frame % columns) * this.size
-    sy = (frame / columns).floor() * this.size
+    sx = (frame % this.columns) * this.size
+    sy = (frame / this.columns).floor() * this.size
 
     this.sprite.clip(sx, sy, this.size).draw(x, y)
   }
