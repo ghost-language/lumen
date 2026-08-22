@@ -24,7 +24,6 @@ import Npc from 'npc'
 import Party from 'party'
 import Player from 'player'
 import Sounds from 'sounds'
-import Spritesheet from 'spritesheet'
 import Tilemap from 'tilemap'
 
 // The whole game is laid out for a canvas this size. Nothing is measured
@@ -74,7 +73,7 @@ function load() {
     ['Paths']
   )
 
-  game.characters = new Spritesheet('resources/characters.png', 16, 16)
+  game.characters = image.newSpritesheet('resources/characters.png', 16, 16)
 
   game.party = new Party(['aldric', 'sera', 'nell'])
   game.party.add('herb', 3)

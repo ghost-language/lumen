@@ -1,5 +1,3 @@
-import Spritesheet from 'spritesheet'
-
 class Map {
   constructor(filepath, root = 'resources') {
     this.root = root
@@ -21,7 +19,7 @@ class Map {
     for (i = 0; i < this.map.tilesets.length(); i++) {
       tileset = this.map.tilesets[i]
       tilesets[tileset.name] = {
-        spritesheet: new Spritesheet(this.root + '/' + tileset.image, tileset.tilewidth),
+        sheet: image.newSpritesheet(this.root + '/' + tileset.image, tileset.tilewidth),
         firstgid: tileset.firstgid,
         lastgid: tileset.firstgid + tileset.tilecount,
         size: tileset.tilewidth
@@ -81,7 +79,7 @@ class Map {
 
         frame = gid - tileset.firstgid
 
-        tileset.spritesheet.draw(frame, x * tileset.size, y * tileset.size)
+        tileset.sheet.draw(frame, x * tileset.size, y * tileset.size)
       }
     }
   }

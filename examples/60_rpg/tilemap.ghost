@@ -1,4 +1,3 @@
-import Spritesheet from 'spritesheet'
 
 // Tilemap loads a map exported from Tiled as JSON. Layers named in
 // `solidLayers` become collision: any tile placed on them blocks movement.
@@ -25,7 +24,7 @@ class Tilemap {
       tileset = tilesets[index]
 
       loaded.push({
-        sheet: new Spritesheet('resources/' + tileset.image, tileset.tilewidth, tileset.tileheight),
+        sheet: image.newSpritesheet('resources/' + tileset.image, tileset.tilewidth, tileset.tileheight),
         firstgid: tileset.firstgid,
         lastgid: tileset.firstgid + tileset.tilecount - 1
       })

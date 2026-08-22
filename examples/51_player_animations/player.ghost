@@ -1,8 +1,5 @@
-import Spritesheet from 'spritesheet'
-
 class Player {
   constructor(x = 0, y = 0) {
-    console.log(x, y)
     this.x = x
     this.y = y
     this.isMoving = false
@@ -11,17 +8,34 @@ class Player {
     this.speed = 1
     this.size = 16
     this.direction = 'down'
-    this.sprite = new Spritesheet('resources/characters.png', this.size)
 
-    this.sprite.addAnimation('up', [6, 7], 0.075)
-    this.sprite.addAnimation('right', [8, 9], 0.075)
-    this.sprite.addAnimation('down', [4, 5], 0.075)
-    this.sprite.addAnimation('left', [10, 11], 0.075)
+    // The sheet slices the image into 16x16 frames once, up front. Frames are
+    // numbered left to right, top to bottom, starting at zero.
+    this.sheet = image.newSpritesheet('resources/characters.png', this.size)
 
-    this.sprite.addAnimation('up_idle', [1], 0)
-    this.sprite.addAnimation('right_idle', [2], 0)
-    this.sprite.addAnimation('down_idle', [0], 0)
-    this.sprite.addAnimation('left_idle', [3], 0)
+    // Each animation holds a frame for a number of *seconds*, so the walk cycle
+    // runs at the same speed whatever frame rate the machine manages. A
+    // duration of zero makes a still pose out of the first frame.
+    this.animations = {
+      up: this.sheet.newAnimation([6, 7], 0.2),
+      right: this.sheet.newAnimation([8, 9], 0.2),
+      down: this.sheet.newAnimation([4, 5], 0.2),
+      left: this.sheet.newAnimation([10, 11], 0.2),
+
+      up_idle: this.sheet.newAnimation([1], 0),
+      right_idle: this.sheet.newAnimation([2], 0),
+      down_idle: this.sheet.newAnimation([0], 0),
+      left_idle: this.sheet.newAnimation([3], 0),
+    }
+  }
+
+  // current returns the animation the player's direction and movement call for.
+  current() {
+    if (this.isMoving) {
+      return this.animations[this.direction]
+    }
+
+    return this.animations[this.direction + '_idle']
   }
 
   update() {
@@ -55,15 +69,12 @@ class Player {
     } else {
       this.isMoving = false
     }
+
+    // update() with no argument advances by the time the last frame took.
+    this.current().update()
   }
 
   draw() {
-    direction = this.direction
-
-    if (!this.isMoving) {
-      direction = direction + '_idle'
-    }
-
-    this.sprite.play(direction, this.x, this.y)
+    this.current().draw(this.x, this.y)
   }
 }

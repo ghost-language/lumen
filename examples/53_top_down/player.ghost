@@ -1,5 +1,3 @@
-import Spritesheet from 'spritesheet'
-
 class Player {
   constructor(x = 0, y = 0) {
     this.x = x
@@ -12,7 +10,9 @@ class Player {
     this.width = this.size
     this.height = this.size
     this.direction = 'down'
-    this.sprite = new Spritesheet('resources/characters.png', this.size)
+
+    // The sheet slices the image into 16x16 frames once, up front.
+    this.sheet = image.newSpritesheet('resources/characters.png', this.size)
 
     characters = [
       {
@@ -38,16 +38,30 @@ class Player {
     ]
 
     character = 1
+    frames = characters[character]
 
-    this.sprite.addAnimation('up', characters[character].up, 0.075)
-    this.sprite.addAnimation('right', characters[character].right, 0.075)
-    this.sprite.addAnimation('down', characters[character].down, 0.075)
-    this.sprite.addAnimation('left', characters[character].left, 0.075)
+    // Durations are in seconds per frame, so the walk cycle keeps its speed
+    // whatever frame rate the machine manages. Zero holds a single still pose.
+    this.animations = {
+      up: this.sheet.newAnimation(frames.up, 0.2),
+      right: this.sheet.newAnimation(frames.right, 0.2),
+      down: this.sheet.newAnimation(frames.down, 0.2),
+      left: this.sheet.newAnimation(frames.left, 0.2),
 
-    this.sprite.addAnimation('up_idle', characters[character].up_idle, 0)
-    this.sprite.addAnimation('right_idle', characters[character].right_idle, 0)
-    this.sprite.addAnimation('down_idle', characters[character].down_idle, 0)
-    this.sprite.addAnimation('left_idle', characters[character].left_idle, 0)
+      up_idle: this.sheet.newAnimation(frames.up_idle, 0),
+      right_idle: this.sheet.newAnimation(frames.right_idle, 0),
+      down_idle: this.sheet.newAnimation(frames.down_idle, 0),
+      left_idle: this.sheet.newAnimation(frames.left_idle, 0),
+    }
+  }
+
+  // current returns the animation the player's direction and movement call for.
+  current() {
+    if (this.isMoving) {
+      return this.animations[this.direction]
+    }
+
+    return this.animations[this.direction + '_idle']
   }
 
   update() {
@@ -81,15 +95,12 @@ class Player {
     } else {
       this.isMoving = false
     }
+
+    // update() with no argument advances by the time the last frame took.
+    this.current().update()
   }
 
   draw() {
-    direction = this.direction
-
-    if (!this.isMoving) {
-      direction = direction + '_idle'
-    }
-
-    this.sprite.play(direction, this.x, this.y)
+    this.current().draw(this.x, this.y)
   }
 }

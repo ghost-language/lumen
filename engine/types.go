@@ -15,6 +15,8 @@ const (
 	TARGET
 	SOURCE
 	TRANSFORM
+	SPRITESHEET
+	ANIMATION
 )
 
 // TypeName returns the human readable name for a Lumen object type.
@@ -34,6 +36,10 @@ func TypeName(t object.Type) string {
 		return "Source"
 	case TRANSFORM:
 		return "Transform"
+	case SPRITESHEET:
+		return "Spritesheet"
+	case ANIMATION:
+		return "Animation"
 	}
 
 	return t.String()
