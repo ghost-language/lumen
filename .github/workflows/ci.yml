@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  push:
+    branches: ["nightly"]
+  pull_request:
+  # Lets a branch be checked before a pull request exists for it.
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # go.mod points at ../ghost, so the Ghost version Lumen builds against is
+  # whatever this ref resolves to rather than the version in `require`. Ghost's
+  # default branch is the one Lumen is developed against; changing it here
+  # changes it for the release workflow too.
+  GHOST_REF: "1.0"
+
+jobs:
+
+  # Cheap and platform-independent, so it does not need the SDL2 matrix behind
+  # it and can fail before four runners are spun up.
+  vet:
+    name: Vet
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+
+    - name: Check out Lumen
+      uses: actions/checkout@v4
+      with:
+        path: lumen
+
+    - name: Set up the build environment
+      uses: ./lumen/.github/actions/setup-sdl2
+      with:
+        ghost-ref: ${{ env.GHOST_REF }}
+
+    - name: Check formatting
+      working-directory: lumen
+      run: make fmt
+
+    - name: Vet
+      working-directory: lumen
+      run: make vet
+
+  # Lumen cannot be cross-compiled - cgo means the machine that builds a binary
+  # is the platform it runs on. Every platform Lumen ships to therefore has to
+  # be built on every change, or a break on one is only discovered at release
+  # time when it is too late to fix cheaply.
+  build:
+    name: Build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      # One platform failing says nothing about the others, and knowing which
+      # of them are also broken is the useful part.
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-amd64
+            os: ubuntu-latest
+          - name: darwin-arm64
+            os: macos-latest
+          - name: darwin-amd64
+            os: macos-13
+          - name: windows-amd64
+            os: windows-latest
+    steps:
+
+    - name: Check out Lumen
+      uses: actions/checkout@v4
+      with:
+        path: lumen
+
+    - name: Set up the build environment
+      uses: ./lumen/.github/actions/setup-sdl2
+      with:
+        ghost-ref: ${{ env.GHOST_REF }}
+
+    - name: Build
+      working-directory: lumen
+      run: go build ./...
+
+  # Lumen has no test suite, so the examples are the only thing that proves the
+  # module layer still evaluates Ghost the way the games expect. SDL2's dummy
+  # video and audio drivers let them run on a headless runner.
+  examples:
+    name: Examples
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+
+    - name: Check out Lumen
+      uses: actions/checkout@v4
+      with:
+        path: lumen
+
+    - name: Set up the build environment
+      uses: ./lumen/.github/actions/setup-sdl2
+      with:
+        ghost-ref: ${{ env.GHOST_REF }}
+
+    # `make examples` reports failures but always exits 0, so its output is
+    # what has to be inspected rather than its status.
+    - name: Run every example headlessly
+      working-directory: lumen
+      run: |
+        set -o pipefail
+        make examples | tee examples.log
+        if grep -q 'FAIL' examples.log; then
+          echo "::error::one or more examples failed to run"
+          exit 1
+        fi

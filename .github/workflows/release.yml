@@ -1,0 +1,268 @@
+name: Release
+
+on:
+  # `published` rather than `created`: a draft release fires `created` too, and
+  # a draft is exactly the state where binaries should not be built yet.
+  release:
+    types: [published]
+  # A dry run. Builds and packages every platform without publishing, so the
+  # pipeline can be proven from a branch before a tag is cut.
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # Keep in step with ci.yml. go.mod points at ../ghost, so this ref - not the
+  # version in `require` - decides which Ghost ends up inside the binaries.
+  GHOST_REF: "1.0"
+
+jobs:
+
+  # A release is the one build nobody gets to re-run cheaply, so it is checked
+  # before four runners start producing artifacts.
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+
+    - name: Check out Lumen
+      uses: actions/checkout@v4
+      with:
+        # On a release event the default ref is the branch head, which can
+        # already have moved past what was tagged.
+        ref: ${{ github.event.release.tag_name || github.ref }}
+        path: lumen
+
+    - name: Set up the build environment
+      uses: ./lumen/.github/actions/setup-sdl2
+      with:
+        ghost-ref: ${{ env.GHOST_REF }}
+
+    # engine.Version is a constant, so it cannot be stamped in at link time. It
+    # has to be bumped by hand before tagging, which means it can disagree with
+    # the tag. Shipping a v0.3.0 binary that reports 0.2.0 to `lumen.version`
+    # is worse than not shipping at all.
+    - name: Check the tag matches engine.Version
+      if: github.event_name == 'release'
+      working-directory: lumen
+      env:
+        TAG: ${{ github.event.release.tag_name }}
+      run: |
+        declared=$(sed -n 's/^const Version = "\(.*\)"$/\1/p' engine/engine.go)
+        if [ -z "$declared" ]; then
+          echo "::error file=engine/engine.go::could not read the version constant"
+          exit 1
+        fi
+        if [ "$TAG" != "v$declared" ]; then
+          echo "::error file=engine/engine.go::tag $TAG does not match engine.Version (v$declared)"
+          echo "Bump engine.Version to match the tag, or retag, then re-run this workflow."
+          exit 1
+        fi
+        echo "$TAG matches engine.Version"
+
+    - name: Check formatting
+      working-directory: lumen
+      run: make fmt
+
+    - name: Vet
+      working-directory: lumen
+      run: make vet
+
+  # cgo rules out cross-compiling: a Lumen binary can only be built on the
+  # platform it runs on, so every platform gets its own runner.
+  build:
+    name: Build (${{ matrix.name }})
+    needs: verify
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-amd64
+            os: ubuntu-latest
+          - name: darwin-arm64
+            os: macos-latest
+          - name: darwin-amd64
+            os: macos-13
+          - name: windows-amd64
+            os: windows-latest
+    steps:
+
+    - name: Check out Lumen
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.release.tag_name || github.ref }}
+        path: lumen
+
+    - name: Set up the build environment
+      uses: ./lumen/.github/actions/setup-sdl2
+      with:
+        ghost-ref: ${{ env.GHOST_REF }}
+
+    - name: Work out the version
+      id: version
+      shell: bash
+      run: |
+        if [ -n "${{ github.event.release.tag_name }}" ]; then
+          version="${{ github.event.release.tag_name }}"
+        else
+          # A dry run has no tag. Name it after the constant and the commit so
+          # the artifact is never mistaken for a real release.
+          version="v$(sed -n 's/^const Version = "\(.*\)"$/\1/p' lumen/engine/engine.go)-snapshot"
+        fi
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+        echo "stage=lumen_${version}_${{ matrix.name }}" >> "$GITHUB_OUTPUT"
+
+    # Deliberately not `make release`: GNU make is not on PATH on the Windows
+    # runner, and the output name has to differ per platform anyway. The flags
+    # are the Makefile's release flags.
+    - name: Build
+      shell: bash
+      working-directory: lumen
+      run: |
+        mkdir -p dist
+        go build -ldflags "-s -w" -o "dist/lumen${{ runner.os == 'Windows' && '.exe' || '' }}" ./cmd
+
+    - name: Stage the archive
+      shell: bash
+      env:
+        STAGE: ${{ steps.version.outputs.stage }}
+      run: |
+        mkdir -p "stage/$STAGE"
+        cp lumen/LICENSE lumen/README.md "stage/$STAGE/"
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          cp lumen/dist/lumen.exe "stage/$STAGE/lumen.exe"
+        else
+          cp lumen/dist/lumen "stage/$STAGE/lumen"
+        fi
+
+    # SDL2 is linked dynamically. On Linux that is the normal arrangement and
+    # the libraries come from the distribution, so the archive only says which
+    # packages to install. On macOS and Windows nobody has them, so they are
+    # bundled and the archive is self-contained.
+    - name: Note the runtime dependencies (Linux)
+      if: runner.os == 'Linux'
+      env:
+        STAGE: ${{ steps.version.outputs.stage }}
+      run: |
+        cat > "stage/$STAGE/INSTALL.txt" <<'TXT'
+        Lumen links SDL2 dynamically, so the shared libraries have to be
+        present. They are in every distribution's repositories:
+
+          Debian/Ubuntu  sudo apt install libsdl2-2.0-0 libsdl2-image-2.0-0 \
+                                          libsdl2-ttf-2.0-0 libsdl2-mixer-2.0-0
+          Fedora         sudo dnf install SDL2 SDL2_image SDL2_ttf SDL2_mixer
+          Arch           sudo pacman -S sdl2 sdl2_image sdl2_ttf sdl2_mixer
+
+        Then run ./lumen <game-folder>.
+        TXT
+
+    - name: Bundle the SDL2 libraries (macOS)
+      if: runner.os == 'macOS'
+      env:
+        STAGE: ${{ steps.version.outputs.stage }}
+      run: |
+        brew install dylibbundler
+        # Rewrites each Homebrew dylib reference to @executable_path/libs and
+        # copies the libraries in, so the archive runs on a machine with no
+        # Homebrew at all.
+        dylibbundler --overwrite-files --bundle-deps \
+          --fix-file "stage/$STAGE/lumen" \
+          --dest-dir "stage/$STAGE/libs" \
+          --install-path "@executable_path/libs/"
+        # Editing a Mach-O binary invalidates its signature, and Apple Silicon
+        # refuses to run an unsigned one. Ad-hoc signing is enough for that;
+        # it is not notarisation, so Gatekeeper will still warn on first run.
+        find "stage/$STAGE/libs" -name '*.dylib' -exec codesign --force --sign - {} +
+        codesign --force --sign - "stage/$STAGE/lumen"
+
+    - name: Bundle the SDL2 libraries (Windows)
+      if: runner.os == 'Windows'
+      shell: bash
+      env:
+        STAGE: ${{ steps.version.outputs.stage }}
+      run: |
+        # Windows resolves DLLs from the executable's own directory first, so
+        # copying them beside lumen.exe is all the bundling needed. objdump
+        # comes from the same mingw toolchain that built the binary.
+        # Locate the toolchain through gcc rather than objdump: Git Bash ships
+        # its own objdump, whose sibling DLLs are the wrong ones.
+        mingw_bin=$(dirname "$(command -v gcc)")
+        collect() {
+          objdump -p "$1" | grep -F 'DLL Name:' | awk '{print $3}' | while read -r dll; do
+            if [ -f "$mingw_bin/$dll" ] && [ ! -f "stage/$STAGE/$dll" ]; then
+              cp "$mingw_bin/$dll" "stage/$STAGE/$dll"
+              # Transitive: SDL2_mixer and SDL2_image pull in their codecs.
+              collect "stage/$STAGE/$dll"
+            fi
+          done
+        }
+        collect "stage/$STAGE/lumen.exe"
+        ls -1 "stage/$STAGE"
+
+    - name: Archive
+      shell: bash
+      env:
+        STAGE: ${{ steps.version.outputs.stage }}
+      run: |
+        cd stage
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          7z a -tzip "$STAGE.zip" "$STAGE" > /dev/null
+        else
+          tar -czf "$STAGE.tar.gz" "$STAGE"
+        fi
+
+    - name: Upload the archive
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.version.outputs.stage }}
+        path: |
+          stage/*.tar.gz
+          stage/*.zip
+        if-no-files-found: error
+        retention-days: 7
+
+  publish:
+    name: Publish
+    needs: build
+    # A dry run stops here: the archives are on the workflow run as artifacts,
+    # and nothing is attached to a release.
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      # Attaching archives to the release, and nothing else.
+      contents: write
+    steps:
+
+    - name: Download every platform's archive
+      uses: actions/download-artifact@v4
+      with:
+        path: dist
+        merge-multiple: true
+
+    - name: Checksum
+      working-directory: dist
+      shell: bash
+      run: |
+        shopt -s nullglob
+        archives=(*.tar.gz *.zip)
+        if [ ${#archives[@]} -eq 0 ]; then
+          echo "::error::the build jobs produced no archives to publish"
+          exit 1
+        fi
+        sha256sum "${archives[@]}" | tee checksums.txt
+
+    - name: Attach the archives to the release
+      working-directory: dist
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TAG: ${{ github.event.release.tag_name }}
+      run: gh release upload "$TAG" ./* --clobber --repo "$GITHUB_REPOSITORY"

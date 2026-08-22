@@ -1,0 +1,91 @@
+name: Set up a Lumen build environment
+description: >-
+  Installs the SDL2 development libraries for the host platform, checks out
+  Ghost beside Lumen to satisfy the go.mod replace directive, and sets up Go.
+  Lumen links SDL2 through cgo, so every build is a native build and each
+  runner OS needs its libraries installed a different way.
+
+inputs:
+  ghost-ref:
+    description: The ghost-language/ghost ref to check out as a sibling of Lumen.
+    required: true
+  lumen-path:
+    description: Workspace-relative path Lumen was checked out to.
+    required: false
+    default: lumen
+
+outputs:
+  ghost-sha:
+    description: The Ghost commit Lumen was built against.
+    value: ${{ steps.ghost.outputs.sha }}
+
+runs:
+  using: composite
+  steps:
+
+    # go.mod carries `replace ghostlang.org/x/ghost => ../ghost`, so Ghost has
+    # to exist as a sibling directory or nothing builds at all. Checking both
+    # repositories out under the workspace keeps that relative path valid.
+    - name: Check out Ghost
+      uses: actions/checkout@v4
+      with:
+        repository: ghost-language/ghost
+        ref: ${{ inputs.ghost-ref }}
+        path: ghost
+
+    - name: Record the Ghost commit
+      id: ghost
+      shell: bash
+      run: |
+        sha=$(git -C ghost rev-parse HEAD)
+        echo "sha=$sha" >> "$GITHUB_OUTPUT"
+        echo "\`${{ runner.os }}\` built against Ghost \`${{ inputs.ghost-ref }}\` (\`$sha\`)" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Install SDL2 (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install --no-install-recommends -y \
+          libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-mixer-dev
+
+    - name: Install SDL2 (macOS)
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        brew install sdl2 sdl2_image sdl2_ttf sdl2_mixer
+        # cgo locates the headers and libraries through pkg-config, which does
+        # not look inside the Homebrew prefix by itself.
+        echo "PKG_CONFIG_PATH=$(brew --prefix)/lib/pkgconfig" >> "$GITHUB_ENV"
+
+    # The Windows runner ships neither SDL2 nor a C toolchain cgo can use.
+    # MSYS2 supplies both.
+    - name: Install SDL2 (Windows)
+      if: runner.os == 'Windows'
+      id: msys2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: >-
+          mingw-w64-x86_64-toolchain
+          mingw-w64-x86_64-pkgconf
+          mingw-w64-x86_64-SDL2
+          mingw-w64-x86_64-SDL2_image
+          mingw-w64-x86_64-SDL2_ttf
+          mingw-w64-x86_64-SDL2_mixer
+
+    # Builds run in the runner's own shell rather than inside MSYS2, so the
+    # mingw toolchain has to be on PATH for cgo to find gcc and pkg-config.
+    - name: Put the mingw toolchain on PATH (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        "${{ steps.msys2.outputs.msys2-location }}\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        "CGO_ENABLED=1" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: ${{ inputs.lumen-path }}/go.mod
+        cache-dependency-path: ${{ inputs.lumen-path }}/go.sum
