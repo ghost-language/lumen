@@ -1,4 +1,4 @@
-.PHONY: build run clean examples
+.PHONY: build release run clean examples fmt vet check
 
 # Build for the host platform. Lumen links against SDL2 through cgo, so a build
 # always targets the machine it runs on unless a cross-compiler is set up.
@@ -26,5 +26,14 @@ examples: build
 		if [ -n "$$output" ]; then echo "FAIL"; echo "$$output"; else echo "ok"; fi; \
 	done
 
+# Mirrors Ghost's Makefile so CI and a local check run the same thing.
+fmt:
+	@test -z "$$(gofmt -l . | tee /dev/stderr)" || (echo "run gofmt -w ." && exit 1)
+
+vet:
+	go vet ./...
+
+check: fmt vet examples
+
 clean:
-	@rm -rf dist/lumen
+	@rm -rf dist/lumen dist/lumen.exe
