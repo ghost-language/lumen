@@ -90,7 +90,11 @@ jobs:
           - name: darwin-arm64
             os: macos-latest
           - name: darwin-amd64
-            os: macos-13
+            # Not macos-13: that image is retired, and a job asking for a label
+            # with no runners queues forever rather than failing - timeout-minutes
+            # only starts counting once a job is running. macos-15-intel is the
+            # remaining Intel image.
+            os: macos-15-intel
           - name: windows-amd64
             os: windows-latest
     steps:
@@ -173,7 +177,10 @@ jobs:
         # Rewrites each Homebrew dylib reference to @executable_path/libs and
         # copies the libraries in, so the archive runs on a machine with no
         # Homebrew at all.
-        dylibbundler --overwrite-files --bundle-deps \
+        # --create-dir is not optional: without it dylibbundler treats a
+        # missing destination as an error rather than creating it, which is
+        # every run on a fresh runner.
+        dylibbundler --create-dir --overwrite-files --bundle-deps \
           --fix-file "stage/$STAGE/lumen" \
           --dest-dir "stage/$STAGE/libs" \
           --install-path "@executable_path/libs/"
