@@ -90,7 +90,11 @@ jobs:
           - name: darwin-arm64
             os: macos-latest
           - name: darwin-amd64
-            os: macos-13
+            # Not macos-13: that image is retired, and a job asking for a label
+            # with no runners queues forever rather than failing - timeout-minutes
+            # only starts counting once a job is running. macos-15-intel is the
+            # remaining Intel image.
+            os: macos-15-intel
           - name: windows-amd64
             os: windows-latest
     steps:
