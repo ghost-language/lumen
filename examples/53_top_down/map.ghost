@@ -1,5 +1,3 @@
-import Spritesheet from 'spritesheet'
-
 class Map {
   constructor(filepath, root = 'resources') {
     this.root = root
@@ -21,7 +19,7 @@ class Map {
     for (i = 0; i < this.map.tilesets.length(); i++) {
       tileset = this.map.tilesets[i]
       tilesets[tileset.name] = {
-        spritesheet: new Spritesheet(this.root + '/' + tileset.image, tileset.tilewidth),
+        sheet: image.newSpritesheet(this.root + '/' + tileset.image, tileset.tilewidth),
         firstgid: tileset.firstgid,
         lastgid: tileset.firstgid + tileset.tilecount,
         size: tileset.tilewidth
@@ -47,9 +45,29 @@ class Map {
     }
   }
 
+  // drawTileLayer draws only the tiles the camera can see. This map is 50x50
+  // across six layers, so walking all of it costs 15,000 iterations a frame to
+  // draw the few hundred tiles that actually fit on screen.
+  //
+  // canvas.getVisible() reports the visible rectangle in the coordinate space
+  // being drawn in, whatever scale and translation the camera has pushed, so
+  // the range below stays right without repeating the camera's arithmetic.
   drawTileLayer(layer) {
-    for (y = 0; y < layer.height; y++) {
-      for (x = 0; x < layer.width; x++) {
+    size = this.map.tilewidth
+    visible = canvas.getVisible()
+
+    left = math.floor(visible[0] / size)
+    top = math.floor(visible[1] / size)
+    right = math.ceil((visible[0] + visible[2]) / size)
+    bottom = math.ceil((visible[1] + visible[3]) / size)
+
+    left = math.max(0, left)
+    top = math.max(0, top)
+    right = math.min(layer.width - 1, right)
+    bottom = math.min(layer.height - 1, bottom)
+
+    for (y = top; y <= bottom; y++) {
+      for (x = left; x <= right; x++) {
         index = x + y * layer.width
         gid = layer.data[index]
 
@@ -58,22 +76,21 @@ class Map {
         }
 
         tileset = this.getTileset(gid)
-        
+
         frame = gid - tileset.firstgid
 
-        tileset.spritesheet.draw(frame, x * tileset.size, y * tileset.size)
+        tileset.sheet.draw(frame, x * tileset.size, y * tileset.size)
       }
     }
   }
 
   getTileset(gid) {
-    foundTileset = null
     for (tileset in this.tilesets) {
       if (gid >= tileset.firstgid and gid <= tileset.lastgid) {
-        foundTileset = tileset
+        return tileset
       }
     }
 
-    return foundTileset
+    return null
   }
 }

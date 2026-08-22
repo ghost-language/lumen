@@ -404,6 +404,7 @@ func (font *Font) evict() {
 			continue
 		}
 
+		Lumen.FlushTexture(cached.texture)
 		cached.texture.Destroy()
 
 		delete(font.cache, key)
@@ -416,6 +417,7 @@ func (font *Font) evict() {
 func (font *Font) PruneCache(frame uint64) {
 	for key, cached := range font.cache {
 		if frame-cached.usedAt > textCacheMaxAge {
+			Lumen.FlushTexture(cached.texture)
 			cached.texture.Destroy()
 
 			delete(font.cache, key)
@@ -426,6 +428,7 @@ func (font *Font) PruneCache(frame uint64) {
 // Release frees the font and every string it has rasterised.
 func (font *Font) Release() {
 	for key, cached := range font.cache {
+		Lumen.FlushTexture(cached.texture)
 		cached.texture.Destroy()
 
 		delete(font.cache, key)

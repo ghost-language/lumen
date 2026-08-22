@@ -20,6 +20,7 @@ func (engine *Engine) FreeResources() {
 	}
 
 	engine.Resources = nil
+	engine.images = nil
 }
 
 // PruneCaches drops cached data that has gone unused, keeping memory flat for

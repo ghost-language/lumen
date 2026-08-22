@@ -77,6 +77,8 @@ type Engine struct {
 	WheelY                int32
 	Joysticks             []*Joystick
 
+	batch        batch
+	images       map[string]*Image
 	saveIdentity string
 	viewScale    float64
 	viewport     sdl.Rect

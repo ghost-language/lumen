@@ -16,6 +16,10 @@ type Quad struct {
 	Y      int32
 	Width  int32
 	Height int32
+
+	// rect backs Rect(). Handing out a pointer to a field rather than to a
+	// fresh value keeps drawing a tile free of allocations.
+	rect sdl.Rect
 }
 
 // NewQuad builds a quad covering the given region.
@@ -23,9 +27,13 @@ func NewQuad(x, y, width, height int32) *Quad {
 	return &Quad{X: x, Y: y, Width: width, Height: height}
 }
 
-// Rect returns the quad as an SDL source rectangle.
+// Rect returns the quad as an SDL source rectangle. The rectangle is owned by
+// the quad and is rewritten on every call, so callers should read it before
+// asking another quad for its own — which is all any of them do.
 func (quad *Quad) Rect() *sdl.Rect {
-	return &sdl.Rect{X: quad.X, Y: quad.Y, W: quad.Width, H: quad.Height}
+	quad.rect = sdl.Rect{X: quad.X, Y: quad.Y, W: quad.Width, H: quad.Height}
+
+	return &quad.rect
 }
 
 // String represents the quad object's value as a string.

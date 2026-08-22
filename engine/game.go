@@ -32,6 +32,11 @@ func (engine *Engine) draw() {
 	engine.callback("draw")
 
 	engine.SetTarget(nil)
+
+	// Everything the game queued has to reach the frame before the letterbox
+	// bars are painted over the edges of it and the frame is presented.
+	engine.Flush()
+
 	engine.Renderer.SetClipRect(nil)
 
 	engine.drawLetterbox()

@@ -49,7 +49,6 @@ lumen examples/60_rpg
 | `npc.ghost` | characters that talk and hand over items |
 | `dialogue.ghost` | typewriter text, wrapping, paging |
 | `hud.ghost` | party health and gold while walking |
-| `spritesheet.ghost` | slicing a sheet into quads and naming animations |
 | `sounds.ghost` | a small sound bank |
 
 ## The window

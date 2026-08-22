@@ -57,6 +57,7 @@ func init() {
 	modules.RegisterMethod(CanvasMethods, "shear", canvasShearMethod)
 	modules.RegisterMethod(CanvasMethods, "toScreen", canvasToScreenMethod)
 	modules.RegisterMethod(CanvasMethods, "toWorld", canvasToWorldMethod)
+	modules.RegisterMethod(CanvasMethods, "getVisible", canvasGetVisibleMethod)
 
 	// Render targets
 	modules.RegisterMethod(CanvasMethods, "newTarget", canvasNewTargetMethod)
@@ -307,6 +308,8 @@ func canvasClearMethod(scope *object.Scope, tok token.Token, args ...object.Obje
 
 		color = given
 	}
+
+	engine.Lumen.Flush()
 
 	engine.Lumen.Renderer.SetDrawColor(color.Red, color.Green, color.Blue, color.Alpha)
 	engine.Lumen.Renderer.Clear()
@@ -668,6 +671,23 @@ func canvasToWorldMethod(scope *object.Scope, tok token.Token, args ...object.Ob
 	x, y := inverse.Apply(values[0], values[1])
 
 	return list(x, y)
+}
+
+// canvasGetVisibleMethod reports the region of the current coordinate space that
+// is on screen, as [x, y, width, height]. A game with a large world uses it to
+// draw only the part of the world the player can see.
+func canvasGetVisibleMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if err := arity("canvas.getVisible", tok, args, 0); err != nil {
+		return err
+	}
+
+	x, y, width, height, ok := engine.Lumen.VisibleBounds()
+
+	if !ok {
+		return object.NewError("%d:%d: runtime error: canvas.getVisible() cannot invert the current transform", tok.Line, tok.Column)
+	}
+
+	return list(x, y, width, height)
 }
 
 // =============================================================================

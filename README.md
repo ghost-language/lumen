@@ -178,6 +178,50 @@ point size, blend mode, and scissor, and `canvas.pop()` restores them.
 through the current transform, which is how a game finds what the player clicked
 on while a camera is active.
 
+`canvas.getVisible()` goes the other way and reports `[x, y, width, height]`:
+the region of the current coordinate space that is on screen. A game with a
+world larger than the window uses it to loop over only the part of the world the
+player can see, without having to redo the camera's arithmetic itself.
+
+```ghost
+visible = canvas.getVisible()
+
+left = math.max(0, math.floor(visible[0] / tileSize))
+right = math.min(map.width - 1, math.ceil((visible[0] + visible[2]) / tileSize))
+```
+
+## Drawing performance
+
+Sprites are not handed to SDL one at a time. Consecutive draws that share a
+texture, blend mode, and scissor box are collected into a single call, and any
+sprite whose transformed corners fall entirely off screen is dropped before it
+gets that far. A tilemap drawing a few thousand tiles from one tileset costs one
+call, not a few thousand.
+
+Two things are worth knowing, because both are visible from Ghost:
+
+**A primitive between two sprites ends the batch.** Batching only ever merges
+draws with the ones immediately before them, because reordering them would put
+sprites through each other. Drawing a rectangle between every two sprites is
+therefore correct but slow. Drawing the sprites together and the primitives
+together is the same picture for a fraction of the calls.
+
+**Changing texture ends it too.** Sprites clipped from one sheet batch together;
+alternating between two sheets does not. This is the usual argument for packing a
+game's art into as few sheets as it can stand.
+
+Neither is something a game has to manage, and neither changes what is drawn —
+they are the two things that decide whether a frame is one call or a thousand.
+
+Measured on `53_top_down`, a 50x50 map across six layers: 33 FPS before, 116
+after, drawing a pixel-identical frame. `60_rpg`, which was already culling its
+tilemap by hand, gains a fifth on top of that.
+
+Loading the same file twice hands back the same image rather than uploading a
+second copy of it, and `clip()` reuses the view it made for a region last time,
+so a spritesheet costs one texture and a fixed set of views however many times a
+frame reaches for them.
+
 ## Colors
 
 **Red, green, and blue run 0-255. Alpha runs 0-1.** The two ranges are
@@ -221,7 +265,7 @@ Drawing, the drawing state, and the transform stack.
 
 **Transforms** — `push(['all'])`, `pop()`, `origin()`, `translate(x, y)`,
 `rotate(radians)`, `scale(x, [y])`, `shear(x, y)`, `toScreen(x, y)`,
-`toWorld(x, y)`.
+`toWorld(x, y)`, `getVisible()`.
 
 **Targets** — `newTarget(w, h)`, `setTarget([target])`,
 `newQuad(x, y, w, h)`, `screenshot(filename)`. Setting a target resets the
@@ -240,7 +284,11 @@ Named colors: `black`, `white`, `transparent`, `red`, `green`, `blue`, `yellow`,
 
 ### `image`
 
-`load(path)`, `newQuad(x, y, w, h)`.
+`load(path)`, `newQuad(x, y, w, h)`,
+`newSpritesheet(path, frameSize)` or `newSpritesheet(path, frameWidth, frameHeight)`.
+
+`load()` hands back the image already in memory when a path has been loaded
+before, so loading the same sheet from two places costs one texture.
 
 ### `font`
 
@@ -404,6 +452,61 @@ scale flips: `sprite.draw(x, y, 0, -1, 1)` mirrors horizontally.
 spritesheet becomes many sprites. `getPixel()` reads from the source image,
 which lets collision or spawn data be baked into a map image.
 
+### Spritesheet
+
+`draw(frame, x, y, [rotation, sx, sy, ox, oy])`,
+`newAnimation(frames, secondsPerFrame, ['loop'|'once'|'pingpong'])`,
+`getQuad(frame)`, `getImage()`, `getCount()`, `getColumns()`, `getRows()`,
+`getFrameWidth()`, `getFrameHeight()`, `getFrameDimensions()`.
+
+One image cut into a grid of equally sized frames, numbered left to right and
+top to bottom from zero. The quads are built once, when the sheet is made, so
+drawing a frame never allocates.
+
+```ghost
+sheet = image.newSpritesheet('characters.png', 16)   // square frames
+sheet = image.newSpritesheet('characters.png', 16, 24)
+sheet.draw(4, x, y)
+```
+
+The first argument may also be an image that is already loaded, which is how two
+sheets get cut from one file at different frame sizes.
+
+### Animation
+
+`update([dt])`, `draw(x, y, [rotation, sx, sy, ox, oy])`, `play()`, `pause()`,
+`resume()`, `stop()`, `reset()`, `seek(seconds)`, `clone()`, `isPlaying()`,
+`isPaused()`, `isFinished()`, `getFrame()`, `getFrameCount()`, `getElapsed()`,
+`getLength()`, `getSheet()`, `getDuration()`, `setDuration(n)`, `getSpeed()`,
+`setSpeed(n)`, `getMode()`, `setMode(name)`.
+
+A sequence of a sheet's frames played against a clock.
+
+**The clock is time, not frames drawn.** `secondsPerFrame` is what it says, so a
+walk cycle runs at the same speed on a machine managing 30 FPS as on one managing
+144. Counting draws instead is the obvious version of this and is wrong; it is
+what two of the examples in this repository used to do.
+
+```ghost
+walk = sheet.newAnimation([4, 5, 6, 7], 0.16)
+
+function update(dt) {
+  walk.update(dt)     // or walk.update() to use the last frame's time
+}
+
+function draw() {
+  walk.draw(x, y)
+}
+```
+
+A duration of `0` holds the first frame, which is how a still pose is written.
+`'once'` stops on the last frame and sets `isFinished()`; `'loop'` (the default)
+and `'pingpong'` never finish. `setSpeed(-1)` runs it backwards.
+
+Each animation carries its own playhead, so two characters showing the same
+walk cycle need one each — `clone()` is the cheap way to get one. A game that
+already keeps its own clock can skip `update()` and call `seek(elapsed)` instead.
+
 ### Quad
 
 `getX()`, `getY()`, `getWidth()`, `getHeight()`, `setViewport(x, y, w, h)`.
@@ -551,10 +654,6 @@ stderr behind the window.
 `textinput` callback — but every game that wants a name entry field has to build
 caret movement, selection, and clipboard handling itself.
 
-**Sprite batching.** Each `image.draw()` is a separate call into SDL. The tile
-culling in `60_rpg` exists because of it. A batch that collects draws sharing a
-texture into one call would remove the ceiling that culling works around.
-
 **Shaders and particles.** Neither exists. Particles can be written in Ghost and
 will be fine for most games; shaders cannot be worked around, and rule out
 lighting, palette swaps, and whole-screen effects.
@@ -584,6 +683,13 @@ Lumen follows LÖVE's model but is not a port, and does not try to be.
 - Color channels are 0-255 and alpha is 0-1, where LÖVE uses 0-1 for both.
 - The draw state resets every frame, where LÖVE carries color and line width
   across frames.
-- Not implemented: shaders, particle systems, physics (Box2D), sprite batches,
-  meshes, threads, video, and touch. Simple axis-aligned collision is a few lines
-  of Ghost — `04_collision` and `60_rpg` both show it.
+- Batching is automatic rather than an object a game builds. There is no
+  `SpriteBatch` to fill: consecutive draws that share a texture are collected
+  into one call as they are made, and off-screen sprites are dropped before they
+  reach SDL. See **Drawing performance** below for what keeps that working.
+- Spritesheets and animations are engine objects. LÖVE leaves both to libraries
+  like `anim8`; Lumen has no package ecosystem to leave them to, so
+  `image.newSpritesheet()` and `sheet.newAnimation()` ship with it.
+- Not implemented: shaders, particle systems, physics (Box2D), meshes, threads,
+  video, and touch. Simple axis-aligned collision is a few lines of Ghost —
+  `04_collision` and `60_rpg` both show it.

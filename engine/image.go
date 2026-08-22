@@ -17,10 +17,46 @@ type Image struct {
 	Surface *sdl.Surface
 	Texture *sdl.Texture
 	owned   bool
+
+	// parent is the image a view was clipped from. A view reads its texture
+	// through the parent rather than copying the pointer, so a texture rebuilt
+	// by setFilter() is picked up by every view of it instead of leaving them
+	// pointing at freed memory.
+	parent *Image
+
+	// views caches the sub-region images clip() hands out. Spritesheet code
+	// clips the same handful of regions out of the same sheet on every frame,
+	// so without this a tilemap allocates a fresh image and quad per tile per
+	// frame purely to throw them away again.
+	views map[viewKey]*Image
 }
 
-// NewImage loads an image from disk and uploads it to the GPU.
+// viewKey identifies a clipped region of an image.
+type viewKey struct {
+	x      int32
+	y      int32
+	width  int32
+	height int32
+}
+
+// viewCacheMaxEntries bounds the clip cache. A tileset has a fixed, small set
+// of regions, so the bound is only ever reached by a game clipping arbitrary
+// rectangles — which is exactly the case that should not be cached at all.
+const viewCacheMaxEntries = 4096
+
+// NewImage loads an image from disk and uploads it to the GPU. Loading a path
+// that is already in memory hands back the image already loaded rather than
+// decoding the file and uploading a second copy of it to the GPU.
+//
+// The image is shared, not copied, so a game that loads the same sheet from two
+// places gets one texture and one set of pixels — and a setFilter() call from
+// either place is seen by both, which is the same thing that happens when a
+// game passes one loaded image around itself.
 func NewImage(path string) (*Image, error) {
+	if cached, ok := Lumen.images[path]; ok {
+		return cached, nil
+	}
+
 	image := &Image{Path: path, owned: true}
 
 	surface, err := loadSurface(path)
@@ -42,6 +78,12 @@ func NewImage(path string) (*Image, error) {
 	image.Width = surface.W
 	image.Height = surface.H
 
+	if Lumen.images == nil {
+		Lumen.images = make(map[string]*Image)
+	}
+
+	Lumen.images[path] = image
+
 	Lumen.RegisterResource(image)
 
 	return image, nil
@@ -49,14 +91,43 @@ func NewImage(path string) (*Image, error) {
 
 // View returns a non-owning image that draws a sub-region of this image.
 func (image *Image) View(quad *Quad) *Image {
+	owner := image
+
+	if image.parent != nil {
+		owner = image.parent
+	}
+
 	return &Image{
 		Width:   quad.Width,
 		Height:  quad.Height,
 		Path:    image.Path,
 		Quad:    quad,
 		Surface: image.Surface,
-		Texture: image.Texture,
+		parent:  owner,
 	}
+}
+
+// view returns a cached non-owning image for a sub-region, creating it on first
+// use. Views hold no resources of their own and are never mutated after they
+// are built, so handing the same one out repeatedly is safe.
+func (image *Image) view(x, y, width, height int32) *Image {
+	key := viewKey{x: x, y: y, width: width, height: height}
+
+	if cached, ok := image.views[key]; ok {
+		return cached
+	}
+
+	view := image.View(NewQuad(x, y, width, height))
+
+	if image.views == nil {
+		image.views = make(map[viewKey]*Image)
+	}
+
+	if len(image.views) < viewCacheMaxEntries {
+		image.views[key] = view
+	}
+
+	return view
 }
 
 // String represents the image object's value as a string.
@@ -112,7 +183,7 @@ func (image *Image) draw(args []object.Object) (object.Object, bool) {
 
 	source := image.source()
 
-	Lumen.DrawTexture(image.Texture, source, image.textureWidth(), image.textureHeight(),
+	Lumen.DrawTexture(image.texture(), source, image.textureWidth(), image.textureHeight(),
 		arguments.X, arguments.Y, arguments.Rotation,
 		arguments.ScaleX, arguments.ScaleY, arguments.OriginX, arguments.OriginY)
 
@@ -138,7 +209,7 @@ func (image *Image) drawQuad(args []object.Object) (object.Object, bool) {
 		return err, true
 	}
 
-	Lumen.DrawTexture(image.Texture, quad.Rect(), image.textureWidth(), image.textureHeight(),
+	Lumen.DrawTexture(image.texture(), quad.Rect(), image.textureWidth(), image.textureHeight(),
 		arguments.X, arguments.Y, arguments.Rotation,
 		arguments.ScaleX, arguments.ScaleY, arguments.OriginX, arguments.OriginY)
 
@@ -172,7 +243,7 @@ func (image *Image) clip(args []object.Object) (object.Object, bool) {
 		height = values[3]
 	}
 
-	return image.View(NewQuad(values[0], values[1], width, height)), true
+	return image.view(values[0], values[1], width, height), true
 }
 
 // getPixel reads the color of a single pixel from the image's source surface.
@@ -245,6 +316,8 @@ func (image *Image) setFilter(args []object.Object) (object.Object, bool) {
 	sdl.SetHint(sdl.HINT_RENDER_SCALE_QUALITY, quality)
 
 	if image.Surface != nil && image.owned {
+		Lumen.FlushTexture(image.Texture)
+
 		texture, err := Lumen.Renderer.CreateTextureFromSurface(image.Surface)
 
 		if err == nil {
@@ -258,6 +331,16 @@ func (image *Image) setFilter(args []object.Object) (object.Object, bool) {
 
 // =============================================================================
 // Helper methods
+
+// texture returns the texture this image draws from, which for a clipped view
+// is the texture of the image it was clipped from.
+func (image *Image) texture() *sdl.Texture {
+	if image.parent != nil {
+		return image.parent.Texture
+	}
+
+	return image.Texture
+}
 
 // source returns the sub-rectangle this image draws, or nil for a whole texture.
 func (image *Image) source() *sdl.Rect {
@@ -293,6 +376,8 @@ func (image *Image) Release() {
 	if !image.owned {
 		return
 	}
+
+	Lumen.FlushTexture(image.Texture)
 
 	if image.Texture != nil {
 		image.Texture.Destroy()

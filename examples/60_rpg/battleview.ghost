@@ -91,11 +91,11 @@ class BattleView {
       canvas.filledEllipse(x + size / 2, 238, size * 0.4, 10)
 
       canvas.setColor(color.white)
-      this.sheet.image.drawQuad(this.sheet.quads[monster.character * 12], x, y, 0, scale, scale)
+      this.sheet.draw(monster.character * 12, x, y, 0, scale, scale)
 
       if (monster.flash > 0) {
         canvas.setColor(color.rgb(255, 90, 90, monster.flash * 3))
-        this.sheet.image.drawQuad(this.sheet.quads[monster.character * 12], x, y, 0, scale, scale)
+        this.sheet.draw(monster.character * 12, x, y, 0, scale, scale)
       }
 
       this.drawMonsterLabel(battle, monster, x + size / 2, 248)
