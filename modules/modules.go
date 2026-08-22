@@ -1,6 +1,10 @@
 package modules
 
-import "ghostlang.org/x/ghost/ghost"
+import (
+	ghostmodules "ghostlang.org/x/ghost/library/modules"
+
+	"ghostlang.org/x/ghost/ghost"
+)
 
 // Register makes every Lumen module available to Ghost code. It runs once,
 // before a game's source is executed.
@@ -19,5 +23,10 @@ func Register() {
 	ghost.RegisterModule("timer", TimerMethods, TimerProperties)
 	ghost.RegisterModule("window", WindowMethods, WindowProperties)
 
-	registerMathExtensions()
+	// Ghost seeds its generator from the clock. A game is better served by a
+	// fixed default: the same seed every run means a procedural level looks the
+	// same each time it is opened, which is what makes it something to iterate
+	// on rather than something that changes underfoot. A game that wants a
+	// different world each run says so with math.randomSeed().
+	ghostmodules.SeedRandom(1)
 }
