@@ -14,6 +14,7 @@
 
 import "ghost:json"
 import "ghost:math"
+import "ghost:random"
 import "lumen:canvas"
 import "lumen:color"
 import "lumen:filesystem"
@@ -263,7 +264,7 @@ function checkEncounter() {
   }
 
   game.player.walked = 0
-  game.encounterAt = math.random(160, 420)
+  game.encounterAt = random.random(160, 420)
 
   beginTransition('battle', rollEncounter())
 }
@@ -292,7 +293,7 @@ function rollEncounter() {
     return encounters[0].monsters
   }
 
-  roll = math.random() * total
+  roll = random.random() * total
 
   for (index = 0; index < available.length(); index++) {
     roll = roll - available[index].weight

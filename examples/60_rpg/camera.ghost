@@ -1,4 +1,5 @@
 import "ghost:math"
+import "ghost:random"
 import "lumen:canvas"
 import "lumen:window"
 
@@ -88,8 +89,8 @@ class Camera {
     offsetY = 0
 
     if (this.shake > 0) {
-      offsetX = (math.random() - 0.5) * 2 * this.shakeAmount
-      offsetY = (math.random() - 0.5) * 2 * this.shakeAmount
+      offsetX = (random.random() - 0.5) * 2 * this.shakeAmount
+      offsetY = (random.random() - 0.5) * 2 * this.shakeAmount
     }
 
     canvas.push()

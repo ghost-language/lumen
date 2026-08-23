@@ -1,4 +1,5 @@
 import "ghost:math"
+import "ghost:random"
 
 // An NPC stands on a tile and has lines of dialogue. An NPC with a `gives` entry
 // hands that item over the first time the player talks to it, and says something
@@ -13,7 +14,7 @@ class Npc {
     this.name = options.name
     this.lines = options.lines
     this.frame = options.frame
-    this.bobTime = math.random() * 3
+    this.bobTime = random.random() * 3
     this.gives = options.gives
     this.given = false
   }

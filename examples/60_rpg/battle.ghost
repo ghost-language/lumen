@@ -1,4 +1,5 @@
 import "ghost:math"
+import "ghost:random"
 
 import * from 'data'
 import * from 'combatant'
@@ -328,7 +329,7 @@ class Battle {
     if (monster.spells.length() > 0) {
       spell = findSpell(monster.spells[0])
 
-      if (monster.canCast(spell) and math.random() < 0.35) {
+      if (monster.canCast(spell) and random.random() < 0.35) {
         return { actor: monster, kind: 'spell', spell: spell.id, target: pickRandom(this.party.living()) }
       }
     }
@@ -427,7 +428,7 @@ class Battle {
 
     chance = 0.35 + (partySpeed - monsterSpeed) * 0.04
 
-    if (math.random() < math.clamp(chance, 0.1, 0.9)) {
+    if (random.random() < math.clamp(chance, 0.1, 0.9)) {
       this.result = 'fled'
 
       this.queue('The party slips away.')
@@ -741,7 +742,7 @@ function strike(attacker, defender) {
   power = attacker.attackPower()
   guard = defender.defencePower() / 2
 
-  if (math.random() < 0.04) {
+  if (random.random() < 0.04) {
     return { damage: math.max(1, math.floor(power * 1.5 * variance())), critical: true }
   }
 
@@ -761,7 +762,7 @@ function spellDamage(spell, caster, target) {
 // variance is the roll every blow is multiplied by, so repeated attacks on the
 // same target do not read as a fixed number.
 function variance() {
-  return 0.85 + math.random() * 0.3
+  return 0.85 + random.random() * 0.3
 }
 
 function averageAgility(group) {
@@ -783,7 +784,7 @@ function pickRandom(group) {
     return null
   }
 
-  return group[math.random(0, group.length() - 1)]
+  return group[math.randomInt(0, group.length() - 1)]
 }
 
 // sortByAgility orders a round, fastest first, with a small random nudge so
@@ -794,7 +795,7 @@ function sortByAgility(actions) {
   for (index = 0; index < actions.length(); index++) {
     action = actions[index]
 
-    scored.push({ action: action, speed: action.actor.agility + math.random() * 4 })
+    scored.push({ action: action, speed: action.actor.agility + random.random() * 4 })
   }
 
   // Insertion sort. A round is a handful of entries, and Ghost's `and` does not
