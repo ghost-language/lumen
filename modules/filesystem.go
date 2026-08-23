@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,7 +49,8 @@ func filesystemSetIdentityMethod(scope *object.Scope, tok token.Token, args ...o
 	}
 
 	if identityErr := engine.Lumen.SetSaveIdentity(identity); identityErr != nil {
-		return object.NewError("%d:%d: runtime error: filesystem.setIdentity() %s", tok.Line, tok.Column, identityErr)
+		return engine.Value("filesystem.setIdentity", tok, "cannot use `%s` as a save folder", identity).
+			WithHelp("the identity names one folder, so it cannot be empty or a path")
 	}
 
 	return value.NULL
@@ -58,7 +60,7 @@ func filesystemGetSaveDirectoryMethod(scope *object.Scope, tok token.Token, args
 	directory, err := engine.Lumen.SaveDirectory()
 
 	if err != nil {
-		return object.NewError("%d:%d: runtime error: filesystem.getSaveDirectory() %s", tok.Line, tok.Column, err)
+		return engine.SystemFailure("filesystem.getSaveDirectory", tok, err)
 	}
 
 	return &object.String{Value: directory}
@@ -92,11 +94,11 @@ func writeSaveFile(name string, tok token.Token, args []object.Object, appending
 	path, pathErr := savePath(relative)
 
 	if pathErr != nil {
-		return object.NewError("%d:%d: runtime error: %s() %s", tok.Line, tok.Column, name, pathErr)
+		return saveFailure(name, tok, relative, pathErr)
 	}
 
 	if mkdirErr := os.MkdirAll(filepath.Dir(path), 0o755); mkdirErr != nil {
-		return object.NewError("%d:%d: runtime error: %s() %s", tok.Line, tok.Column, name, mkdirErr)
+		return engine.SystemFailure(name, tok, mkdirErr)
 	}
 
 	flags := os.O_CREATE | os.O_WRONLY | os.O_TRUNC
@@ -108,13 +110,13 @@ func writeSaveFile(name string, tok token.Token, args []object.Object, appending
 	file, openErr := os.OpenFile(path, flags, 0o644)
 
 	if openErr != nil {
-		return object.NewError("%d:%d: runtime error: %s() %s", tok.Line, tok.Column, name, openErr)
+		return engine.SystemFailure(name, tok, openErr)
 	}
 
 	defer file.Close()
 
 	if _, writeErr := file.WriteString(contents); writeErr != nil {
-		return object.NewError("%d:%d: runtime error: %s() %s", tok.Line, tok.Column, name, writeErr)
+		return engine.SystemFailure(name, tok, writeErr)
 	}
 
 	return value.NULL
@@ -136,7 +138,7 @@ func filesystemReadMethod(scope *object.Scope, tok token.Token, args ...object.O
 	path, pathErr := savePath(relative)
 
 	if pathErr != nil {
-		return object.NewError("%d:%d: runtime error: filesystem.read() %s", tok.Line, tok.Column, pathErr)
+		return saveFailure("filesystem.read", tok, relative, pathErr)
 	}
 
 	contents, readErr := os.ReadFile(path)
@@ -146,7 +148,7 @@ func filesystemReadMethod(scope *object.Scope, tok token.Token, args ...object.O
 			return value.NULL
 		}
 
-		return object.NewError("%d:%d: runtime error: filesystem.read() %s", tok.Line, tok.Column, readErr)
+		return engine.SystemFailure("filesystem.read", tok, readErr)
 	}
 
 	return &object.String{Value: string(contents)}
@@ -166,7 +168,7 @@ func filesystemExistsMethod(scope *object.Scope, tok token.Token, args ...object
 	path, pathErr := savePath(relative)
 
 	if pathErr != nil {
-		return object.NewError("%d:%d: runtime error: filesystem.exists() %s", tok.Line, tok.Column, pathErr)
+		return saveFailure("filesystem.exists", tok, relative, pathErr)
 	}
 
 	_, statErr := os.Stat(path)
@@ -188,11 +190,11 @@ func filesystemRemoveMethod(scope *object.Scope, tok token.Token, args ...object
 	path, pathErr := savePath(relative)
 
 	if pathErr != nil {
-		return object.NewError("%d:%d: runtime error: filesystem.remove() %s", tok.Line, tok.Column, pathErr)
+		return saveFailure("filesystem.remove", tok, relative, pathErr)
 	}
 
 	if removeErr := os.Remove(path); removeErr != nil && !os.IsNotExist(removeErr) {
-		return object.NewError("%d:%d: runtime error: filesystem.remove() %s", tok.Line, tok.Column, removeErr)
+		return engine.SystemFailure("filesystem.remove", tok, removeErr)
 	}
 
 	return value.NULL
@@ -214,7 +216,7 @@ func filesystemGetDirectoryItemsMethod(scope *object.Scope, tok token.Token, arg
 	path, pathErr := savePath(relative)
 
 	if pathErr != nil {
-		return object.NewError("%d:%d: runtime error: filesystem.getDirectoryItems() %s", tok.Line, tok.Column, pathErr)
+		return saveFailure("filesystem.getDirectoryItems", tok, relative, pathErr)
 	}
 
 	entries, readErr := os.ReadDir(path)
@@ -224,7 +226,7 @@ func filesystemGetDirectoryItemsMethod(scope *object.Scope, tok token.Token, arg
 			return &object.List{Elements: []object.Object{}}
 		}
 
-		return object.NewError("%d:%d: runtime error: filesystem.getDirectoryItems() %s", tok.Line, tok.Column, readErr)
+		return engine.SystemFailure("filesystem.getDirectoryItems", tok, readErr)
 	}
 
 	elements := make([]object.Object, 0, len(entries))
@@ -250,11 +252,11 @@ func filesystemCreateDirectoryMethod(scope *object.Scope, tok token.Token, args 
 	path, pathErr := savePath(relative)
 
 	if pathErr != nil {
-		return object.NewError("%d:%d: runtime error: filesystem.createDirectory() %s", tok.Line, tok.Column, pathErr)
+		return saveFailure("filesystem.createDirectory", tok, relative, pathErr)
 	}
 
 	if mkdirErr := os.MkdirAll(path, 0o755); mkdirErr != nil {
-		return object.NewError("%d:%d: runtime error: filesystem.createDirectory() %s", tok.Line, tok.Column, mkdirErr)
+		return engine.SystemFailure("filesystem.createDirectory", tok, mkdirErr)
 	}
 
 	return value.NULL
@@ -274,13 +276,29 @@ func filesystemReadAssetMethod(scope *object.Scope, tok token.Token, args ...obj
 		return err
 	}
 
-	contents, readErr := os.ReadFile(resolvePath(relative))
+	resolved := resolvePath(relative)
+
+	contents, readErr := os.ReadFile(resolved)
 
 	if readErr != nil {
-		return object.NewError("%d:%d: runtime error: filesystem.readAsset() %s", tok.Line, tok.Column, readErr)
+		return engine.AssetFailure("filesystem.readAsset", tok, relative, resolved, readErr)
 	}
 
 	return &object.String{Value: string(contents)}
+}
+
+// saveFailure reports a save path that could not be resolved. There are only
+// two ways that happens, and they need different answers: the platform would
+// not say where this user's data lives, or the game asked for somewhere outside
+// the folder it owns — which is the case worth naming, because it is usually a
+// slot name built out of something the player typed.
+func saveFailure(name string, tok token.Token, relative string, failure error) *object.Error {
+	if errors.Is(failure, os.ErrPermission) {
+		return engine.Value(name, tok, "cannot reach `%s`", relative).
+			WithHelp("a save path stays inside the game's own save folder, so it cannot climb out of it with `..`")
+	}
+
+	return engine.SystemFailure(name, tok, failure)
 }
 
 // savePath resolves a game-relative save path, refusing anything that would

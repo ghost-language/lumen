@@ -39,10 +39,17 @@ func fontLoadMethod(scope *object.Scope, tok token.Token, args ...object.Object)
 		return err
 	}
 
-	font, loadErr := engine.NewFont(resolvePath(path), int(size))
+	if size <= 0 {
+		return engine.Value("font.load", tok, "was asked for a font %d pixels tall", size).
+			WithHelp("a font size is measured in pixels, so it has to be above zero")
+	}
+
+	resolved := resolvePath(path)
+
+	font, loadErr := engine.NewFont(resolved, int(size))
 
 	if loadErr != nil {
-		return object.NewError("%d:%d: runtime error: font.load() could not load %s: %s", tok.Line, tok.Column, path, loadErr)
+		return engine.AssetFailure("font.load", tok, path, resolved, loadErr)
 	}
 
 	return font
@@ -61,10 +68,15 @@ func fontSystemMethod(scope *object.Scope, tok token.Token, args ...object.Objec
 		return err
 	}
 
+	if size <= 0 {
+		return engine.Value("font.system", tok, "was asked for a font %d pixels tall", size).
+			WithHelp("a font size is measured in pixels, so it has to be above zero")
+	}
+
 	font, loadErr := engine.NewDefaultFont(int(size))
 
 	if loadErr != nil {
-		return object.NewError("%d:%d: runtime error: font.system() %s", tok.Line, tok.Column, loadErr)
+		return engine.SystemFailure("font.system", tok, loadErr)
 	}
 
 	return font

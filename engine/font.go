@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"ghostlang.org/x/ghost/object"
+	"ghostlang.org/x/ghost/token"
 	"ghostlang.org/x/ghost/value"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
@@ -107,20 +108,20 @@ func (font *Font) Type() object.Type {
 }
 
 // Method defines the set of methods available on font objects.
-func (font *Font) Method(method string, args []object.Object) (object.Object, bool) {
+func (font *Font) Method(method string, tok token.Token, args []object.Object) (object.Object, bool) {
 	switch method {
 	case "print":
-		return font.print(args)
+		return font.print(tok, args)
 	case "printf":
-		return font.printf(args)
+		return font.printf(tok, args)
 	case "getWidth":
-		return font.getWidth(args)
+		return font.getWidth(tok, args)
 	case "getHeight":
 		return object.NewInt(int64(font.Family.Height())), true
 	case "getLineHeight":
 		return object.NewFloat(font.LineHeight), true
 	case "setLineHeight":
-		return font.setLineHeight(args)
+		return font.setLineHeight(tok, args)
 	case "getAscent":
 		return object.NewInt(int64(font.Family.Ascent())), true
 	case "getDescent":
@@ -128,7 +129,7 @@ func (font *Font) Method(method string, args []object.Object) (object.Object, bo
 	case "getBaseline":
 		return object.NewInt(int64(font.Family.Ascent())), true
 	case "getWrap":
-		return font.getWrap(args)
+		return font.getWrap(tok, args)
 	case "getSize":
 		return object.NewInt(int64(font.Size)), true
 	case "toString":
@@ -143,12 +144,12 @@ func (font *Font) Method(method string, args []object.Object) (object.Object, bo
 
 // print draws a string at a position, taking the same trailing transform
 // arguments as image.draw().
-func (font *Font) print(args []object.Object) (object.Object, bool) {
-	if len(args) < 3 {
-		return object.NewError("font.print() expects at least a string, x, and y. got=%d", len(args)), true
+func (font *Font) print(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := ArityAtLeast("font.print", tok, args, 3); err != nil {
+		return err, true
 	}
 
-	arguments, err := ParseDrawArguments("font.print", args, 1)
+	arguments, err := ParseDrawArguments("font.print", tok, args, 1)
 
 	if err != nil {
 		return err, true
@@ -161,12 +162,12 @@ func (font *Font) print(args []object.Object) (object.Object, bool) {
 
 // printf draws wrapped text inside a given width, aligned left, center, right,
 // or justified: font.printf(text, x, y, limit, align, rotation, sx, sy, ox, oy).
-func (font *Font) printf(args []object.Object) (object.Object, bool) {
-	if len(args) < 4 {
-		return object.NewError("font.printf() expects at least a string, x, y, and wrap limit. got=%d", len(args)), true
+func (font *Font) printf(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := ArityAtLeast("font.printf", tok, args, 4); err != nil {
+		return err, true
 	}
 
-	limit, err := Float("font.printf", args, 3)
+	limit, err := Number("font.printf", tok, args, 3)
 
 	if err != nil {
 		return err, true
@@ -184,13 +185,13 @@ func (font *Font) printf(args []object.Object) (object.Object, bool) {
 
 	arguments := DrawArguments{ScaleX: 1, ScaleY: 1}
 
-	x, err := Float("font.printf", args, 1)
+	x, err := Number("font.printf", tok, args, 1)
 
 	if err != nil {
 		return err, true
 	}
 
-	y, err := Float("font.printf", args, 2)
+	y, err := Number("font.printf", tok, args, 2)
 
 	if err != nil {
 		return err, true
@@ -200,7 +201,7 @@ func (font *Font) printf(args []object.Object) (object.Object, bool) {
 	arguments.Y = y
 
 	if len(args) > offset {
-		trailing, err := ParseDrawArguments("font.printf", append([]object.Object{args[1], args[2]}, args[offset:]...), 0)
+		trailing, err := ParseDrawArguments("font.printf", tok, append([]object.Object{args[1], args[2]}, args[offset:]...), 0)
 
 		if err != nil {
 			return err, true
@@ -232,23 +233,27 @@ func (font *Font) printf(args []object.Object) (object.Object, bool) {
 }
 
 // getWidth returns the pixel width a string would occupy.
-func (font *Font) getWidth(args []object.Object) (object.Object, bool) {
-	if len(args) != 1 {
-		return object.NewError("font.getWidth() expects 1 argument. got=%d", len(args)), true
+func (font *Font) getWidth(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := Arity("font.getWidth", tok, args, 1); err != nil {
+		return err, true
 	}
 
 	width, _, err := font.Family.SizeUTF8(args[0].String())
 
 	if err != nil {
-		return object.NewError("font.getWidth() %s", err), true
+		return SystemFailure("font.getWidth", tok, err), true
 	}
 
 	return object.NewInt(int64(width)), true
 }
 
 // setLineHeight overrides the vertical distance between wrapped lines.
-func (font *Font) setLineHeight(args []object.Object) (object.Object, bool) {
-	height, err := Float("font.setLineHeight", args, 0)
+func (font *Font) setLineHeight(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := Arity("font.setLineHeight", tok, args, 1); err != nil {
+		return err, true
+	}
+
+	height, err := Number("font.setLineHeight", tok, args, 0)
 
 	if err != nil {
 		return err, true
@@ -261,12 +266,12 @@ func (font *Font) setLineHeight(args []object.Object) (object.Object, bool) {
 
 // getWrap returns the width of the widest wrapped line and the list of lines a
 // string breaks into at the given limit.
-func (font *Font) getWrap(args []object.Object) (object.Object, bool) {
-	if len(args) != 2 {
-		return object.NewError("font.getWrap() expects 2 arguments. got=%d", len(args)), true
+func (font *Font) getWrap(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := Arity("font.getWrap", tok, args, 2); err != nil {
+		return err, true
 	}
 
-	limit, err := Float("font.getWrap", args, 1)
+	limit, err := Number("font.getWrap", tok, args, 1)
 
 	if err != nil {
 		return err, true

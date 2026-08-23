@@ -1,6 +1,10 @@
 package engine
 
-import "ghostlang.org/x/ghost/object"
+import (
+	"ghostlang.org/x/ghost/fault"
+	"ghostlang.org/x/ghost/object"
+	"ghostlang.org/x/ghost/token"
+)
 
 // DrawArguments carries the positional arguments every drawable accepts, in the
 // order they are always written: position, rotation in radians, per-axis scale,
@@ -18,7 +22,7 @@ type DrawArguments struct {
 // ParseDrawArguments reads draw arguments starting at the given offset. Missing
 // trailing arguments fall back to the identity values, so drawing at a position
 // only needs two numbers.
-func ParseDrawArguments(name string, args []object.Object, offset int) (DrawArguments, *object.Error) {
+func ParseDrawArguments(name string, tok token.Token, args []object.Object, offset int) (DrawArguments, *object.Error) {
 	arguments := DrawArguments{ScaleX: 1, ScaleY: 1}
 
 	values := make([]float64, 0, 7)
@@ -27,14 +31,15 @@ func ParseDrawArguments(name string, args []object.Object, offset int) (DrawArgu
 		number, ok := args[index].(*object.Number)
 
 		if !ok {
-			return arguments, object.NewError("%s() expects number arguments. argument %d is %s", name, index+1, args[index].Type())
+			return arguments, Error(fault.Argument, tok, "`%s` expects argument %d to be a number, got %s", Signature(name), index+1, TypeName(args[index])).
+				WithHelp("after the position, %s takes rotation, scale, and origin, all of them numbers", Signature(name))
 		}
 
 		values = append(values, number.Float64())
 	}
 
 	if len(values) < 2 {
-		return arguments, object.NewError("%s() expects at least an x and y position. got=%d", name, len(values))
+		return arguments, Error(fault.Argument, tok, "`%s` expects at least an x and y position, got %d", Signature(name), len(values))
 	}
 
 	arguments.X = values[0]
@@ -62,20 +67,4 @@ func ParseDrawArguments(name string, args []object.Object, offset int) (DrawArgu
 	}
 
 	return arguments, nil
-}
-
-// Float reads a number argument, reporting a useful error when the caller passed
-// something else.
-func Float(name string, args []object.Object, index int) (float64, *object.Error) {
-	if index >= len(args) {
-		return 0, object.NewError("%s() is missing argument %d", name, index+1)
-	}
-
-	number, ok := args[index].(*object.Number)
-
-	if !ok {
-		return 0, object.NewError("%s() expects argument %d to be a number. got=%s", name, index+1, args[index].Type())
-	}
-
-	return number.Float64(), nil
 }

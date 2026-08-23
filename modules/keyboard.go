@@ -75,7 +75,7 @@ func keyboardIsTextInputActiveMethod(scope *object.Scope, tok token.Token, args 
 // because a typo in a key name is otherwise almost impossible to spot.
 func anyKey(name string, tok token.Token, args []object.Object, predicate func(sdl.Scancode) bool) object.Object {
 	if len(args) == 0 {
-		return object.NewError("%d:%d: runtime error: %s() expects at least one key name", tok.Line, tok.Column, name)
+		return engine.ArityAtLeast(name, tok, args, 1)
 	}
 
 	for index := range args {
@@ -88,7 +88,7 @@ func anyKey(name string, tok token.Token, args []object.Object, predicate func(s
 		scancode, ok := engine.Scancode(key)
 
 		if !ok {
-			return object.NewError("%d:%d: runtime error: %s() does not recognise the key '%s'", tok.Line, tok.Column, name, key)
+			return engine.Unknown(name, tok, "key", key, engine.KeyNames()...)
 		}
 
 		if predicate(scancode) {

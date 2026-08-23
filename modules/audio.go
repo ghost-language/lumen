@@ -49,16 +49,18 @@ func audioNewSourceMethod(scope *object.Scope, tok token.Token, args ...object.O
 		parsed, ok := engine.SourceKindFromName(kind)
 
 		if !ok {
-			return object.NewError("%d:%d: runtime error: audio.newSource() expects 'static' or 'stream'. got=%s", tok.Line, tok.Column, kind)
+			return engine.Choice("audio.newSource", tok, kind, engine.SourceKindNames...)
 		}
 
 		streaming = parsed
 	}
 
-	source, loadErr := engine.NewSource(resolvePath(path), streaming)
+	resolved := resolvePath(path)
+
+	source, loadErr := engine.NewSource(resolved, streaming)
 
 	if loadErr != nil {
-		return object.NewError("%d:%d: runtime error: audio.newSource() could not load %s: %s", tok.Line, tok.Column, path, loadErr)
+		return engine.AssetFailure("audio.newSource", tok, path, resolved, loadErr)
 	}
 
 	return source
@@ -71,13 +73,13 @@ func audioPlayMethod(scope *object.Scope, tok token.Token, args ...object.Object
 		return err
 	}
 
-	source, ok := args[0].(*engine.Source)
+	source, err := engine.SourceArgument("audio.play", tok, args, 0)
 
-	if !ok {
-		return object.NewError("%d:%d: runtime error: audio.play() expects a source. got=%s", tok.Line, tok.Column, args[0].Type())
+	if err != nil {
+		return err
 	}
 
-	result, _ := source.Method("play", nil)
+	result, _ := source.Method("play", tok, nil)
 
 	return result
 }
@@ -91,13 +93,13 @@ func audioStopMethod(scope *object.Scope, tok token.Token, args ...object.Object
 		return value.NULL
 	}
 
-	source, ok := args[0].(*engine.Source)
+	source, err := engine.SourceArgument("audio.stop", tok, args, 0)
 
-	if !ok {
-		return object.NewError("%d:%d: runtime error: audio.stop() expects a source. got=%s", tok.Line, tok.Column, args[0].Type())
+	if err != nil {
+		return err
 	}
 
-	result, _ := source.Method("stop", nil)
+	result, _ := source.Method("stop", tok, nil)
 
 	return result
 }

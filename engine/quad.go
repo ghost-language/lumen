@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"ghostlang.org/x/ghost/object"
+	"ghostlang.org/x/ghost/token"
 	"ghostlang.org/x/ghost/value"
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -47,7 +48,7 @@ func (quad *Quad) Type() object.Type {
 }
 
 // Method defines the set of methods available on quad objects.
-func (quad *Quad) Method(method string, args []object.Object) (object.Object, bool) {
+func (quad *Quad) Method(method string, tok token.Token, args []object.Object) (object.Object, bool) {
 	switch method {
 	case "getX":
 		return object.NewInt(int64(quad.X)), true
@@ -58,7 +59,7 @@ func (quad *Quad) Method(method string, args []object.Object) (object.Object, bo
 	case "getHeight":
 		return object.NewInt(int64(quad.Height)), true
 	case "setViewport":
-		return quad.setViewport(args)
+		return quad.setViewport(tok, args)
 	case "toString":
 		return &object.String{Value: quad.String()}, true
 	}
@@ -71,29 +72,21 @@ func (quad *Quad) Method(method string, args []object.Object) (object.Object, bo
 
 // setViewport moves the quad's region without allocating a new quad, which keeps
 // per-frame animation from churning objects.
-func (quad *Quad) setViewport(args []object.Object) (object.Object, bool) {
-	if len(args) != 4 {
-		return object.NewError("quad.setViewport() expects 4 arguments. got=%d", len(args)), true
+func (quad *Quad) setViewport(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := Arity("quad.setViewport", tok, args, 4); err != nil {
+		return err, true
 	}
 
-	for index, arg := range args {
-		number, ok := arg.(*object.Number)
+	values, err := Numbers("quad.setViewport", tok, args)
 
-		if !ok {
-			return object.NewError("quad.setViewport() expects number arguments. argument %d is %s", index+1, arg.Type()), true
-		}
-
-		switch index {
-		case 0:
-			quad.X = int32(number.Int64())
-		case 1:
-			quad.Y = int32(number.Int64())
-		case 2:
-			quad.Width = int32(number.Int64())
-		case 3:
-			quad.Height = int32(number.Int64())
-		}
+	if err != nil {
+		return err, true
 	}
+
+	quad.X = int32(values[0])
+	quad.Y = int32(values[1])
+	quad.Width = int32(values[2])
+	quad.Height = int32(values[3])
 
 	return value.NULL, true
 }

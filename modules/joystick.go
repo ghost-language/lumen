@@ -83,7 +83,7 @@ func joystickGetAxisMethod(scope *object.Scope, tok token.Token, args ...object.
 	axis, ok := engine.ControllerAxis(name)
 
 	if !ok {
-		return object.NewError("%d:%d: runtime error: joystick.getAxis() does not recognise the axis '%s'", tok.Line, tok.Column, name)
+		return engine.Choice("joystick.getAxis", tok, name, engine.ControllerAxisNames()...)
 	}
 
 	joystick := engine.Lumen.Joystick(int(index))
@@ -206,7 +206,7 @@ func buttonPredicate(name string, tok token.Token, args []object.Object, predica
 	button, ok := engine.ControllerButton(buttonName)
 
 	if !ok {
-		return object.NewError("%d:%d: runtime error: %s() does not recognise the button '%s'", tok.Line, tok.Column, name, buttonName)
+		return engine.Unknown(name, tok, "button", buttonName, engine.ControllerButtonNames()...)
 	}
 
 	joystick := engine.Lumen.Joystick(int(index))

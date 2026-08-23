@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"ghostlang.org/x/ghost/object"
+	"ghostlang.org/x/ghost/token"
 	"ghostlang.org/x/ghost/value"
 )
 
@@ -21,6 +22,12 @@ const (
 	// AnimationPingpong plays forwards then backwards, and never finishes.
 	AnimationPingpong
 )
+
+// AnimationModeNames are the mode names a game writes, in the order a message
+// listing them should read. The aliases are deliberately left out: they are
+// there so that code that reads better with them keeps working, not so that a
+// reader has to choose between three spellings of the same mode.
+var AnimationModeNames = []string{"loop", "once", "pingpong"}
 
 // AnimationModeFromName maps the mode names a game writes onto the enum.
 func AnimationModeFromName(name string) (AnimationMode, bool) {
@@ -194,12 +201,12 @@ func (animation *Animation) Type() object.Type {
 }
 
 // Method defines the set of methods available on animation objects.
-func (animation *Animation) Method(method string, args []object.Object) (object.Object, bool) {
+func (animation *Animation) Method(method string, tok token.Token, args []object.Object) (object.Object, bool) {
 	switch method {
 	case "update":
-		return animation.update(args)
+		return animation.update(tok, args)
 	case "draw":
-		return animation.draw(args)
+		return animation.draw(tok, args)
 	case "play":
 		animation.playing = true
 
@@ -223,7 +230,7 @@ func (animation *Animation) Method(method string, args []object.Object) (object.
 
 		return value.NULL, true
 	case "seek":
-		return animation.seek(args)
+		return animation.seek(tok, args)
 	case "clone":
 		return animation.Clone(), true
 	case "isPlaying":
@@ -245,15 +252,15 @@ func (animation *Animation) Method(method string, args []object.Object) (object.
 	case "getDuration":
 		return object.NewFloat(animation.Duration), true
 	case "setDuration":
-		return animation.setDuration(args)
+		return animation.setDuration(tok, args)
 	case "getSpeed":
 		return object.NewFloat(animation.speed), true
 	case "setSpeed":
-		return animation.setSpeed(args)
+		return animation.setSpeed(tok, args)
 	case "getMode":
 		return &object.String{Value: animation.Mode.Name()}, true
 	case "setMode":
-		return animation.setMode(args)
+		return animation.setMode(tok, args)
 	case "toString":
 		return &object.String{Value: animation.String()}, true
 	}
@@ -266,11 +273,11 @@ func (animation *Animation) Method(method string, args []object.Object) (object.
 
 // update advances the playhead. Called with no argument it uses the time the
 // last frame took, which is what a game wants often enough to be the default.
-func (animation *Animation) update(args []object.Object) (object.Object, bool) {
+func (animation *Animation) update(tok token.Token, args []object.Object) (object.Object, bool) {
 	delta := Lumen.Delta
 
 	if len(args) > 0 {
-		given, err := Float("animation.update", args, 0)
+		given, err := Number("animation.update", tok, args, 0)
 
 		if err != nil {
 			return err, true
@@ -285,8 +292,8 @@ func (animation *Animation) update(args []object.Object) (object.Object, bool) {
 }
 
 // draw renders the current frame: animation.draw(x, y, rotation, sx, sy, ox, oy).
-func (animation *Animation) draw(args []object.Object) (object.Object, bool) {
-	arguments, err := ParseDrawArguments("animation.draw", args, 0)
+func (animation *Animation) draw(tok token.Token, args []object.Object) (object.Object, bool) {
+	arguments, err := ParseDrawArguments("animation.draw", tok, args, 0)
 
 	if err != nil {
 		return err, true
@@ -298,8 +305,12 @@ func (animation *Animation) draw(args []object.Object) (object.Object, bool) {
 }
 
 // seek moves the playhead to a number of seconds into the animation.
-func (animation *Animation) seek(args []object.Object) (object.Object, bool) {
-	seconds, err := Float("animation.seek", args, 0)
+func (animation *Animation) seek(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := Arity("animation.seek", tok, args, 1); err != nil {
+		return err, true
+	}
+
+	seconds, err := Number("animation.seek", tok, args, 0)
 
 	if err != nil {
 		return err, true
@@ -315,8 +326,12 @@ func (animation *Animation) seek(args []object.Object) (object.Object, bool) {
 }
 
 // setDuration changes how long each frame is held.
-func (animation *Animation) setDuration(args []object.Object) (object.Object, bool) {
-	duration, err := Float("animation.setDuration", args, 0)
+func (animation *Animation) setDuration(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := Arity("animation.setDuration", tok, args, 1); err != nil {
+		return err, true
+	}
+
+	duration, err := Number("animation.setDuration", tok, args, 0)
 
 	if err != nil {
 		return err, true
@@ -329,8 +344,12 @@ func (animation *Animation) setDuration(args []object.Object) (object.Object, bo
 
 // setSpeed multiplies the rate the playhead advances at. A speed of 2 plays
 // twice as fast; a negative speed rewinds.
-func (animation *Animation) setSpeed(args []object.Object) (object.Object, bool) {
-	speed, err := Float("animation.setSpeed", args, 0)
+func (animation *Animation) setSpeed(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := Arity("animation.setSpeed", tok, args, 1); err != nil {
+		return err, true
+	}
+
+	speed, err := Number("animation.setSpeed", tok, args, 0)
 
 	if err != nil {
 		return err, true
@@ -342,21 +361,21 @@ func (animation *Animation) setSpeed(args []object.Object) (object.Object, bool)
 }
 
 // setMode changes what happens at the end of the sequence.
-func (animation *Animation) setMode(args []object.Object) (object.Object, bool) {
-	if len(args) != 1 {
-		return object.NewError("animation.setMode() expects 1 argument. got=%d", len(args)), true
+func (animation *Animation) setMode(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := Arity("animation.setMode", tok, args, 1); err != nil {
+		return err, true
 	}
 
-	name, ok := args[0].(*object.String)
+	name, err := Text("animation.setMode", tok, args, 0)
 
-	if !ok {
-		return object.NewError("animation.setMode() expects a string. got=%s", args[0].Type()), true
+	if err != nil {
+		return err, true
 	}
 
-	mode, valid := AnimationModeFromName(name.Value)
+	mode, valid := AnimationModeFromName(name)
 
 	if !valid {
-		return object.NewError("animation.setMode() expects 'loop', 'once', or 'pingpong'. got=%s", name.Value), true
+		return Choice("animation.setMode", tok, name, AnimationModeNames...), true
 	}
 
 	animation.Mode = mode

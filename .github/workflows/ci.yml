@@ -49,6 +49,10 @@ jobs:
       working-directory: lumen
       run: make vet
 
+    - name: Test
+      working-directory: lumen
+      run: make test
+
   # Lumen cannot be cross-compiled - cgo means the machine that builds a binary
   # is the platform it runs on. Every platform Lumen ships to therefore has to
   # be built on every change, or a break on one is only discovered at release
@@ -91,9 +95,10 @@ jobs:
       working-directory: lumen
       run: go build ./...
 
-  # Lumen has no test suite, so the examples are the only thing that proves the
-  # module layer still evaluates Ghost the way the games expect. SDL2's dummy
-  # video and audio drivers let them run on a headless runner.
+  # The unit tests cover what a failure should say; the examples cover whether a
+  # game still runs at all, which is the only thing that proves the module layer
+  # still evaluates Ghost the way the games expect. SDL2's dummy video and audio
+  # drivers let them run on a headless runner.
   examples:
     name: Examples
     needs: build

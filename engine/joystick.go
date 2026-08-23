@@ -108,6 +108,33 @@ func ControllerButton(name string) (sdl.GameControllerButton, bool) {
 	return button, true
 }
 
+// ControllerButtonNames lists the buttons SDL's controller mapping knows,
+// which is what an unrecognised button name is answered with.
+func ControllerButtonNames() []string {
+	names := make([]string, 0, sdl.CONTROLLER_BUTTON_MAX)
+
+	for button := sdl.GameControllerButton(0); button < sdl.CONTROLLER_BUTTON_MAX; button++ {
+		if name := sdl.GameControllerGetStringForButton(button); name != "" {
+			names = append(names, name)
+		}
+	}
+
+	return names
+}
+
+// ControllerAxisNames lists the axes SDL's controller mapping knows.
+func ControllerAxisNames() []string {
+	names := make([]string, 0, sdl.CONTROLLER_AXIS_MAX)
+
+	for axis := sdl.GameControllerAxis(0); axis < sdl.CONTROLLER_AXIS_MAX; axis++ {
+		if name := sdl.GameControllerGetStringForAxis(axis); name != "" {
+			names = append(names, name)
+		}
+	}
+
+	return names
+}
+
 // ControllerAxis resolves an axis name such as 'leftx' or 'triggerright'.
 func ControllerAxis(name string) (sdl.GameControllerAxis, bool) {
 	axis := sdl.GameControllerGetAxisFromString(name)

@@ -532,6 +532,12 @@ func (engine *Engine) ClearScissor() {
 	engine.Renderer.SetClipRect(nil)
 }
 
+// BlendModeNames are the blend mode names a game writes, in the order a message
+// listing them should read. The aliases below are left out on purpose: they
+// exist so that code that reads better with them keeps working, not so that a
+// reader has to pick between two spellings of one mode.
+var BlendModeNames = []string{"alpha", "add", "multiply", "none"}
+
 // BlendModeFromName maps the blend mode names a game uses onto SDL's.
 func BlendModeFromName(name string) (sdl.BlendMode, bool) {
 	switch name {

@@ -1,7 +1,9 @@
 package engine
 
 import (
+	"ghostlang.org/x/ghost/fault"
 	"ghostlang.org/x/ghost/object"
+	"ghostlang.org/x/ghost/token"
 	"ghostlang.org/x/ghost/value"
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -140,15 +142,17 @@ func (image *Image) Type() object.Type {
 	return IMAGE
 }
 
-// Method defines the set of methods available on image objects.
-func (image *Image) Method(method string, args []object.Object) (object.Object, bool) {
+// Method defines the set of methods available on image objects. The token is
+// the method's own name in the source, and it is what lets a method report a
+// bad argument at the call that made it rather than at the top of the frame.
+func (image *Image) Method(method string, tok token.Token, args []object.Object) (object.Object, bool) {
 	switch method {
 	case "draw":
-		return image.draw(args)
+		return image.draw(tok, args)
 	case "drawQuad":
-		return image.drawQuad(args)
+		return image.drawQuad(tok, args)
 	case "clip":
-		return image.clip(args)
+		return image.clip(tok, args)
 	case "getWidth":
 		return object.NewInt(int64(image.Width)), true
 	case "getHeight":
@@ -159,9 +163,9 @@ func (image *Image) Method(method string, args []object.Object) (object.Object, 
 			object.NewInt(int64(image.Height)),
 		}}, true
 	case "getPixel":
-		return image.getPixel(args)
+		return image.getPixel(tok, args)
 	case "setFilter":
-		return image.setFilter(args)
+		return image.setFilter(tok, args)
 	case "toString":
 		return &object.String{Value: image.String()}, true
 	}
@@ -174,8 +178,8 @@ func (image *Image) Method(method string, args []object.Object) (object.Object, 
 
 // draw renders the image at a position, optionally rotated, scaled, and offset
 // about an origin: image.draw(x, y, rotation, scaleX, scaleY, originX, originY).
-func (image *Image) draw(args []object.Object) (object.Object, bool) {
-	arguments, err := ParseDrawArguments("image.draw", args, 0)
+func (image *Image) draw(tok token.Token, args []object.Object) (object.Object, bool) {
+	arguments, err := ParseDrawArguments("image.draw", tok, args, 0)
 
 	if err != nil {
 		return err, true
@@ -192,18 +196,18 @@ func (image *Image) draw(args []object.Object) (object.Object, bool) {
 
 // drawQuad renders a single region of the image, which is how spritesheets and
 // tilesets are drawn: image.drawQuad(quad, x, y, rotation, sx, sy, ox, oy).
-func (image *Image) drawQuad(args []object.Object) (object.Object, bool) {
-	if len(args) < 3 {
-		return object.NewError("image.drawQuad() expects at least a quad, x, and y. got=%d", len(args)), true
+func (image *Image) drawQuad(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := ArityAtLeast("image.drawQuad", tok, args, 3); err != nil {
+		return err, true
 	}
 
-	quad, ok := args[0].(*Quad)
+	quad, err := QuadArgument("image.drawQuad", tok, args, 0)
 
-	if !ok {
-		return object.NewError("image.drawQuad() expects a quad as its first argument. got=%s", args[0].Type()), true
+	if err != nil {
+		return err, true
 	}
 
-	arguments, err := ParseDrawArguments("image.drawQuad", args, 1)
+	arguments, err := ParseDrawArguments("image.drawQuad", tok, args, 1)
 
 	if err != nil {
 		return err, true
@@ -219,21 +223,21 @@ func (image *Image) drawQuad(args []object.Object) (object.Object, bool) {
 // clip returns a view onto a rectangular region of the image. A third argument
 // alone gives a square region, which keeps the original tile-sized form working:
 // image.clip(x, y, size) and image.clip(x, y, width, height) are both valid.
-func (image *Image) clip(args []object.Object) (object.Object, bool) {
-	if len(args) != 3 && len(args) != 4 {
-		return object.NewError("image.clip() expects 3 or 4 arguments. got=%d", len(args)), true
+func (image *Image) clip(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := ArityRange("image.clip", tok, args, 3, 4); err != nil {
+		return err, true
+	}
+
+	given, err := Numbers("image.clip", tok, args)
+
+	if err != nil {
+		return err, true
 	}
 
 	values := make([]int32, 0, 4)
 
-	for index, arg := range args {
-		number, ok := arg.(*object.Number)
-
-		if !ok {
-			return object.NewError("image.clip() expects number arguments. argument %d is %s", index+1, arg.Type()), true
-		}
-
-		values = append(values, int32(number.Int64()))
+	for _, value := range given {
+		values = append(values, int32(value))
 	}
 
 	width := values[2]
@@ -243,30 +247,36 @@ func (image *Image) clip(args []object.Object) (object.Object, bool) {
 		height = values[3]
 	}
 
+	if width <= 0 || height <= 0 {
+		return Value("image.clip", tok, "cannot clip a region %dx%d", width, height).
+			WithHelp("a clipped region needs a positive width and height"), true
+	}
+
 	return image.view(values[0], values[1], width, height), true
 }
 
 // getPixel reads the color of a single pixel from the image's source surface.
 // Games use it to bake collision or spawn data straight into a map image.
-func (image *Image) getPixel(args []object.Object) (object.Object, bool) {
-	if len(args) != 2 {
-		return object.NewError("image.getPixel() expects 2 arguments. got=%d", len(args)), true
+func (image *Image) getPixel(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := Arity("image.getPixel", tok, args, 2); err != nil {
+		return err, true
 	}
 
-	x, err := Float("image.getPixel", args, 0)
+	x, err := Number("image.getPixel", tok, args, 0)
 
 	if err != nil {
 		return err, true
 	}
 
-	y, err := Float("image.getPixel", args, 1)
+	y, err := Number("image.getPixel", tok, args, 1)
 
 	if err != nil {
 		return err, true
 	}
 
 	if image.Surface == nil {
-		return object.NewError("image.getPixel() is not available for this image"), true
+		return State("image.getPixel", tok, "needs an image loaded from a file").
+			WithHelp("this image has no pixels to read; a render target keeps its pixels on the GPU"), true
 	}
 
 	offsetX := int32(x)
@@ -278,7 +288,8 @@ func (image *Image) getPixel(args []object.Object) (object.Object, bool) {
 	}
 
 	if offsetX < 0 || offsetY < 0 || offsetX >= image.Surface.W || offsetY >= image.Surface.H {
-		return object.NewError("image.getPixel() coordinates are outside the image"), true
+		return Error(fault.Index, tok, "`image.getPixel()` reads (%d, %d), which is outside the image", int32(x), int32(y)).
+			WithHelp("this image is %dx%d", image.Width, image.Height), true
 	}
 
 	pixel := image.Surface.At(int(offsetX), int(offsetY))
@@ -289,26 +300,26 @@ func (image *Image) getPixel(args []object.Object) (object.Object, bool) {
 
 // setFilter chooses between nearest-neighbour and linear sampling. Pixel art
 // wants 'nearest', which is also Lumen's default.
-func (image *Image) setFilter(args []object.Object) (object.Object, bool) {
-	if len(args) != 1 {
-		return object.NewError("image.setFilter() expects 1 argument. got=%d", len(args)), true
+func (image *Image) setFilter(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := Arity("image.setFilter", tok, args, 1); err != nil {
+		return err, true
 	}
 
-	name, ok := args[0].(*object.String)
+	name, err := Text("image.setFilter", tok, args, 0)
 
-	if !ok {
-		return object.NewError("image.setFilter() expects a string. got=%s", args[0].Type()), true
+	if err != nil {
+		return err, true
 	}
 
 	var quality string
 
-	switch name.Value {
+	switch name {
 	case "nearest":
 		quality = "0"
 	case "linear":
 		quality = "1"
 	default:
-		return object.NewError("image.setFilter() expects 'nearest' or 'linear'. got=%s", name.Value), true
+		return Choice("image.setFilter", tok, name, "nearest", "linear"), true
 	}
 
 	// The scaling hint is read when a texture is created, so the texture has to

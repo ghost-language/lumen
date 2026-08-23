@@ -43,6 +43,15 @@ func (engine *Engine) handleQuitEvent() {
 }
 
 func (engine *Engine) handleKeyboardEvent(event *sdl.KeyboardEvent) {
+	// A halted game is not listening for input; the error screen is. Routing
+	// keys here rather than filtering them inside the callbacks is what keeps a
+	// game that has bound escape from swallowing the way out of its own error.
+	if engine.Halted() {
+		engine.handleReportKey(event)
+
+		return
+	}
+
 	name := sdl.GetScancodeName(event.Keysym.Scancode)
 
 	if event.Type == sdl.KEYDOWN {
@@ -143,8 +152,14 @@ func (engine *Engine) handleControllerDeviceEvent(event *sdl.ControllerDeviceEve
 
 // callback invokes an optional Ghost function. Games only define the callbacks
 // they need, so a missing function is not an error.
+//
+// A failure inside one is: it comes back here as an error object, is reported
+// to the console and to the window, and stops the game. Whether the game can be
+// carried on past it depends on which callback it was — load() builds the state
+// every later frame reads, and a game that never finished building it has
+// nothing to carry on with.
 func (engine *Engine) callback(name string, args ...object.Object) object.Object {
-	if engine.Ghost == nil {
+	if engine.Ghost == nil || engine.Halted() {
 		return nil
 	}
 
@@ -152,11 +167,29 @@ func (engine *Engine) callback(name string, args ...object.Object) object.Object
 		return nil
 	}
 
-	result := engine.Ghost.Call(name, args)
+	result := engine.call(name, args)
 
 	if err, ok := result.(*object.Error); ok {
-		engine.reportError(name, err)
+		engine.RaiseError(Signature(name), name != "load", err)
 	}
 
 	return result
+}
+
+// call invokes a Ghost function, turning a panic anywhere beneath it into an
+// ordinary error object.
+//
+// Ghost catches what happens inside the interpreter itself. This catches the
+// rest: a texture freed while something still points at it, a font closed under
+// a cached string, a bug in Lumen's own module layer. Either way the reader
+// gets a report about their game rather than a Go traceback about ours, and the
+// window stays up long enough for them to read it.
+func (engine *Engine) call(name string, args []object.Object) (result object.Object) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			result = object.NewErrorFrom(internalFault(Signature(name), recovered))
+		}
+	}()
+
+	return engine.Ghost.Call(name, args)
 }

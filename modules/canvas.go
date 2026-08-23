@@ -245,17 +245,18 @@ func canvasFilledPolygonMethod(scope *object.Scope, tok token.Token, args ...obj
 // canvas.polygon([x1, y1, x2, y2, x3, y3]) read naturally.
 func polygonPoints(name string, tok token.Token, args []object.Object) ([]float64, *object.Error) {
 	if len(args) == 1 {
-		elements, ok := args[0].(*object.List)
+		elements, err := engine.List(name, tok, args, 0)
 
-		if !ok {
-			return nil, object.NewError("%d:%d: runtime error: %s() expects a list of coordinates or a run of numbers", tok.Line, tok.Column, name)
+		if err != nil {
+			return nil, err
 		}
 
 		return numbers(name, tok, elements.Elements)
 	}
 
 	if len(args) < 6 || len(args)%2 != 0 {
-		return nil, object.NewError("%d:%d: runtime error: %s() expects at least 3 x/y pairs. got=%d value(s)", tok.Line, tok.Column, name, len(args))
+		return nil, engine.Value(name, tok, "expects at least 3 x/y pairs, got %d value(s)", len(args)).
+			WithHelp("pass the points as `%s(x1, y1, x2, y2, x3, y3)` or as one list of those numbers", engine.Signature(name))
 	}
 
 	return numbers(name, tok, args)
@@ -263,7 +264,8 @@ func polygonPoints(name string, tok token.Token, args []object.Object) ([]float6
 
 func canvasLineMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
 	if len(args) < 4 || len(args)%2 != 0 {
-		return object.NewError("%d:%d: runtime error: canvas.line() expects pairs of x/y coordinates. got=%d value(s)", tok.Line, tok.Column, len(args))
+		return engine.Value("canvas.line", tok, "expects pairs of x/y coordinates, got %d value(s)", len(args)).
+			WithHelp("a line needs at least two points, as in `canvas.line(x1, y1, x2, y2)`")
 	}
 
 	points, err := numbers("canvas.line", tok, args)
@@ -279,7 +281,8 @@ func canvasLineMethod(scope *object.Scope, tok token.Token, args ...object.Objec
 
 func canvasPointMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
 	if len(args) < 2 || len(args)%2 != 0 {
-		return object.NewError("%d:%d: runtime error: canvas.point() expects pairs of x/y coordinates. got=%d value(s)", tok.Line, tok.Column, len(args))
+		return engine.Value("canvas.point", tok, "expects pairs of x/y coordinates, got %d value(s)", len(args)).
+			WithHelp("points are given as `canvas.point(x1, y1, x2, y2)`, two numbers each")
 	}
 
 	points, err := numbers("canvas.point", tok, args)
@@ -300,10 +303,10 @@ func canvasClearMethod(scope *object.Scope, tok token.Token, args ...object.Obje
 	color := engine.Lumen.Graphics.BackgroundColor
 
 	if len(args) == 1 {
-		given, ok := args[0].(*engine.Color)
+		given, err := engine.ColorArgument("canvas.clear", tok, args, 0)
 
-		if !ok {
-			return object.NewError("%d:%d: runtime error: canvas.clear() expects a color. got=%s", tok.Line, tok.Column, args[0].Type())
+		if err != nil {
+			return err
 		}
 
 		color = given
@@ -349,17 +352,12 @@ func canvasSetBackgroundColorMethod(scope *object.Scope, tok token.Token, args .
 // canvas.setColor(color.white) and canvas.setColor(255, 255, 255) both work.
 func colorArgument(name string, tok token.Token, args []object.Object) (*engine.Color, *object.Error) {
 	if len(args) == 1 {
-		color, ok := args[0].(*engine.Color)
-
-		if !ok {
-			return nil, object.NewError("%d:%d: runtime error: %s() expects a color. got=%s", tok.Line, tok.Column, name, args[0].Type())
-		}
-
-		return color, nil
+		return engine.ColorArgument(name, tok, args, 0)
 	}
 
 	if len(args) != 3 && len(args) != 4 {
-		return nil, object.NewError("%d:%d: runtime error: %s() expects a color, or 3 to 4 components. got=%d", tok.Line, tok.Column, name, len(args))
+		return nil, engine.Value(name, tok, "expects a color, or 3 to 4 components, got %d", len(args)).
+			WithHelp("call it as `%s(color.white)` or as `%s(255, 255, 255)`", engine.Signature(name), engine.Signature(name))
 	}
 
 	components := make([]uint8, 0, 4)
@@ -368,7 +366,7 @@ func colorArgument(name string, tok token.Token, args []object.Object) (*engine.
 		component, ok := args[index].(*object.Number)
 
 		if !ok {
-			return nil, object.NewError("%d:%d: runtime error: %s() expects number components. argument %d is %s", tok.Line, tok.Column, name, index+1, args[index].Type())
+			return nil, engine.Mistyped(name, tok, index, "a number", args[index])
 		}
 
 		if index == 3 {
@@ -439,7 +437,7 @@ func canvasSetBlendModeMethod(scope *object.Scope, tok token.Token, args ...obje
 	mode, ok := engine.BlendModeFromName(name)
 
 	if !ok {
-		return object.NewError("%d:%d: runtime error: canvas.setBlendMode() expects 'alpha', 'add', 'multiply', or 'none'. got=%s", tok.Line, tok.Column, name)
+		return engine.Choice("canvas.setBlendMode", tok, name, engine.BlendModeNames...)
 	}
 
 	engine.Lumen.Graphics.BlendMode = mode
@@ -477,10 +475,10 @@ func canvasSetFontMethod(scope *object.Scope, tok token.Token, args ...object.Ob
 		return err
 	}
 
-	font, ok := args[0].(*engine.Font)
+	font, err := engine.FontArgument("canvas.setFont", tok, args, 0)
 
-	if !ok {
-		return object.NewError("%d:%d: runtime error: canvas.setFont() expects a font. got=%s", tok.Line, tok.Column, args[0].Type())
+	if err != nil {
+		return err
 	}
 
 	engine.Lumen.CurrentFont = font
@@ -499,21 +497,21 @@ func canvasResetFontMethod(scope *object.Scope, tok token.Token, args ...object.
 }
 
 func canvasPrintMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
-	if len(args) < 3 {
-		return object.NewError("%d:%d: runtime error: canvas.print() expects at least a string, x, and y. got=%d", tok.Line, tok.Column, len(args))
+	if err := arityAtLeast("canvas.print", tok, args, 3); err != nil {
+		return err
 	}
 
-	result, _ := engine.Lumen.CurrentFont.Method("print", args)
+	result, _ := engine.Lumen.CurrentFont.Method("print", tok, args)
 
 	return result
 }
 
 func canvasPrintfMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
-	if len(args) < 4 {
-		return object.NewError("%d:%d: runtime error: canvas.printf() expects at least a string, x, y, and wrap limit. got=%d", tok.Line, tok.Column, len(args))
+	if err := arityAtLeast("canvas.printf", tok, args, 4); err != nil {
+		return err
 	}
 
-	result, _ := engine.Lumen.CurrentFont.Method("printf", args)
+	result, _ := engine.Lumen.CurrentFont.Method("printf", tok, args)
 
 	return result
 }
@@ -665,7 +663,8 @@ func canvasToWorldMethod(scope *object.Scope, tok token.Token, args ...object.Ob
 	inverse, ok := engine.Lumen.Graphics.Transform().Inverse()
 
 	if !ok {
-		return object.NewError("%d:%d: runtime error: canvas.toWorld() cannot invert the current transform", tok.Line, tok.Column)
+		return engine.Value("canvas.toWorld", tok, "cannot undo the current transform").
+			WithHelp("something has been scaled to zero, so there is no way back from a screen position to a world one")
 	}
 
 	x, y := inverse.Apply(values[0], values[1])
@@ -684,7 +683,8 @@ func canvasGetVisibleMethod(scope *object.Scope, tok token.Token, args ...object
 	x, y, width, height, ok := engine.Lumen.VisibleBounds()
 
 	if !ok {
-		return object.NewError("%d:%d: runtime error: canvas.getVisible() cannot invert the current transform", tok.Line, tok.Column)
+		return engine.Value("canvas.getVisible", tok, "cannot undo the current transform").
+			WithHelp("something has been scaled to zero, so there is no region of the world on screen to report")
 	}
 
 	return list(x, y, width, height)
@@ -710,10 +710,15 @@ func canvasNewTargetMethod(scope *object.Scope, tok token.Token, args ...object.
 		return err
 	}
 
+	if width <= 0 || height <= 0 {
+		return engine.Value("canvas.newTarget", tok, "was asked for a %dx%d target", width, height).
+			WithHelp("a target needs a positive width and height")
+	}
+
 	target, targetErr := engine.NewTarget(int32(width), int32(height))
 
 	if targetErr != nil {
-		return object.NewError("%d:%d: runtime error: canvas.newTarget() %s", tok.Line, tok.Column, targetErr)
+		return engine.SystemFailure("canvas.newTarget", tok, targetErr)
 	}
 
 	return target
@@ -738,10 +743,10 @@ func canvasSetTargetMethod(scope *object.Scope, tok token.Token, args ...object.
 		return value.NULL
 	}
 
-	target, ok := args[0].(*engine.Target)
+	target, err := engine.TargetArgument("canvas.setTarget", tok, args, 0)
 
-	if !ok {
-		return object.NewError("%d:%d: runtime error: canvas.setTarget() expects a target. got=%s", tok.Line, tok.Column, args[0].Type())
+	if err != nil {
+		return err
 	}
 
 	engine.Lumen.SetTarget(target)
@@ -780,11 +785,11 @@ func canvasScreenshotMethod(scope *object.Scope, tok token.Token, args ...object
 	path, pathErr := savePath(name)
 
 	if pathErr != nil {
-		return object.NewError("%d:%d: runtime error: canvas.screenshot() %s", tok.Line, tok.Column, pathErr)
+		return saveFailure("canvas.screenshot", tok, name, pathErr)
 	}
 
 	if shotErr := engine.Lumen.Screenshot(path); shotErr != nil {
-		return object.NewError("%d:%d: runtime error: canvas.screenshot() %s", tok.Line, tok.Column, shotErr)
+		return engine.SystemFailure("canvas.screenshot", tok, shotErr)
 	}
 
 	return &object.String{Value: path}

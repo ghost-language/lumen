@@ -9,6 +9,7 @@ import (
 	"ghostlang.org/x/ghost/object"
 	"ghostlang.org/x/ghost/token"
 	"ghostlang.org/x/ghost/value"
+	"ghostlang.org/x/lumen/engine"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -29,7 +30,7 @@ func systemGetClipboardTextMethod(scope *object.Scope, tok token.Token, args ...
 	clipboard, err := sdl.GetClipboardText()
 
 	if err != nil {
-		return object.NewError("%d:%d: runtime error: system.getClipboardText() %s", tok.Line, tok.Column, err)
+		return engine.SystemFailure("system.getClipboardText", tok, err)
 	}
 
 	return &object.String{Value: clipboard}
@@ -47,7 +48,7 @@ func systemSetClipboardTextMethod(scope *object.Scope, tok token.Token, args ...
 	}
 
 	if clipboardErr := sdl.SetClipboardText(contents); clipboardErr != nil {
-		return object.NewError("%d:%d: runtime error: system.setClipboardText() %s", tok.Line, tok.Column, clipboardErr)
+		return engine.SystemFailure("system.setClipboardText", tok, clipboardErr)
 	}
 
 	return value.NULL
@@ -71,7 +72,8 @@ func systemOpenUrlMethod(scope *object.Scope, tok token.Token, args ...object.Ob
 	parsed, parseErr := url.Parse(address)
 
 	if parseErr != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-		return object.NewError("%d:%d: runtime error: system.openUrl() expects an http or https URL. got=%s", tok.Line, tok.Column, address)
+		return engine.Value("system.openUrl", tok, "expects an http or https URL, got `%s`", address).
+			WithHelp("only web addresses are opened, so that a string built at runtime cannot reach the shell as something else")
 	}
 
 	var command *exec.Cmd
@@ -86,7 +88,7 @@ func systemOpenUrlMethod(scope *object.Scope, tok token.Token, args ...object.Ob
 	}
 
 	if startErr := command.Start(); startErr != nil {
-		return object.NewError("%d:%d: runtime error: system.openUrl() %s", tok.Line, tok.Column, startErr)
+		return engine.SystemFailure("system.openUrl", tok, startErr)
 	}
 
 	return value.NULL

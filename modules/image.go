@@ -30,10 +30,12 @@ func imageLoadMethod(scope *object.Scope, tok token.Token, args ...object.Object
 		return err
 	}
 
-	image, loadErr := engine.NewImage(resolvePath(path))
+	resolved := resolvePath(path)
+
+	image, loadErr := engine.NewImage(resolved)
 
 	if loadErr != nil {
-		return object.NewError("%d:%d: runtime error: image.load() could not load %s: %s", tok.Line, tok.Column, path, loadErr)
+		return engine.AssetFailure("image.load", tok, path, resolved, loadErr)
 	}
 
 	return image
@@ -53,17 +55,19 @@ func imageNewSpritesheetMethod(scope *object.Scope, tok token.Token, args ...obj
 
 	switch given := args[0].(type) {
 	case *object.String:
-		loaded, loadErr := engine.NewImage(resolvePath(given.Value))
+		resolved := resolvePath(given.Value)
+
+		loaded, loadErr := engine.NewImage(resolved)
 
 		if loadErr != nil {
-			return object.NewError("%d:%d: runtime error: image.newSpritesheet() could not load %s: %s", tok.Line, tok.Column, given.Value, loadErr)
+			return engine.AssetFailure("image.newSpritesheet", tok, given.Value, resolved, loadErr)
 		}
 
 		source = loaded
 	case *engine.Image:
 		source = given
 	default:
-		return object.NewError("%d:%d: runtime error: image.newSpritesheet() expects a path or an image. got=%s", tok.Line, tok.Column, engine.TypeName(args[0].Type()))
+		return engine.Mistyped("image.newSpritesheet", tok, 0, "a path or an image", args[0])
 	}
 
 	frameWidth, err := integer("image.newSpritesheet", tok, args, 1)
@@ -87,7 +91,8 @@ func imageNewSpritesheetMethod(scope *object.Scope, tok token.Token, args ...obj
 	sheet, sheetErr := engine.NewSpritesheet(source, int32(frameWidth), int32(frameHeight))
 
 	if sheetErr != nil {
-		return object.NewError("%d:%d: runtime error: image.newSpritesheet() %s", tok.Line, tok.Column, sheetErr)
+		return engine.Value("image.newSpritesheet", tok, "%s", sheetErr).
+			WithHelp("frames are cut from the top left of the image, so the frame size has to fit inside it")
 	}
 
 	return sheet

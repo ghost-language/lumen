@@ -41,7 +41,8 @@ func lumenSetTargetFpsMethod(scope *object.Scope, tok token.Token, args ...objec
 	}
 
 	if fps < 0 {
-		return object.NewError("%d:%d: runtime error: lumen.setTargetFps() expects a positive number, or 0 for uncapped. got=%d", tok.Line, tok.Column, fps)
+		return engine.Value("lumen.setTargetFps", tok, "was asked for %d frames a second", fps).
+			WithHelp("pass a positive frame rate, or 0 to leave the game uncapped")
 	}
 
 	engine.Lumen.TargetFps = uint64(fps)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"ghostlang.org/x/ghost/object"
+	"ghostlang.org/x/ghost/token"
 	"ghostlang.org/x/ghost/value"
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -50,10 +51,10 @@ func (target *Target) Type() object.Type {
 }
 
 // Method defines the set of methods available on target objects.
-func (target *Target) Method(method string, args []object.Object) (object.Object, bool) {
+func (target *Target) Method(method string, tok token.Token, args []object.Object) (object.Object, bool) {
 	switch method {
 	case "draw":
-		return target.draw(args)
+		return target.draw(tok, args)
 	case "getWidth":
 		return object.NewInt(int64(target.Width)), true
 	case "getHeight":
@@ -74,8 +75,8 @@ func (target *Target) Method(method string, args []object.Object) (object.Object
 // Object methods
 
 // draw renders the target's contents like any other texture.
-func (target *Target) draw(args []object.Object) (object.Object, bool) {
-	arguments, err := ParseDrawArguments("target.draw", args, 0)
+func (target *Target) draw(tok token.Token, args []object.Object) (object.Object, bool) {
+	arguments, err := ParseDrawArguments("target.draw", tok, args, 0)
 
 	if err != nil {
 		return err, true
