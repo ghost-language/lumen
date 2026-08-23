@@ -84,7 +84,16 @@ type Engine struct {
 	viewport     sdl.Rect
 	lastTicks    uint64
 	errors       errorReporter
-	loadFailed   bool
+
+	// reportFont is the built-in font at heading size, loaded the first time an
+	// error screen is drawn and not before: a game that never fails never pays
+	// for a second copy of the font.
+	reportFont *Font
+
+	// report is the failure the game has stopped on, and nil while it is
+	// running. See report.go: while one is set, no game code is called and the
+	// window shows the error screen instead of a frame.
+	report *Report
 }
 
 func New(title string) *Engine {
@@ -117,16 +126,6 @@ func (engine *Engine) Run() {
 
 	engine.load()
 
-	// A game whose load() failed is missing the state every later frame assumes,
-	// so it would do nothing but repeat the same error until the player closed
-	// it. Stopping here reports the real problem once, at the top of the output.
-	if engine.loadFailed {
-		engine.flushRepeats()
-		engine.shutdown()
-
-		os.Exit(1)
-	}
-
 	engine.lastTicks = sdl.GetTicks64()
 
 	for engine.IsRunning {
@@ -148,6 +147,26 @@ func (engine *Engine) Run() {
 
 		if !engine.IsRunning {
 			break
+		}
+
+		// A halted game draws its error screen and nothing else. Its clock is
+		// not advanced either: whenever it is resumed, it resumes into a frame
+		// that took as long as a frame, rather than one that took as long as
+		// the reader spent reading.
+		if engine.Halted() {
+			// Unless there is nobody there. A game run headlessly — in CI, in a
+			// build script, over ssh — has a window nobody can see and no way to
+			// dismiss what is on it, so holding it open would hang the run
+			// rather than report it. The console already has the report.
+			if engine.headless() {
+				break
+			}
+
+			engine.drawReport()
+			engine.lastTicks = sdl.GetTicks64()
+			engine.pace(frameStart)
+
+			continue
 		}
 
 		engine.Delta = float64(frameStart-engine.lastTicks) / 1000.0
@@ -172,26 +191,54 @@ func (engine *Engine) Run() {
 			engine.PruneCaches()
 		}
 
-		frameTime := sdl.GetTicks64() - frameStart
+		engine.pace(frameStart)
+	}
 
-		// Hand time back to the CPU when the frame finished early.
-		if engine.TargetFps > 0 {
-			budget := 1000.0 / float64(engine.TargetFps)
-
-			if budget > float64(frameTime) {
-				sdl.Delay(uint32(budget - float64(frameTime)))
-			}
-		}
-
-		elapsed := sdl.GetTicks64() - frameStart
-
-		if elapsed > 0 {
-			engine.CurrentFps = 1000 / elapsed
-		}
+	// A game that was closed while an error was on screen did not finish, and
+	// the process should not claim it did.
+	if engine.Halted() {
+		engine.errors.failed = true
 	}
 
 	engine.flushRepeats()
 	engine.shutdown()
+}
+
+// headless reports whether SDL is drawing into nothing, which is what it does
+// on a machine with no display and what a CI run asks it for by name.
+func (engine *Engine) headless() bool {
+	driver, err := sdl.GetCurrentVideoDriver()
+
+	if err != nil {
+		return false
+	}
+
+	switch driver {
+	case "dummy", "offscreen":
+		return true
+	}
+
+	return false
+}
+
+// pace hands time back to the CPU when a frame finished early, and records how
+// long the frame took in the end.
+func (engine *Engine) pace(frameStart uint64) {
+	frameTime := sdl.GetTicks64() - frameStart
+
+	if engine.TargetFps > 0 {
+		budget := 1000.0 / float64(engine.TargetFps)
+
+		if budget > float64(frameTime) {
+			sdl.Delay(uint32(budget - float64(frameTime)))
+		}
+	}
+
+	elapsed := sdl.GetTicks64() - frameStart
+
+	if elapsed > 0 {
+		engine.CurrentFps = 1000 / elapsed
+	}
 }
 
 // Quit asks the game loop to stop at the end of the current frame.

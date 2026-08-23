@@ -91,8 +91,13 @@ func windowSetModeMethod(scope *object.Scope, tok token.Token, args ...object.Ob
 		fullscreen = given
 	}
 
+	if width < 0 || height < 0 {
+		return engine.Value("window.setMode", tok, "was asked for a %dx%d window", width, height).
+			WithHelp("a window needs a positive width and height, or 0 to keep the size it already has")
+	}
+
 	if modeErr := engine.Lumen.SetMode(int32(width), int32(height), fullscreen); modeErr != nil {
-		return object.NewError("%d:%d: runtime error: window.setMode() %s", tok.Line, tok.Column, modeErr)
+		return engine.SystemFailure("window.setMode", tok, modeErr)
 	}
 
 	return value.NULL
@@ -118,7 +123,7 @@ func windowSetFullscreenMethod(scope *object.Scope, tok token.Token, args ...obj
 	}
 
 	if modeErr := engine.Lumen.SetFullscreen(fullscreen); modeErr != nil {
-		return object.NewError("%d:%d: runtime error: window.setFullscreen() %s", tok.Line, tok.Column, modeErr)
+		return engine.SystemFailure("window.setFullscreen", tok, modeErr)
 	}
 
 	return value.NULL
@@ -128,7 +133,7 @@ func windowToggleFullscreenMethod(scope *object.Scope, tok token.Token, args ...
 	fullscreen := !engine.Lumen.IsFullscreen()
 
 	if err := engine.Lumen.SetFullscreen(fullscreen); err != nil {
-		return object.NewError("%d:%d: runtime error: window.toggleFullscreen() %s", tok.Line, tok.Column, err)
+		return engine.SystemFailure("window.toggleFullscreen", tok, err)
 	}
 
 	return &object.Boolean{Value: fullscreen}
@@ -156,7 +161,8 @@ func windowSetLogicalSizeMethod(scope *object.Scope, tok token.Token, args ...ob
 	}
 
 	if sizeErr := engine.Lumen.SetLogicalSize(int32(width), int32(height)); sizeErr != nil {
-		return object.NewError("%d:%d: runtime error: window.setLogicalSize() %s", tok.Line, tok.Column, sizeErr)
+		return engine.Value("window.setLogicalSize", tok, "was asked for a %dx%d coordinate space", width, height).
+			WithHelp("the space a game draws in needs a positive width and height")
 	}
 
 	return value.NULL
@@ -238,7 +244,7 @@ func windowSetVsyncMethod(scope *object.Scope, tok token.Token, args ...object.O
 	}
 
 	if vsyncErr := engine.Lumen.Renderer.RenderSetVSync(enabled); vsyncErr != nil {
-		return object.NewError("%d:%d: runtime error: window.setVsync() %s", tok.Line, tok.Column, vsyncErr)
+		return engine.SystemFailure("window.setVsync", tok, vsyncErr)
 	}
 
 	return value.NULL
@@ -250,14 +256,15 @@ func windowSetIconMethod(scope *object.Scope, tok token.Token, args ...object.Ob
 		return err
 	}
 
-	image, ok := args[0].(*engine.Image)
+	image, err := engine.ImageArgument("window.setIcon", tok, args, 0)
 
-	if !ok {
-		return object.NewError("%d:%d: runtime error: window.setIcon() expects an image. got=%s", tok.Line, tok.Column, args[0].Type())
+	if err != nil {
+		return err
 	}
 
 	if image.Surface == nil {
-		return object.NewError("%d:%d: runtime error: window.setIcon() needs an image loaded from a file", tok.Line, tok.Column)
+		return engine.State("window.setIcon", tok, "needs an image loaded from a file").
+			WithHelp("the icon is read from the image's pixels, and a render target keeps its pixels on the GPU")
 	}
 
 	engine.Lumen.Window.SetIcon(image.Surface)
@@ -311,13 +318,13 @@ func windowGetDesktopDimensionsMethod(scope *object.Scope, tok token.Token, args
 	index, err := engine.Lumen.Window.GetDisplayIndex()
 
 	if err != nil {
-		return object.NewError("%d:%d: runtime error: window.getDesktopDimensions() %s", tok.Line, tok.Column, err)
+		return engine.SystemFailure("window.getDesktopDimensions", tok, err)
 	}
 
 	mode, err := sdl.GetDesktopDisplayMode(index)
 
 	if err != nil {
-		return object.NewError("%d:%d: runtime error: window.getDesktopDimensions() %s", tok.Line, tok.Column, err)
+		return engine.SystemFailure("window.getDesktopDimensions", tok, err)
 	}
 
 	return integerList(int64(mode.W), int64(mode.H))

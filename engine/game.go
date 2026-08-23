@@ -2,11 +2,10 @@ package engine
 
 import "ghostlang.org/x/ghost/object"
 
-// load runs the game's one-time setup.
+// load runs the game's one-time setup. A failure here is reported by the
+// callback itself, and stops the game before the first frame is drawn.
 func (engine *Engine) load() {
-	if _, failed := engine.callback("load").(*object.Error); failed {
-		engine.loadFailed = true
-	}
+	engine.callback("load")
 }
 
 // update advances the game by one frame, handing it the seconds elapsed since

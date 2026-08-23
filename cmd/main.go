@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"strings"
 
+	"ghostlang.org/x/ghost/color"
+	"ghostlang.org/x/ghost/fault"
 	"ghostlang.org/x/ghost/ghost"
 	"ghostlang.org/x/ghost/object"
 	"ghostlang.org/x/lumen/engine"
@@ -62,10 +64,13 @@ func main() {
 		os.Exit(0)
 	}
 
-	source, directory, err := readSource(args)
+	source, file, directory, err := readSource(args)
 
+	// Nothing has been started yet, so there is no window to report this in and
+	// no reason to open one: a game that cannot be found is not a game that can
+	// be shown an error screen.
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "lumen: %s\n", err)
+		fmt.Fprintln(os.Stderr, err.Render(color.Detect(os.Stderr)))
 		os.Exit(1)
 	}
 
@@ -75,15 +80,27 @@ func main() {
 
 	lumen.Ghost = ghost.New()
 	lumen.Ghost.SetSource(source)
+	lumen.Ghost.SetFile(file)
 	lumen.Ghost.SetDirectory(directory)
 
 	// The game's source runs before the loop starts. It defines the callbacks
 	// the loop will drive and does any set-up that does not need the window.
-	if _, failed := lumen.Ghost.Execute().(*object.Error); failed {
-		os.Exit(1)
+	//
+	// A failure here used to end the process, which meant a game with a typo in
+	// it opened a window and closed it again before anyone could read why. The
+	// window is already up by this point, so the loop is started anyway: it
+	// calls nothing, and shows the error until it is closed. Ghost has already
+	// written the report — all of it, not just the first failure — to the
+	// console on its way out here.
+	if failed, ok := lumen.Ghost.Execute().(*object.Error); ok {
+		lumen.Show("the game's source", failed.Fault)
 	}
 
 	lumen.Run()
+
+	if lumen.Failed() {
+		os.Exit(1)
+	}
 }
 
 // run reports an error from a subcommand and exits, since a subcommand never
@@ -186,11 +203,17 @@ func subcommandArgs(name string, args []string) (string, string, error) {
 // in order: a game packaged into this very binary, then whatever path was given
 // on the command line, then a main.ghost next to the executable, and finally a
 // main.ghost in the working directory.
-func readSource(args []string) (string, string, error) {
+//
+// It hands back the source, the name to report positions against, and the
+// directory that asset and import paths resolve from.
+func readSource(args []string) (string, string, string, *fault.Fault) {
 	if directory, fused, err := engine.FusedGame(); err != nil {
-		return "", "", err
+		return "", "", "", fault.New(fault.System, "the game packaged into this binary could not be unpacked: %s", err)
 	} else if fused {
-		return readEntry(filepath.Join(directory, "main.ghost"))
+		// A fused game is unpacked somewhere temporary, and quoting that path
+		// back at a player would say nothing about their game. Reports name the
+		// entry file the way the game's author wrote it.
+		return readEntry(filepath.Join(directory, "main.ghost"), "main.ghost")
 	}
 
 	if len(args) > 0 {
@@ -200,32 +223,34 @@ func readSource(args []string) (string, string, error) {
 	executable, err := os.Executable()
 
 	if err != nil {
-		return "", "", err
+		return "", "", "", fault.New(fault.System, "Lumen could not find its own executable: %s", err)
 	}
 
 	beside := filepath.Join(filepath.Dir(executable), "main.ghost")
 
 	if _, err := os.Stat(beside); err == nil {
-		return readEntry(beside)
+		return readEntry(beside, beside)
 	}
 
 	if _, err := os.Stat("main.ghost"); err == nil {
-		return readEntry("main.ghost")
+		return readEntry("main.ghost", "main.ghost")
 	}
 
-	return "", "", fmt.Errorf("no game given, and no main.ghost found\n\nRun `lumen -h` for usage")
+	return "", "", "", fault.New(fault.System, "no game was given, and there is no main.ghost here").
+		WithHelp("run `lumen <file|directory|archive>`, or `lumen -h` for the whole of it")
 }
 
 // readTarget resolves a path that may be an archive, a directory, or a file.
-func readTarget(target string) (string, string, error) {
+func readTarget(target string) (string, string, string, *fault.Fault) {
 	if engine.IsArchive(target) {
 		directory, err := engine.UnpackArchive(target)
 
 		if err != nil {
-			return "", "", err
+			return "", "", "", fault.New(fault.System, "`%s` could not be unpacked: %s", target, err).
+				WithHelp("a .lumen archive is built by `lumen package`; this one may be truncated or from a newer version")
 		}
 
-		return readEntry(filepath.Join(directory, "main.ghost"))
+		return readEntry(filepath.Join(directory, "main.ghost"), "main.ghost")
 	}
 
 	info, err := os.Stat(target)
@@ -234,37 +259,65 @@ func readTarget(target string) (string, string, error) {
 	// subcommand that does not exist, and neither is helped by being told that
 	// a game needs a main.ghost.
 	if err != nil {
-		return "", "", fmt.Errorf("no such file or directory: %s\n\nRun `lumen -h` for usage", target)
+		raised := fault.New(fault.System, "there is no such file or directory as `%s`", target)
+
+		if suggestion, ok := engine.NearestName(filepath.Base(target), siblings(target)); ok {
+			return "", "", "", raised.WithHelp("did you mean `%s`?", filepath.Join(filepath.Dir(target), suggestion))
+		}
+
+		return "", "", "", raised.WithHelp("run `lumen -h` for usage")
 	}
 
 	// A game is usually a folder with a main.ghost in it.
 	if info.IsDir() {
-		return readEntry(filepath.Join(target, "main.ghost"))
+		entry := filepath.Join(target, "main.ghost")
+
+		return readEntry(entry, entry)
 	}
 
-	return readEntry(target)
+	return readEntry(target, target)
 }
 
-// readEntry reads an entry file and returns it with the directory it lives in,
-// which is what asset and import paths resolve against.
-func readEntry(file string) (string, string, error) {
+// siblings lists what is actually in the folder a missing path was looked for
+// in, so a mistyped game folder can be answered with the one next to it.
+func siblings(target string) []string {
+	entries, err := os.ReadDir(filepath.Dir(target))
+
+	if err != nil {
+		return nil
+	}
+
+	names := make([]string, 0, len(entries))
+
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+
+	return names
+}
+
+// readEntry reads an entry file and returns it with the name reports should
+// quote it under and the directory it lives in, which is what asset and import
+// paths resolve against.
+func readEntry(file string, name string) (string, string, string, *fault.Fault) {
 	contents, err := os.ReadFile(file)
 
 	if err != nil {
 		if strings.HasSuffix(file, "main.ghost") {
-			return "", "", fmt.Errorf("could not read %s: a game needs a main.ghost", file)
+			return "", "", "", fault.New(fault.System, "`%s` could not be read: %s", file, err).
+				WithHelp("a game is a folder with a main.ghost in it, and that is the file Lumen starts from")
 		}
 
-		return "", "", fmt.Errorf("could not read %s: %w", file, err)
+		return "", "", "", fault.New(fault.System, "`%s` could not be read: %s", file, err)
 	}
 
 	directory, err := filepath.Abs(filepath.Dir(file))
 
 	if err != nil {
-		return "", "", err
+		return "", "", "", fault.New(fault.System, "`%s` could not be resolved: %s", file, err)
 	}
 
-	return string(contents), directory, nil
+	return string(contents), name, directory, nil
 }
 
 func showHelp() {

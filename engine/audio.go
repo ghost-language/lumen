@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"ghostlang.org/x/ghost/object"
+	"ghostlang.org/x/ghost/token"
 	"ghostlang.org/x/ghost/value"
 	"github.com/veandco/go-sdl2/mix"
 )
@@ -95,10 +96,10 @@ func (source *Source) Type() object.Type {
 }
 
 // Method defines the set of methods available on source objects.
-func (source *Source) Method(method string, args []object.Object) (object.Object, bool) {
+func (source *Source) Method(method string, tok token.Token, args []object.Object) (object.Object, bool) {
 	switch method {
 	case "play":
-		return source.play(args)
+		return source.play(tok, args)
 	case "stop":
 		return source.stop()
 	case "pause":
@@ -110,25 +111,25 @@ func (source *Source) Method(method string, args []object.Object) (object.Object
 	case "isPaused":
 		return &object.Boolean{Value: source.isPaused()}, true
 	case "setLooping":
-		return source.setLooping(args)
+		return source.setLooping(tok, args)
 	case "isLooping":
 		return &object.Boolean{Value: source.Looping}, true
 	case "setVolume":
-		return source.setVolume(args)
+		return source.setVolume(tok, args)
 	case "getVolume":
 		return object.NewFloat(source.Volume), true
 	case "fadeIn":
-		return source.fadeIn(args)
+		return source.fadeIn(tok, args)
 	case "fadeOut":
-		return source.fadeOut(args)
+		return source.fadeOut(tok, args)
 	case "setPanning":
-		return source.setPanning(args)
+		return source.setPanning(tok, args)
 	case "setPosition":
-		return source.setPosition(args)
+		return source.setPosition(tok, args)
 	case "clearEffects":
 		return source.clearEffects()
 	case "clone":
-		return source.clone()
+		return source.clone(tok)
 	case "toString":
 		return &object.String{Value: source.String()}, true
 	}
@@ -141,7 +142,7 @@ func (source *Source) Method(method string, args []object.Object) (object.Object
 
 // play starts the source. Static sources start a new overlapping playback each
 // time; streaming sources restart from the beginning.
-func (source *Source) play(args []object.Object) (object.Object, bool) {
+func (source *Source) play(tok token.Token, args []object.Object) (object.Object, bool) {
 	loops := 0
 
 	if source.Looping {
@@ -150,7 +151,7 @@ func (source *Source) play(args []object.Object) (object.Object, bool) {
 
 	if source.Streaming {
 		if err := source.Music.Play(loops); err != nil {
-			return object.NewError("source.play() %s", err), true
+			return SystemFailure("source.play", tok, err), true
 		}
 
 		mix.VolumeMusic(source.mixVolume())
@@ -171,7 +172,7 @@ func (source *Source) play(args []object.Object) (object.Object, bool) {
 	channel, err := source.Chunk.Play(-1, loops)
 
 	if err != nil {
-		return object.NewError("source.play() %s", err), true
+		return SystemFailure("source.play", tok, err), true
 	}
 
 	source.channel = channel
@@ -238,25 +239,29 @@ func (source *Source) resume() (object.Object, bool) {
 
 // setLooping controls whether playback repeats. It takes effect the next time
 // the source is played.
-func (source *Source) setLooping(args []object.Object) (object.Object, bool) {
-	if len(args) != 1 {
-		return object.NewError("source.setLooping() expects 1 argument. got=%d", len(args)), true
+func (source *Source) setLooping(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := Arity("source.setLooping", tok, args, 1); err != nil {
+		return err, true
 	}
 
-	looping, ok := args[0].(*object.Boolean)
+	looping, err := Boolean("source.setLooping", tok, args, 0)
 
-	if !ok {
-		return object.NewError("source.setLooping() expects a boolean. got=%s", args[0].Type()), true
+	if err != nil {
+		return err, true
 	}
 
-	source.Looping = looping.Value
+	source.Looping = looping
 
 	return value.NULL, true
 }
 
 // setVolume sets this source's volume between 0 and 1.
-func (source *Source) setVolume(args []object.Object) (object.Object, bool) {
-	volume, err := Float("source.setVolume", args, 0)
+func (source *Source) setVolume(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := Arity("source.setVolume", tok, args, 1); err != nil {
+		return err, true
+	}
+
+	volume, err := Number("source.setVolume", tok, args, 0)
 
 	if err != nil {
 		return err, true
@@ -276,8 +281,12 @@ func (source *Source) setVolume(args []object.Object) (object.Object, bool) {
 }
 
 // fadeIn starts playback, ramping the volume up over the given seconds.
-func (source *Source) fadeIn(args []object.Object) (object.Object, bool) {
-	seconds, err := Float("source.fadeIn", args, 0)
+func (source *Source) fadeIn(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := Arity("source.fadeIn", tok, args, 1); err != nil {
+		return err, true
+	}
+
+	seconds, err := Number("source.fadeIn", tok, args, 0)
 
 	if err != nil {
 		return err, true
@@ -293,7 +302,7 @@ func (source *Source) fadeIn(args []object.Object) (object.Object, bool) {
 
 	if source.Streaming {
 		if err := source.Music.FadeIn(loops, milliseconds); err != nil {
-			return object.NewError("source.fadeIn() %s", err), true
+			return SystemFailure("source.fadeIn", tok, err), true
 		}
 
 		mix.VolumeMusic(source.mixVolume())
@@ -307,7 +316,7 @@ func (source *Source) fadeIn(args []object.Object) (object.Object, bool) {
 	channel, chunkErr := source.Chunk.FadeIn(-1, loops, milliseconds)
 
 	if chunkErr != nil {
-		return object.NewError("source.fadeIn() %s", chunkErr), true
+		return SystemFailure("source.fadeIn", tok, chunkErr), true
 	}
 
 	source.channel = channel
@@ -318,8 +327,12 @@ func (source *Source) fadeIn(args []object.Object) (object.Object, bool) {
 }
 
 // fadeOut ramps the volume down over the given seconds and then stops.
-func (source *Source) fadeOut(args []object.Object) (object.Object, bool) {
-	seconds, err := Float("source.fadeOut", args, 0)
+func (source *Source) fadeOut(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := Arity("source.fadeOut", tok, args, 1); err != nil {
+		return err, true
+	}
+
+	seconds, err := Number("source.fadeOut", tok, args, 0)
 
 	if err != nil {
 		return err, true
@@ -344,22 +357,22 @@ func (source *Source) fadeOut(args []object.Object) (object.Object, bool) {
 
 // setPanning places the sound in the stereo field directly: two volumes between
 // 0 and 1, one per speaker. source.setPanning(1, 0) is hard left.
-func (source *Source) setPanning(args []object.Object) (object.Object, bool) {
-	if len(args) != 2 {
-		return object.NewError("source.setPanning() expects 2 arguments. got=%d", len(args)), true
+func (source *Source) setPanning(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := Arity("source.setPanning", tok, args, 2); err != nil {
+		return err, true
 	}
 
 	if source.Streaming {
-		return object.NewError("source.setPanning() is only available for 'static' sources"), true
+		return streamingOnly("source.setPanning", tok), true
 	}
 
-	left, err := Float("source.setPanning", args, 0)
+	left, err := Number("source.setPanning", tok, args, 0)
 
 	if err != nil {
 		return err, true
 	}
 
-	right, err := Float("source.setPanning", args, 1)
+	right, err := Number("source.setPanning", tok, args, 1)
 
 	if err != nil {
 		return err, true
@@ -380,22 +393,22 @@ func (source *Source) setPanning(args []object.Object) (object.Object, bool) {
 // listener) to 1 (as far away as the mix allows). It is the convenient form for
 // world sounds, where a game knows where a thing is but not what that means in
 // terms of speaker volumes.
-func (source *Source) setPosition(args []object.Object) (object.Object, bool) {
-	if len(args) != 2 {
-		return object.NewError("source.setPosition() expects 2 arguments. got=%d", len(args)), true
+func (source *Source) setPosition(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := Arity("source.setPosition", tok, args, 2); err != nil {
+		return err, true
 	}
 
 	if source.Streaming {
-		return object.NewError("source.setPosition() is only available for 'static' sources"), true
+		return streamingOnly("source.setPosition", tok), true
 	}
 
-	angle, err := Float("source.setPosition", args, 0)
+	angle, err := Number("source.setPosition", tok, args, 0)
 
 	if err != nil {
 		return err, true
 	}
 
-	distance, err := Float("source.setPosition", args, 1)
+	distance, err := Number("source.setPosition", tok, args, 1)
 
 	if err != nil {
 		return err, true
@@ -450,9 +463,9 @@ func (source *Source) applySpatial() {
 
 // clone returns an independent handle to the same sound, letting one effect
 // play several overlapping copies at different volumes.
-func (source *Source) clone() (object.Object, bool) {
+func (source *Source) clone(tok token.Token) (object.Object, bool) {
 	if source.Streaming {
-		return object.NewError("source.clone() is only available for 'static' sources"), true
+		return streamingOnly("source.clone", tok), true
 	}
 
 	clone := &Source{
@@ -521,6 +534,10 @@ func (source *Source) Release() {
 	}
 }
 
+// SourceKindNames are the ways a game says how a sound should be decoded, in
+// the order a message listing them should read.
+var SourceKindNames = []string{"static", "stream"}
+
 // SourceKindFromName maps the source kind a game names onto the streaming flag.
 func SourceKindFromName(name string) (bool, bool) {
 	switch strings.ToLower(name) {
@@ -552,4 +569,13 @@ func clamp(value, low, high float64) float64 {
 	}
 
 	return value
+}
+
+// streamingOnly reports a method that a streamed source cannot answer. Panning,
+// positioning, and cloning all work on a decoded chunk, and a stream does not
+// have one — so the fix is never to the arguments, it is to how the source was
+// loaded, and the message says so.
+func streamingOnly(name string, tok token.Token) *object.Error {
+	return State(name, tok, "is only available for `static` sources").
+		WithHelp("load the sound with `audio.newSource(path)` instead of `audio.newSource(path, 'stream')`")
 }

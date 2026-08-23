@@ -2,6 +2,12 @@ package engine
 
 import "github.com/veandco/go-sdl2/sdl"
 
+// MouseButtonNames are the button names a game writes, in the order a message
+// listing them should read. The numeric aliases below are left out: they are
+// there for code that reads better with them, not as a second spelling for a
+// reader to choose between.
+var MouseButtonNames = []string{"left", "middle", "right", "x1", "x2"}
+
 // MouseButtonMask maps the button names a game uses onto SDL's button bitmask.
 func MouseButtonMask(button string) (uint32, bool) {
 	switch button {

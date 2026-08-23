@@ -1,4 +1,4 @@
-.PHONY: build release run clean examples fmt vet check
+.PHONY: build release run clean examples fmt vet test check
 
 # Build for the host platform. Lumen links against SDL2 through cgo, so a build
 # always targets the machine it runs on unless a cross-compiler is set up.
@@ -33,7 +33,12 @@ fmt:
 vet:
 	go vet ./...
 
-check: fmt vet examples
+# The engine's tests open a window through SDL's dummy driver, so they run on a
+# headless machine as well as a desk.
+test:
+	SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy go test ./...
+
+check: fmt vet test examples
 
 clean:
 	@rm -rf dist/lumen dist/lumen.exe

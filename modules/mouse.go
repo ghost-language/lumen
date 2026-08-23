@@ -48,7 +48,7 @@ func mouseIsVisibleMethod(scope *object.Scope, tok token.Token, args ...object.O
 	state, err := sdl.ShowCursor(sdl.QUERY)
 
 	if err != nil {
-		return object.NewError("%d:%d: runtime error: mouse.isVisible() %s", tok.Line, tok.Column, err)
+		return engine.SystemFailure("mouse.isVisible", tok, err)
 	}
 
 	return &object.Boolean{Value: state == sdl.ENABLE}
@@ -111,7 +111,8 @@ func mouseGetWorldPositionMethod(scope *object.Scope, tok token.Token, args ...o
 	inverse, ok := engine.Lumen.Graphics.Transform().Inverse()
 
 	if !ok {
-		return object.NewError("%d:%d: runtime error: mouse.getWorldPosition() cannot invert the current transform", tok.Line, tok.Column)
+		return engine.Value("mouse.getWorldPosition", tok, "cannot undo the current transform").
+			WithHelp("something has been scaled to zero, so there is no way back from a screen position to a world one")
 	}
 
 	// The transform maps the game's coordinates onto the renderer's pixels, so
@@ -193,7 +194,7 @@ func buttonState(name string, tok token.Token, args []object.Object, predicate f
 	mask, ok := engine.MouseButtonMask(button)
 
 	if !ok {
-		return object.NewError("%d:%d: runtime error: %s() does not recognise the button '%s'", tok.Line, tok.Column, name, button)
+		return engine.Choice(name, tok, button, engine.MouseButtonNames...)
 	}
 
 	return &object.Boolean{Value: predicate(engine.Lumen.CurrentMouseState, engine.Lumen.PreviousMouseState, mask)}

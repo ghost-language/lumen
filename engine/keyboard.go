@@ -35,6 +35,28 @@ func Scancode(name string) (sdl.Scancode, bool) {
 	return scancode, true
 }
 
+// KeyNames lists every key name SDL will answer to on this machine.
+//
+// It is walked only when a name has already failed to resolve, so the cost of
+// asking SDL for five hundred names is paid once, on the way to telling someone
+// they wrote `spcae`. Names that SDL has no name for are skipped, which is most
+// of the scancode space.
+func KeyNames() []string {
+	names := make([]string, 0, 128)
+
+	for scancode := sdl.Scancode(0); scancode < sdl.NUM_SCANCODES; scancode++ {
+		name := sdl.GetScancodeName(scancode)
+
+		if name == "" {
+			continue
+		}
+
+		names = append(names, name)
+	}
+
+	return names
+}
+
 // IsKeyDown reports whether a key is held this frame.
 func (engine *Engine) IsKeyDown(scancode sdl.Scancode) bool {
 	if int(scancode) >= len(engine.CurrentKeyboardState) {

@@ -58,7 +58,7 @@ func colorRgbMethod(scope *object.Scope, tok token.Token, args ...object.Object)
 		component, ok := args[index].(*object.Number)
 
 		if !ok {
-			return object.NewError("%d:%d: runtime error: color.rgb() expects number components. argument %d is %s", tok.Line, tok.Column, index+1, args[index].Type())
+			return engine.Mistyped("color.rgb", tok, index, "a number", args[index])
 		}
 
 		if index == 3 {
@@ -105,7 +105,8 @@ func colorHexMethod(scope *object.Scope, tok token.Token, args ...object.Object)
 	}
 
 	if len(hex) != 6 && len(hex) != 8 {
-		return object.NewError("%d:%d: runtime error: color.hex() expects a 3, 4, 6, or 8 digit hex value. got=%s", tok.Line, tok.Column, given)
+		return engine.Value("color.hex", tok, "expects a 3, 4, 6, or 8 digit hex value, got `%s`", given).
+			WithHelp("colors are written as `#f0a`, `#f0ac`, `#ff00aa`, or `#ff00aacc`")
 	}
 
 	components := make([]uint8, 0, 4)
@@ -114,7 +115,8 @@ func colorHexMethod(scope *object.Scope, tok token.Token, args ...object.Object)
 		component, parseErr := strconv.ParseUint(hex[index:index+2], 16, 8)
 
 		if parseErr != nil {
-			return object.NewError("%d:%d: runtime error: color.hex() could not parse '%s'", tok.Line, tok.Column, given)
+			return engine.Value("color.hex", tok, "cannot read `%s` as a hex color", given).
+				WithHelp("every digit has to be 0-9 or a-f")
 		}
 
 		components = append(components, uint8(component))

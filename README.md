@@ -590,6 +590,93 @@ the module instead of the value. Name them `bodyFont`, `sprite`, and so on.
 **`default` is a keyword.** It cannot be used as a method name, which is why the
 built-in font is `font.system(size)`.
 
+## When something goes wrong
+
+A game runs in its own window, and often on a machine nobody started it from a
+terminal on. So every failure is reported twice: once to the console, and once
+into the window, where whoever is looking at the game will actually see it.
+
+Both reports say the same things in the same order — what sort of failure it is,
+what happened, where, the line it happened on with the offending part marked,
+what was in flight at the time, and what to do about it.
+
+```
+argument error: `canvas.print()` expects argument 1 to be a string, got number
+ --> main.ghost:12:5
+   |
+12 |     canvas.print(score, 10, 10)
+   |     ^^^^^^^^^^^^
+   |
+   = in drawScore(), called at main.ghost:30:3
+   = in draw()
+   = help: did you mean `text(score)`?
+```
+
+The window shows that report on an error screen, and the game holds still on it:
+
+| Key | What it does |
+| --- | --- |
+| `esc` or `q` | close the game |
+| `enter` or `space` | carry on, if carrying on is possible |
+| `c` | copy the report to the clipboard |
+
+Carrying on is offered for a failure inside `update()`, `draw()`, or an input
+callback — one bad frame is worth watching past. It is not offered for a failure
+in `load()` or in the game's source, because neither ever built the state every
+later frame reads. A failure carried on past is not stopped for again: it is
+counted in the console instead, so the same broken frame cannot bury everything
+above it.
+
+While the error screen is up, no game code runs at all — not `update()`, not
+`draw()`, and not the input callbacks, so the keys above always belong to the
+error screen even in a game that has bound them.
+
+### What the kinds mean
+
+The first two words say what sort of mistake it is before the sentence explains
+it, and they are Ghost's own kinds, used the same way:
+
+| Kind | What it means |
+| --- | --- |
+| `syntax error` | source that could not be read |
+| `name error` | a reference to something that was never defined |
+| `type error` | an operation applied to the wrong sort of value |
+| `argument error` | a call whose arguments do not fit what it is calling |
+| `index error` | a subscript outside what it indexes — a frame the sheet does not have, a pixel outside the image |
+| `value error` | a value of the right type the operation cannot accept — a negative size, a mode that does not exist |
+| `property error` | a member the value does not have |
+| `system error` | the world outside the game refusing: a missing asset, a file that will not open |
+| `internal error` | a bug in Lumen or Ghost, with a note asking for it to be reported |
+
+Where Lumen is holding the answer, it offers it. A misspelled asset name is
+answered with the file sitting next to it, and a misremembered mode, key, button,
+or axis name with the nearest real one:
+
+```
+system error: `image.load()` could not load `playr.png`: No such file or directory
+ --> main.ghost:2:20
+  |
+2 |     player = image.load("playr.png")
+  |                    ^^^^
+  |
+  = in load()
+  = help: did you mean `player.png`?
+```
+
+### Running without a window
+
+A game run headlessly — in CI, in a build script, over ssh — has a window nobody
+can see and no way to dismiss what is on it, so Lumen writes the report to the
+console and stops rather than holding a window open that nothing will ever
+close. A run that ended on a failure exits non-zero.
+
+Console reports are colored when the terminal can show it, and follow the usual
+switches: `NO_COLOR`, `CLICOLOR=0`, `FORCE_COLOR`, `CLICOLOR_FORCE`.
+
+Set `LUMEN_DEBUG=1` to attach the Go stack to an `internal error`. It is only
+worth doing when filing a bug: it says nothing about the game, and everything
+about where Lumen broke.
+
 ## Examples
 
 `make run EXAMPLE=<name>`, or `lumen examples/<name>`.
@@ -633,22 +720,17 @@ is no way to build a Windows executable from a Mac. Shipping to three platforms
 today means building on three platforms. Until that is solved with CI that
 builds and fuses per platform, "shippable" has an asterisk on it.
 
-**A test suite.** There is none, for the engine or for Ghost games. The engine's
-correctness currently rests on running the examples and looking at them. The
-pieces to fix that already exist — SDL's dummy video driver runs the whole engine
-headless, and `canvas.screenshot()` can capture a frame — so golden-image tests
-of the drawing paths are reachable, and worth having before the module surface
-grows further.
+**A test suite.** What a failure says is tested; what a frame looks like is not.
+The engine's drawing correctness still rests on running the examples and looking
+at them. The pieces to fix that already exist — SDL's dummy video driver runs the
+whole engine headless, and `canvas.screenshot()` can capture a frame — so
+golden-image tests of the drawing paths are reachable, and worth having before
+the module surface grows further.
 
 **Asset hot-reloading.** Changing a sprite or a line of dialogue means restarting
 the game. For a tool people iterate in, watching the game directory and
 reloading changed images, fonts, and sounds is among the highest-value things
 left.
-
-**Error recovery.** A runtime error in `draw()` is reported and the frame is
-abandoned. That is right for a released game and wrong for one being written: an
-error screen showing the message, the line, and a stack would beat reading
-stderr behind the window.
 
 **Text input polish.** The pieces are there — `keyboard.startTextInput()` and the
 `textinput` callback — but every game that wants a name entry field has to build

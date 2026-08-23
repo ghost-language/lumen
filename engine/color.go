@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"ghostlang.org/x/ghost/object"
+	"ghostlang.org/x/ghost/token"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -44,7 +45,7 @@ func (color *Color) Type() object.Type {
 }
 
 // Method defines the set of methods available on color objects.
-func (color *Color) Method(method string, args []object.Object) (object.Object, bool) {
+func (color *Color) Method(method string, tok token.Token, args []object.Object) (object.Object, bool) {
 	switch method {
 	case "getRed":
 		return object.NewInt(int64(color.Red)), true
@@ -57,9 +58,9 @@ func (color *Color) Method(method string, args []object.Object) (object.Object, 
 	case "toHex":
 		return &object.String{Value: color.Hex()}, true
 	case "withAlpha":
-		return color.withAlpha(args)
+		return color.withAlpha(tok, args)
 	case "lerp":
-		return color.lerp(args)
+		return color.lerp(tok, args)
 	case "toString":
 		return &object.String{Value: color.String()}, true
 	}
@@ -76,39 +77,39 @@ func (color *Color) Hex() string {
 // Object methods
 
 // withAlpha returns a copy of the color with a replaced alpha component.
-func (color *Color) withAlpha(args []object.Object) (object.Object, bool) {
-	if len(args) != 1 {
-		return object.NewError("color.withAlpha() expects 1 argument. got=%d", len(args)), true
+func (color *Color) withAlpha(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := Arity("color.withAlpha", tok, args, 1); err != nil {
+		return err, true
 	}
 
-	alpha, ok := args[0].(*object.Number)
+	alpha, err := Argument("color.withAlpha", tok, args, 0, "a number", object.NUMBER)
 
-	if !ok {
-		return object.NewError("color.withAlpha() expects a number"), true
+	if err != nil {
+		return err, true
 	}
 
-	return NewColor(color.Red, color.Green, color.Blue, ColorAlpha(alpha)), true
+	return NewColor(color.Red, color.Green, color.Blue, ColorAlpha(alpha.(*object.Number))), true
 }
 
 // lerp blends the color toward another color by the given amount (0-1).
-func (color *Color) lerp(args []object.Object) (object.Object, bool) {
-	if len(args) != 2 {
-		return object.NewError("color.lerp() expects 2 arguments. got=%d", len(args)), true
+func (color *Color) lerp(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := Arity("color.lerp", tok, args, 2); err != nil {
+		return err, true
 	}
 
-	target, ok := args[0].(*Color)
+	target, err := ColorArgument("color.lerp", tok, args, 0)
 
-	if !ok {
-		return object.NewError("color.lerp() expects a color as its first argument"), true
+	if err != nil {
+		return err, true
 	}
 
-	amount, ok := args[1].(*object.Number)
+	amount, err := Number("color.lerp", tok, args, 1)
 
-	if !ok {
-		return object.NewError("color.lerp() expects a number as its second argument"), true
+	if err != nil {
+		return err, true
 	}
 
-	blend := math.Max(0, math.Min(1, amount.Float64()))
+	blend := math.Max(0, math.Min(1, amount))
 
 	mix := func(from, to uint8) uint8 {
 		return uint8(math.Round(float64(from) + (float64(to)-float64(from))*blend))
