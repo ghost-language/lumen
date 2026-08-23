@@ -245,6 +245,17 @@ func SourceArgument(name string, tok token.Token, args []object.Object, index in
 	return value.(*Source), nil
 }
 
+// SpritesheetArgument reads an argument that has to be a spritesheet.
+func SpritesheetArgument(name string, tok token.Token, args []object.Object, index int) (*Spritesheet, *object.Error) {
+	value, err := Argument(name, tok, args, index, "a spritesheet", SPRITESHEET)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return value.(*Spritesheet), nil
+}
+
 // Argument reads and type-checks one argument. Everything above is a thin
 // wrapper over it, which is what keeps the two messages it can produce the only
 // two messages in Lumen for a bad argument.

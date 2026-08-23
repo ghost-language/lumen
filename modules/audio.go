@@ -13,7 +13,6 @@ var AudioMethods = map[string]*object.LibraryFunction{}
 var AudioProperties = map[string]*object.LibraryProperty{}
 
 func init() {
-	modules.RegisterMethod(AudioMethods, "newSource", audioNewSourceMethod)
 	modules.RegisterMethod(AudioMethods, "play", audioPlayMethod)
 	modules.RegisterMethod(AudioMethods, "stop", audioStopMethod)
 	modules.RegisterMethod(AudioMethods, "pause", audioPauseMethod)
@@ -22,16 +21,17 @@ func init() {
 	modules.RegisterMethod(AudioMethods, "getVolume", audioGetVolumeMethod)
 }
 
-// audioNewSourceMethod loads a sound. The second argument picks how it is
-// decoded: 'static' holds the whole sound in memory and suits short effects that
-// need to overlap, while 'stream' decodes as it plays and suits music. Static is
-// the default because most sounds in a game are effects.
-func audioNewSourceMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
-	if err := arityRange("audio.newSource", tok, args, 1, 2); err != nil {
+// sourceConstructor loads a sound: new Source('effect.wav'). The second
+// argument picks how it is decoded: 'static' holds the whole sound in memory
+// and suits short effects that need to overlap, while 'stream' decodes as it
+// plays and suits music. Static is the default because most sounds in a game
+// are effects.
+func sourceConstructor(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if err := arityRange("Source", tok, args, 1, 2); err != nil {
 		return err
 	}
 
-	path, err := text("audio.newSource", tok, args, 0)
+	path, err := text("Source", tok, args, 0)
 
 	if err != nil {
 		return err
@@ -40,7 +40,7 @@ func audioNewSourceMethod(scope *object.Scope, tok token.Token, args ...object.O
 	streaming := false
 
 	if len(args) == 2 {
-		kind, err := text("audio.newSource", tok, args, 1)
+		kind, err := text("Source", tok, args, 1)
 
 		if err != nil {
 			return err
@@ -49,7 +49,7 @@ func audioNewSourceMethod(scope *object.Scope, tok token.Token, args ...object.O
 		parsed, ok := engine.SourceKindFromName(kind)
 
 		if !ok {
-			return engine.Choice("audio.newSource", tok, kind, engine.SourceKindNames...)
+			return engine.Choice("Source", tok, kind, engine.SourceKindNames...)
 		}
 
 		streaming = parsed
@@ -60,7 +60,7 @@ func audioNewSourceMethod(scope *object.Scope, tok token.Token, args ...object.O
 	source, loadErr := engine.NewSource(resolved, streaming)
 
 	if loadErr != nil {
-		return engine.AssetFailure("audio.newSource", tok, path, resolved, loadErr)
+		return engine.AssetFailure("Source", tok, path, resolved, loadErr)
 	}
 
 	return source

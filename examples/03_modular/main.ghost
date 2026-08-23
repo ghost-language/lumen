@@ -1,3 +1,4 @@
+import "lumen:canvas"
 import Player from 'player'
 
 player = new Player()

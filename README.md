@@ -8,10 +8,13 @@ takes its shape from [LÖVE](https://love2d.org): the same game loop, the same
 transform stack, the same drawing model.
 
 ```ghost
+import "lumen:keyboard"
+import { Image } from "lumen:image"
+
 game = { x: 100, y: 100 }
 
 function load() {
-  game.sprite = image.load('resources/player.png')
+  game.sprite = new Image('resources/player.png')
 }
 
 function update(dt) {
@@ -62,7 +65,7 @@ lumen                 # run the main.ghost beside the binary, or in the
                       # working directory
 ```
 
-Asset paths (`image.load`, `font.load`, `audio.newSource`,
+Asset paths (`new Image(path)`, `new Font(path, size)`, `new Source(path)`,
 `filesystem.readAsset`) resolve relative to the directory the entry file is in.
 
 ## Shipping a game
@@ -87,7 +90,7 @@ other people's machines wants a real identity and notarisation on top.
 
 A packaged game is unpacked into a cache directory the first time it runs, and
 run from there. That is deliberate rather than incidental: Ghost resolves
-`import` and its own `io` module against the real filesystem, so serving Lumen's
+`import` and its own `file` module against the real filesystem, so serving Lumen's
 loaders out of the zip while Ghost's imports still needed real paths would give
 a game two disagreeing views of its own files. Unpacking costs a moment on first
 launch and keeps every path in the system pointing at the same thing. Archives
@@ -240,7 +243,34 @@ color.white.withAlpha(0.25)
 The current color tints everything drawn, images and text included. Set it back
 to `color.white` before drawing sprites you do not want tinted.
 
-## Modules
+## Modules and imports
+
+Ghost's standard library is import-only — `console` and `type` are the only
+names reachable without one — and Lumen's own modules follow the same rule,
+registered under their own `lumen:` scheme rather than borrowed from Ghost's
+`ghost:`. A game imports whatever it uses, from whichever scheme it lives
+under:
+
+```ghost
+import "ghost:math"                    // Ghost's own standard library
+import "lumen:canvas"                  // the whole module, bound to `canvas`
+import "lumen:canvas" as gfx           // aliased
+import { setColor, print } from "lumen:canvas"   // named imports
+```
+
+A class a module exports — `Image`, `Spritesheet`, `Animation`, `Source`,
+`Font`, `Target`, `Quad` — is pulled in the same way and `new`-ed exactly like
+a Ghost-defined class:
+
+```ghost
+import { Image } from "lumen:image"
+
+sprite = new Image('resources/player.png')
+```
+
+The reference below names, for each module, which scheme it lives under —
+`lumen:name` for everything in this section, `ghost:name` for Ghost's own
+`math`, `random`, `json`, and the rest — and which classes it exports, if any.
 
 ### `canvas`
 
@@ -267,10 +297,12 @@ Drawing, the drawing state, and the transform stack.
 `rotate(radians)`, `scale(x, [y])`, `shear(x, y)`, `toScreen(x, y)`,
 `toWorld(x, y)`, `getVisible()`.
 
-**Targets** — `newTarget(w, h)`, `setTarget([target])`,
-`newQuad(x, y, w, h)`, `screenshot(filename)`. Setting a target resets the
-transform, because a target is its own screen: (0, 0) is its own corner, not the
-window's. Clearing it restores the transform the window draws with.
+**Targets** — `setTarget([target])`, `screenshot(filename)`. Setting a target
+resets the transform, because a target is its own screen: (0, 0) is its own
+corner, not the window's. Clearing it restores the transform the window draws
+with. `new Target(w, h)` and `new Quad(x, y, w, h)` — see **Target** and
+**Quad** below — are exported classes, imported with
+`import { Target, Quad } from "lumen:canvas"`.
 
 **Properties** — `canvas.width`, `canvas.height` (of the render target when one
 is set, of the window otherwise).
@@ -284,21 +316,27 @@ Named colors: `black`, `white`, `transparent`, `red`, `green`, `blue`, `yellow`,
 
 ### `image`
 
-`load(path)`, `newQuad(x, y, w, h)`,
-`newSpritesheet(path, frameSize)` or `newSpritesheet(path, frameWidth, frameHeight)`.
+No free functions of its own — it exists to hold the classes below.
+`import { Image, Spritesheet, Animation } from "lumen:image"`.
 
-`load()` hands back the image already in memory when a path has been loaded
-before, so loading the same sheet from two places costs one texture.
+`new Image(path)` hands back the image already in memory when a path has been
+loaded before, so loading the same sheet from two places costs one texture.
+`new Spritesheet(path, frameSize)` or `new Spritesheet(path, frameWidth,
+frameHeight)`, and `new Animation(sheet, frames, secondsPerFrame,
+['loop'|'once'|'pingpong'])` — see **Image**, **Spritesheet**, and
+**Animation** below.
 
 ### `font`
 
-`load(path, size)`, `load(size)` or `system(size)` for the built-in font,
-`system()` for the current default.
+`system(size)` for the built-in font at a size, `system()` for the current
+default. `new Font(path, size)` or `new Font(size)` for the built-in font —
+see **Font** below; `import { Font } from "lumen:font"`.
 
 ### `audio`
 
-`newSource(path, ['static'|'stream'])`, `play(source)`, `stop([source])`,
-`pause()`, `resume()`, `setVolume(0-1)`, `getVolume()`.
+`play(source)`, `stop([source])`, `pause()`, `resume()`, `setVolume(0-1)`,
+`getVolume()`. `new Source(path, ['static'|'stream'])` — see **Source**
+below; `import { Source } from "lumen:audio"`.
 
 `'static'` decodes the whole sound up front and can overlap with itself — use it
 for effects. `'stream'` decodes while playing — use it for music. WAV, OGG, and
@@ -392,9 +430,9 @@ show all of it.
 ### `filesystem`
 
 Saved games belong in the player's own data directory, not next to the program:
-a game installed read-only cannot write to its own folder. Ghost's built-in `io`
-module reads and writes next to the source, which is right for assets and wrong
-for saves, so Lumen adds this.
+a game installed read-only cannot write to its own folder. Ghost's built-in
+`file` module reads and writes next to the source, which is right for assets
+and wrong for saves, so Lumen adds this.
 
 Saves land in `~/.local/share/lumen/<identity>` on Linux (honouring
 `XDG_DATA_HOME`), `~/Library/Application Support/lumen/<identity>` on macOS, and
@@ -426,7 +464,8 @@ only), `getPowerInfo()`.
 
 ### `math`
 
-Lumen extends Ghost's own `math` module rather than competing with it. Added:
+`import "ghost:math"` — this is Ghost's own module, not one of Lumen's.
+Lumen extends it rather than competing with it. Added:
 `floor`, `ceil`, `round`, `sqrt`, `pow`, `exp`, `log`, `sign`, `asin`, `acos`,
 `atan`, `atan2`, `degrees`, `radians`, `clamp(v, low, high)`,
 `lerp(from, to, amount)`, `distance(x1, y1, x2, y2)`, `angle(x1, y1, x2, y2)`,
@@ -437,6 +476,12 @@ Lumen extends Ghost's own `math` module rather than competing with it. Added:
 
 Ghost cannot expose properties on objects a host program defines, only methods,
 so these are all method calls.
+
+`Image`, `Spritesheet`, `Animation`, `Source`, `Font`, `Target`, and `Quad` are
+native classes: built and driven by Lumen, `new`-able exactly like a
+Ghost-defined class once imported from the module that exports them (noted
+under each one below). Everything else below is returned by a call rather than
+constructed directly — `color.rgb(...)` for a `Color`, and so on.
 
 ### Image
 
@@ -455,17 +500,16 @@ which lets collision or spawn data be baked into a map image.
 ### Spritesheet
 
 `draw(frame, x, y, [rotation, sx, sy, ox, oy])`,
-`newAnimation(frames, secondsPerFrame, ['loop'|'once'|'pingpong'])`,
 `getQuad(frame)`, `getImage()`, `getCount()`, `getColumns()`, `getRows()`,
 `getFrameWidth()`, `getFrameHeight()`, `getFrameDimensions()`.
 
 One image cut into a grid of equally sized frames, numbered left to right and
 top to bottom from zero. The quads are built once, when the sheet is made, so
-drawing a frame never allocates.
+drawing a frame never allocates. `import { Spritesheet } from "lumen:image"`.
 
 ```ghost
-sheet = image.newSpritesheet('characters.png', 16)   // square frames
-sheet = image.newSpritesheet('characters.png', 16, 24)
+sheet = new Spritesheet('characters.png', 16)   // square frames
+sheet = new Spritesheet('characters.png', 16, 24)
 sheet.draw(4, x, y)
 ```
 
@@ -480,7 +524,9 @@ sheets get cut from one file at different frame sizes.
 `getLength()`, `getSheet()`, `getDuration()`, `setDuration(n)`, `getSpeed()`,
 `setSpeed(n)`, `getMode()`, `setMode(name)`.
 
-A sequence of a sheet's frames played against a clock.
+A sequence of a sheet's frames played against a clock, built with
+`new Animation(sheet, frames, secondsPerFrame, ['loop'|'once'|'pingpong'])`;
+`import { Animation } from "lumen:image"`.
 
 **The clock is time, not frames drawn.** `secondsPerFrame` is what it says, so a
 walk cycle runs at the same speed on a machine managing 30 FPS as on one managing
@@ -488,7 +534,7 @@ walk cycle runs at the same speed on a machine managing 30 FPS as on one managin
 what two of the examples in this repository used to do.
 
 ```ghost
-walk = sheet.newAnimation([4, 5, 6, 7], 0.16)
+walk = new Animation(sheet, [4, 5, 6, 7], 0.16)
 
 function update(dt) {
   walk.update(dt)     // or walk.update() to use the last frame's time
@@ -512,7 +558,8 @@ already keeps its own clock can skip `update()` and call `seek(elapsed)` instead
 `getX()`, `getY()`, `getWidth()`, `getHeight()`, `setViewport(x, y, w, h)`.
 
 A quad is a rectangle of a texture. Building one per animation frame up front and
-reusing it beats allocating one per draw.
+reusing it beats allocating one per draw. `new Quad(x, y, w, h)`;
+`import { Quad } from "lumen:canvas"`.
 
 ### Font
 
@@ -520,6 +567,9 @@ reusing it beats allocating one per draw.
 `getWidth(text)`, `getHeight()`, `getLineHeight()`, `setLineHeight(n)`,
 `getAscent()`, `getDescent()`, `getBaseline()`, `getWrap(text, limit)`,
 `getSize()`.
+
+`new Font(path, size)` loads a TrueType font at a pixel size; `new Font(size)`
+returns Lumen's built-in font at that size. `import { Font } from "lumen:font"`.
 
 `getWidth()` is what centring text and sizing a dialogue box need. Rendered
 strings are cached, so drawing the same text every frame costs almost nothing;
@@ -536,6 +586,7 @@ text that changes every frame is evicted automatically.
 
 An off-screen surface. Draw into it with `canvas.setTarget(target)`, return to
 the window with `canvas.setTarget()`, then draw it like any image.
+`new Target(w, h)`; `import { Target } from "lumen:canvas"`.
 
 ### Source
 
@@ -543,6 +594,8 @@ the window with `canvas.setTarget()`, then draw it like any image.
 `setLooping(bool)`, `isLooping()`, `setVolume(0-1)`, `getVolume()`,
 `fadeIn(seconds)`, `fadeOut(seconds)`, `clone()`,
 `setPanning(left, right)`, `setPosition(angle, distance)`, `clearEffects()`.
+
+`new Source(path, ['static'|'stream'])`; `import { Source } from "lumen:audio"`.
 
 `setPanning` takes a volume per speaker, each 0 to 1, so `setPanning(1, 0)` is
 hard left. `setPosition` is the convenient form for a sound with a place in the
@@ -583,9 +636,12 @@ Split it into nested `if`s instead. A negative or out-of-range list index reads
 as `null` rather than raising, so the failure shows up later as "cannot read
 property of null".
 
-**Module names are global.** Naming a variable or parameter `font`, `image`,
-`color`, `canvas`, `window`, `timer`, `audio`, `system`, `math`, or `json` gets
-the module instead of the value. Name them `bodyFont`, `sprite`, and so on.
+**An imported name shadows anything else you'd call it.** If a file imports
+`"lumen:font"`, naming a variable or parameter `font` in that file hides the
+module for the rest of it. The same goes for a named class import — a file that
+imports `{ Image }` cannot also use `Image` as a variable name. Name them
+`bodyFont`, `sprite`, and so on; it only matters in the file that did the
+importing, since imports are not global.
 
 **`default` is a keyword.** It cannot be used as a method name, which is why the
 built-in font is `font.system(size)`.
@@ -653,10 +709,10 @@ answered with the file sitting next to it, and a misremembered mode, key, button
 or axis name with the nearest real one:
 
 ```
-system error: `image.load()` could not load `playr.png`: No such file or directory
+system error: `Image()` could not load `playr.png`: No such file or directory
  --> main.ghost:2:20
   |
-2 |     player = image.load("playr.png")
+2 |     player = new Image("playr.png")
   |                    ^^^^
   |
   = in load()
@@ -771,7 +827,7 @@ Lumen follows LÖVE's model but is not a port, and does not try to be.
   reach SDL. See **Drawing performance** below for what keeps that working.
 - Spritesheets and animations are engine objects. LÖVE leaves both to libraries
   like `anim8`; Lumen has no package ecosystem to leave them to, so
-  `image.newSpritesheet()` and `sheet.newAnimation()` ship with it.
+  `Spritesheet` and `Animation` ship with it as native classes.
 - Not implemented: shaders, particle systems, physics (Box2D), meshes, threads,
   video, and touch. Simple axis-aligned collision is a few lines of Ghost —
   `04_collision` and `60_rpg` both show it.

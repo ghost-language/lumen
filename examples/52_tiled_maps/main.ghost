@@ -1,3 +1,4 @@
+import "lumen:canvas"
 import Map from 'map'
 
 map = new Map('resources/map.json')

@@ -1,3 +1,8 @@
+import "lumen:canvas"
+import "lumen:color"
+import "lumen:timer"
+import "lumen:window"
+
 import * from 'ui'
 
 // The field heads-up display: the party's health at a glance, the purse, and an

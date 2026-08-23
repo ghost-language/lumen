@@ -1,6 +1,8 @@
+import { Image } from "lumen:image"
+
 class Spritesheet {
   constructor(path, size) {
-    this.sprite = image.load(path)
+    this.sprite = new Image(path)
     this.size = size
   }
 

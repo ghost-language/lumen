@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 
+	"ghostlang.org/x/ghost/fault"
 	"ghostlang.org/x/ghost/object"
 	"ghostlang.org/x/ghost/token"
 	"ghostlang.org/x/ghost/value"
@@ -86,6 +87,74 @@ func NewAnimation(sheet *Spritesheet, frames []int32, duration float64, mode Ani
 		speed:    1,
 		playing:  true,
 	}
+}
+
+// ParseAnimationArguments builds an animation over a sheet's frames from the
+// arguments a script passed to `new Animation(sheet, frames, duration[, mode])`
+// — everything after the sheet, which the caller has already read off args[0].
+func ParseAnimationArguments(name string, tok token.Token, sheet *Spritesheet, args []object.Object) (*Animation, *object.Error) {
+	list, err := List(name, tok, args, 1)
+
+	if err != nil {
+		return nil, err
+	}
+
+	frames := make([]int32, 0, len(list.Elements))
+
+	for index, element := range list.Elements {
+		number, ok := element.(*object.Number)
+
+		if !ok {
+			return nil, Error(fault.Argument, tok, "`%s` expects a list of frame numbers, and element %d is %s", Signature(name), index+1, TypeName(element))
+		}
+
+		frame := int32(number.Int64())
+
+		if frame < 0 || frame >= sheet.Count() {
+			return nil, sheet.outsideSheet(name, tok, frame)
+		}
+
+		frames = append(frames, frame)
+	}
+
+	if len(frames) == 0 {
+		return nil, Value(name, tok, "was given no frames to play").
+			WithHelp("an animation needs at least one frame, as in `new Animation(sheet, [0, 1, 2], 0.1)`")
+	}
+
+	duration, err := Number(name, tok, args, 2)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Zero is deliberately allowed: an animation of one frame held forever is
+	// how a still pose is written, and Frame() reads a duration of zero as
+	// exactly that. A negative one is not a pose, it is a mistake.
+	if duration < 0 {
+		return nil, Value(name, tok, "was given a frame duration of %g", duration).
+			WithHelp("a frame is held for a number of seconds; use 0 for a pose that never advances")
+	}
+
+	mode := AnimationLoop
+
+	if len(args) == 4 {
+		modeName, err := Text(name, tok, args, 3)
+
+		if err != nil {
+			return nil, err
+		}
+
+		parsed, valid := AnimationModeFromName(modeName)
+
+		if !valid {
+			return nil, Choice(name, tok, modeName, AnimationModeNames...)
+		}
+
+		mode = parsed
+	}
+
+	return NewAnimation(sheet, frames, duration, mode), nil
 }
 
 // Update advances the playhead by a number of seconds.

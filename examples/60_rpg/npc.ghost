@@ -1,3 +1,5 @@
+import "ghost:math"
+
 // An NPC stands on a tile and has lines of dialogue. An NPC with a `gives` entry
 // hands that item over the first time the player talks to it, and says something
 // different from then on.

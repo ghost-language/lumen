@@ -11,36 +11,36 @@ var FontMethods = map[string]*object.LibraryFunction{}
 var FontProperties = map[string]*object.LibraryProperty{}
 
 func init() {
-	modules.RegisterMethod(FontMethods, "load", fontLoadMethod)
 	modules.RegisterMethod(FontMethods, "system", fontSystemMethod)
 }
 
-// fontLoadMethod loads a TrueType font at a pixel size. Called with a size
-// alone it returns Lumen's built-in font, so a game that only wants readable
-// text at a chosen size never has to ship a font file to get one.
-func fontLoadMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+// fontConstructor loads a TrueType font at a pixel size: new Font('font.ttf', 16).
+// Called with a size alone, new Font(16), it returns Lumen's built-in font, so a
+// game that only wants readable text at a chosen size never has to ship a font
+// file to get one.
+func fontConstructor(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
 	if len(args) == 1 {
 		return fontSystemMethod(scope, tok, args...)
 	}
 
-	if err := arity("font.load", tok, args, 2); err != nil {
+	if err := arity("Font", tok, args, 2); err != nil {
 		return err
 	}
 
-	path, err := text("font.load", tok, args, 0)
+	path, err := text("Font", tok, args, 0)
 
 	if err != nil {
 		return err
 	}
 
-	size, err := integer("font.load", tok, args, 1)
+	size, err := integer("Font", tok, args, 1)
 
 	if err != nil {
 		return err
 	}
 
 	if size <= 0 {
-		return engine.Value("font.load", tok, "was asked for a font %d pixels tall", size).
+		return engine.Value("Font", tok, "was asked for a font %d pixels tall", size).
 			WithHelp("a font size is measured in pixels, so it has to be above zero")
 	}
 
@@ -49,7 +49,7 @@ func fontLoadMethod(scope *object.Scope, tok token.Token, args ...object.Object)
 	font, loadErr := engine.NewFont(resolved, int(size))
 
 	if loadErr != nil {
-		return engine.AssetFailure("font.load", tok, path, resolved, loadErr)
+		return engine.AssetFailure("Font", tok, path, resolved, loadErr)
 	}
 
 	return font

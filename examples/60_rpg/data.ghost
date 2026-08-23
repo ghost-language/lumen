@@ -1,3 +1,5 @@
+import "ghost:math"
+
 // Every item, spell, monster, and party member in the game, in one place.
 //
 // Ghost's maps iterate in an unspecified order, so anything the player sees as

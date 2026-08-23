@@ -1,3 +1,7 @@
+import "ghost:math"
+import "lumen:canvas"
+import "lumen:window"
+
 // The camera is just a transform: it translates the world so the target sits in
 // the middle of the screen, and scales it up so 16-pixel tiles are legible.
 // Everything drawn between attach() and detach() is in world coordinates.

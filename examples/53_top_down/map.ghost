@@ -1,3 +1,9 @@
+import "ghost:file"
+import "ghost:json"
+import "ghost:math"
+import "lumen:canvas"
+import { Spritesheet } from "lumen:image"
+
 class Map {
   constructor(filepath, root = 'resources') {
     this.root = root
@@ -8,7 +14,7 @@ class Map {
   }
 
   loadMap(filepath) {
-    data = io.read(filepath)
+    data = file.read(filepath)
 
     return json.decode(data)
   }
@@ -19,7 +25,7 @@ class Map {
     for (i = 0; i < this.map.tilesets.length(); i++) {
       tileset = this.map.tilesets[i]
       tilesets[tileset.name] = {
-        sheet: image.newSpritesheet(this.root + '/' + tileset.image, tileset.tilewidth),
+        sheet: new Spritesheet(this.root + '/' + tileset.image, tileset.tilewidth),
         firstgid: tileset.firstgid,
         lastgid: tileset.firstgid + tileset.tilecount,
         size: tileset.tilewidth

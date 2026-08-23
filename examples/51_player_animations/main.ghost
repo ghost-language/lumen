@@ -1,3 +1,5 @@
+import "lumen:canvas"
+import "lumen:window"
 import Player from 'player'
 
 // Scale the canvas by 4x

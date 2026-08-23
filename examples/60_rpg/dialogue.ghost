@@ -1,3 +1,9 @@
+import "ghost:math"
+import "lumen:canvas"
+import "lumen:color"
+import "lumen:font"
+import "lumen:window"
+
 // A dialogue box that reveals its text a character at a time, wraps to the width
 // of the box, and pages through several lines. It draws in screen space, so the
 // camera does not move it.

@@ -1,3 +1,9 @@
+import "ghost:math"
+import "lumen:canvas"
+import "lumen:color"
+import "lumen:joystick"
+import "lumen:keyboard"
+
 // Shared interface pieces: the framed window every panel sits in, a list menu
 // with a cursor, and the input helpers both use. Keeping them here means the
 // field menu, the battle, and the shop all behave the same way under the hands.
