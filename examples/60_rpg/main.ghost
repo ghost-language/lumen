@@ -12,6 +12,19 @@
 // that has to persist between frames therefore lives on `game`, a map, or on a
 // class instance.
 
+import "ghost:json"
+import "ghost:math"
+import "ghost:random"
+import "lumen:canvas"
+import "lumen:color"
+import "lumen:filesystem"
+import "lumen:font"
+import "lumen:joystick"
+import "lumen:lumen"
+import "lumen:timer"
+import "lumen:window"
+import { Spritesheet } from "lumen:image"
+
 import * from 'data'
 import * from 'ui'
 import Battle from 'battle'
@@ -73,7 +86,7 @@ function load() {
     ['Paths']
   )
 
-  game.characters = image.newSpritesheet('resources/characters.png', 16, 16)
+  game.characters = new Spritesheet('resources/characters.png', 16, 16)
 
   game.party = new Party(['aldric', 'sera', 'nell'])
   game.party.add('herb', 3)
@@ -251,7 +264,7 @@ function checkEncounter() {
   }
 
   game.player.walked = 0
-  game.encounterAt = math.random(160, 420)
+  game.encounterAt = random.random(160, 420)
 
   beginTransition('battle', rollEncounter())
 }
@@ -280,7 +293,7 @@ function rollEncounter() {
     return encounters[0].monsters
   }
 
-  roll = math.random() * total
+  roll = random.random() * total
 
   for (index = 0; index < available.length(); index++) {
     roll = roll - available[index].weight

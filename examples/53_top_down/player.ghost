@@ -1,3 +1,6 @@
+import "lumen:keyboard"
+import { Spritesheet, Animation } from "lumen:image"
+
 class Player {
   constructor(x = 0, y = 0) {
     this.x = x
@@ -12,7 +15,7 @@ class Player {
     this.direction = 'down'
 
     // The sheet slices the image into 16x16 frames once, up front.
-    this.sheet = image.newSpritesheet('resources/characters.png', this.size)
+    this.sheet = new Spritesheet('resources/characters.png', this.size)
 
     characters = [
       {
@@ -43,15 +46,15 @@ class Player {
     // Durations are in seconds per frame, so the walk cycle keeps its speed
     // whatever frame rate the machine manages. Zero holds a single still pose.
     this.animations = {
-      up: this.sheet.newAnimation(frames.up, 0.2),
-      right: this.sheet.newAnimation(frames.right, 0.2),
-      down: this.sheet.newAnimation(frames.down, 0.2),
-      left: this.sheet.newAnimation(frames.left, 0.2),
+      up: new Animation(this.sheet, frames.up, 0.2),
+      right: new Animation(this.sheet, frames.right, 0.2),
+      down: new Animation(this.sheet, frames.down, 0.2),
+      left: new Animation(this.sheet, frames.left, 0.2),
 
-      up_idle: this.sheet.newAnimation(frames.up_idle, 0),
-      right_idle: this.sheet.newAnimation(frames.right_idle, 0),
-      down_idle: this.sheet.newAnimation(frames.down_idle, 0),
-      left_idle: this.sheet.newAnimation(frames.left_idle, 0),
+      up_idle: new Animation(this.sheet, frames.up_idle, 0),
+      right_idle: new Animation(this.sheet, frames.right_idle, 0),
+      down_idle: new Animation(this.sheet, frames.down_idle, 0),
+      left_idle: new Animation(this.sheet, frames.left_idle, 0),
     }
   }
 

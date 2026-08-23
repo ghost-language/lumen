@@ -1,3 +1,6 @@
+import "lumen:canvas"
+import "lumen:color"
+import "lumen:keyboard"
 import Entity from 'entity'
 
 class Player extends Entity {

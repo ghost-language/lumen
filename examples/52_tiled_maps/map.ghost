@@ -1,3 +1,5 @@
+import "ghost:file"
+import "ghost:json"
 import Spritesheet from 'spritesheet'
 
 class Map {
@@ -10,7 +12,7 @@ class Map {
   }
 
   loadMap(filepath) {
-    data = io.read(filepath)
+    data = file.read(filepath)
 
     return json.decode(data)
   }

@@ -32,7 +32,16 @@ a `main.ghost` in it defining callbacks; Lumen drives them.
   types numbered above Ghost's own enum (`engine/types.go`).
 - **modules/** — the module layer a game calls: `canvas`, `window`, `image`,
   `font`, `audio`, `color`, `keyboard`, `mouse`, `joystick`, `timer`,
-  `filesystem`, `system`, `lumen`. Registered with Ghost in `modules.Register()`.
+  `filesystem`, `system`, `lumen`. Registered with Ghost in `modules.Register()`
+  under Lumen's own `lumen:` import scheme (`ghost.RegisterModuleForScheme`),
+  the same way Ghost's own standard library sits behind `ghost:` — a game
+  writes `import "lumen:canvas"`, not a bare `canvas.scale(...)`. Host resources
+  a script builds with `new` — `Image`, `Spritesheet`, `Animation`, `Source`,
+  `Font`, `Target`, `Quad` — are native classes (`ghost.RegisterClassForScheme`,
+  `object.NativeClass`/`Constructible`) rather than factory methods: `new
+  Image(path)`, not `image.load(path)`. The constructor functions live beside
+  the module they belong to (`modules/image.go`'s `imageConstructor`, and so
+  on) and are plain `object.GoFunction`s like any other library method.
 - **resources/** — what Lumen carries inside its own binary, currently the
   built-in font.
 

@@ -577,5 +577,5 @@ func clamp(value, low, high float64) float64 {
 // loaded, and the message says so.
 func streamingOnly(name string, tok token.Token) *object.Error {
 	return State(name, tok, "is only available for `static` sources").
-		WithHelp("load the sound with `audio.newSource(path)` instead of `audio.newSource(path, 'stream')`")
+		WithHelp("load the sound with `new Source(path)` instead of `new Source(path, 'stream')`")
 }

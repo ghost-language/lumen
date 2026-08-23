@@ -1,3 +1,7 @@
+import "ghost:json"
+import "ghost:math"
+import "lumen:filesystem"
+import { Spritesheet } from "lumen:image"
 
 // Tilemap loads a map exported from Tiled as JSON. Layers named in
 // `solidLayers` become collision: any tile placed on them blocks movement.
@@ -24,7 +28,7 @@ class Tilemap {
       tileset = tilesets[index]
 
       loaded.push({
-        sheet: image.newSpritesheet('resources/' + tileset.image, tileset.tilewidth, tileset.tileheight),
+        sheet: new Spritesheet('resources/' + tileset.image, tileset.tilewidth, tileset.tileheight),
         firstgid: tileset.firstgid,
         lastgid: tileset.firstgid + tileset.tilecount - 1
       })

@@ -1,3 +1,5 @@
+import "ghost:math"
+
 import * from 'data'
 
 // A Combatant is anything that can take a turn in battle: a party member or a

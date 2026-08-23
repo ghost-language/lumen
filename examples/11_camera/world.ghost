@@ -1,8 +1,10 @@
+import { Image } from "lumen:image"
+
 class World {
   constructor() {
     this.rows = 20
     this.cols = 20
-    this.grass = image.load('resources/grass.png')
+    this.grass = new Image('resources/grass.png')
   }
 
   update() {

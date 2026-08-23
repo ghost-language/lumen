@@ -1,3 +1,5 @@
+import "lumen:canvas"
+import "lumen:window"
 import World from 'world'
 
 world = new World()

@@ -106,8 +106,6 @@ func (sheet *Spritesheet) Method(method string, tok token.Token, args []object.O
 	switch method {
 	case "draw":
 		return sheet.draw(tok, args)
-	case "newAnimation":
-		return sheet.newAnimation(tok, args)
 	case "getQuad":
 		return sheet.getQuad(tok, args)
 	case "getImage":
@@ -192,75 +190,4 @@ func (sheet *Spritesheet) getQuad(tok token.Token, args []object.Object) (object
 	}
 
 	return quad, true
-}
-
-// newAnimation builds an animation over a list of this sheet's frames:
-// sheet.newAnimation([0, 1, 2], 0.1, 'loop').
-func (sheet *Spritesheet) newAnimation(tok token.Token, args []object.Object) (object.Object, bool) {
-	if err := ArityRange("spritesheet.newAnimation", tok, args, 2, 3); err != nil {
-		return err, true
-	}
-
-	list, err := List("spritesheet.newAnimation", tok, args, 0)
-
-	if err != nil {
-		return err, true
-	}
-
-	frames := make([]int32, 0, len(list.Elements))
-
-	for index, element := range list.Elements {
-		number, ok := element.(*object.Number)
-
-		if !ok {
-			return Error(fault.Argument, tok, "`%s` expects a list of frame numbers, and element %d is %s", Signature("spritesheet.newAnimation"), index+1, TypeName(element)), true
-		}
-
-		frame := int32(number.Int64())
-
-		if frame < 0 || frame >= sheet.Count() {
-			return sheet.outsideSheet("spritesheet.newAnimation", tok, frame), true
-		}
-
-		frames = append(frames, frame)
-	}
-
-	if len(frames) == 0 {
-		return Value("spritesheet.newAnimation", tok, "was given no frames to play").
-			WithHelp("an animation needs at least one frame, as in `sheet.newAnimation([0, 1, 2], 0.1)`"), true
-	}
-
-	duration, err := Number("spritesheet.newAnimation", tok, args, 1)
-
-	if err != nil {
-		return err, true
-	}
-
-	// Zero is deliberately allowed: an animation of one frame held forever is
-	// how a still pose is written, and Frame() reads a duration of zero as
-	// exactly that. A negative one is not a pose, it is a mistake.
-	if duration < 0 {
-		return Value("spritesheet.newAnimation", tok, "was given a frame duration of %g", duration).
-			WithHelp("a frame is held for a number of seconds; use 0 for a pose that never advances"), true
-	}
-
-	mode := AnimationLoop
-
-	if len(args) == 3 {
-		name, err := Text("spritesheet.newAnimation", tok, args, 2)
-
-		if err != nil {
-			return err, true
-		}
-
-		parsed, valid := AnimationModeFromName(name)
-
-		if !valid {
-			return Choice("spritesheet.newAnimation", tok, name, AnimationModeNames...), true
-		}
-
-		mode = parsed
-	}
-
-	return NewAnimation(sheet, frames, duration, mode), true
 }

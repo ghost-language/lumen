@@ -1,3 +1,7 @@
+import "lumen:canvas"
+import "lumen:color"
+import "lumen:keyboard"
+
 class Player {
   constructor(x = 0, y = 0) {
     this.x = x

@@ -1,3 +1,8 @@
+import "ghost:math"
+import "lumen:canvas"
+import "lumen:color"
+import "lumen:window"
+
 import * from 'data'
 import * from 'ui'
 import Menu from 'ui'

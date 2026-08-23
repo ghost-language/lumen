@@ -60,9 +60,7 @@ func init() {
 	modules.RegisterMethod(CanvasMethods, "getVisible", canvasGetVisibleMethod)
 
 	// Render targets
-	modules.RegisterMethod(CanvasMethods, "newTarget", canvasNewTargetMethod)
 	modules.RegisterMethod(CanvasMethods, "setTarget", canvasSetTargetMethod)
-	modules.RegisterMethod(CanvasMethods, "newQuad", canvasNewQuadMethod)
 	modules.RegisterMethod(CanvasMethods, "screenshot", canvasScreenshotMethod)
 
 	// Properties
@@ -693,32 +691,34 @@ func canvasGetVisibleMethod(scope *object.Scope, tok token.Token, args ...object
 // =============================================================================
 // Render targets
 
-func canvasNewTargetMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
-	if err := arity("canvas.newTarget", tok, args, 2); err != nil {
+// targetConstructor creates an off-screen surface that can be drawn into:
+// new Target(width, height).
+func targetConstructor(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if err := arity("Target", tok, args, 2); err != nil {
 		return err
 	}
 
-	width, err := integer("canvas.newTarget", tok, args, 0)
+	width, err := integer("Target", tok, args, 0)
 
 	if err != nil {
 		return err
 	}
 
-	height, err := integer("canvas.newTarget", tok, args, 1)
+	height, err := integer("Target", tok, args, 1)
 
 	if err != nil {
 		return err
 	}
 
 	if width <= 0 || height <= 0 {
-		return engine.Value("canvas.newTarget", tok, "was asked for a %dx%d target", width, height).
+		return engine.Value("Target", tok, "was asked for a %dx%d target", width, height).
 			WithHelp("a target needs a positive width and height")
 	}
 
 	target, targetErr := engine.NewTarget(int32(width), int32(height))
 
 	if targetErr != nil {
-		return engine.SystemFailure("canvas.newTarget", tok, targetErr)
+		return engine.SystemFailure("Target", tok, targetErr)
 	}
 
 	return target
@@ -754,12 +754,13 @@ func canvasSetTargetMethod(scope *object.Scope, tok token.Token, args ...object.
 	return value.NULL
 }
 
-func canvasNewQuadMethod(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
-	if err := arity("canvas.newQuad", tok, args, 4); err != nil {
+// quadConstructor builds a quad covering the given region: new Quad(x, y, width, height).
+func quadConstructor(scope *object.Scope, tok token.Token, args ...object.Object) object.Object {
+	if err := arity("Quad", tok, args, 4); err != nil {
 		return err
 	}
 
-	values, err := numbers("canvas.newQuad", tok, args)
+	values, err := numbers("Quad", tok, args)
 
 	if err != nil {
 		return err

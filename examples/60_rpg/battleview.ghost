@@ -1,3 +1,9 @@
+import "ghost:math"
+import "ghost:random"
+import "lumen:canvas"
+import "lumen:color"
+import "lumen:window"
+
 import * from 'data'
 import * from 'ui'
 
@@ -22,8 +28,8 @@ class BattleView {
 
     if (battle.shake > 0) {
       canvas.translate(
-        (math.random() - 0.5) * 8 * battle.shake,
-        (math.random() - 0.5) * 8 * battle.shake
+        (random.random() - 0.5) * 8 * battle.shake,
+        (random.random() - 0.5) * 8 * battle.shake
       )
     }
 

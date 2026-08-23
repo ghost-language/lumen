@@ -1,4 +1,10 @@
-cursor = image.load('resources/cursor.png')
+import "lumen:canvas"
+import "lumen:color"
+import "lumen:mouse"
+import "lumen:window"
+import { Image } from "lumen:image"
+
+cursor = new Image('resources/cursor.png')
 scale = 4
 select = {
   x1: 0,
