@@ -1,5 +1,4 @@
-import "lumen:audio"
-import { Source } from "lumen:audio"
+import audio, { Source } from "lumen:audio"
 
 // A tiny sound bank. Loading every effect once and playing by name keeps audio
 // calls out of the gameplay code, and means a missing file is reported at
