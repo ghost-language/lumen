@@ -268,6 +268,17 @@ import { Image } from "lumen:image"
 sprite = new Image('resources/player.png')
 ```
 
+Needing both the module and one of its classes doesn't take two lines — the
+two forms combine, JS-style, with the module name first and the named list
+braced after it:
+
+```ghost
+import audio, { Source } from "lumen:audio"
+
+audio.setVolume(0.5)
+sound = new Source('resources/hit.wav')
+```
+
 The reference below names, for each module, which scheme it lives under —
 `lumen:name` for everything in this section, `ghost:name` for Ghost's own
 `math`, `random`, `json`, and the rest — and which classes it exports, if any.
