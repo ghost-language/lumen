@@ -1,13 +1,20 @@
 .PHONY: build release run clean examples fmt vet test check
 
+# Xcode 15's linker warns that it's "ignoring duplicate libraries" when SDL2
+# and SDL2_ttf's cgo directives both pull in -lSDL2; the flag below silences
+# that (harmless) warning on macOS. Other platforms leave this empty.
+ifeq ($(shell uname -s),Darwin)
+EXTLDFLAGS := -extldflags=-Wl,-no_warn_duplicate_libraries
+endif
+
 # Build for the host platform. Lumen links against SDL2 through cgo, so a build
 # always targets the machine it runs on unless a cross-compiler is set up.
 build: clean
-	go build -o dist/lumen ./cmd
+	go build -ldflags "$(EXTLDFLAGS)" -o dist/lumen ./cmd
 
 # A stripped release build.
 release: clean
-	go build -ldflags "-s -w" -o dist/lumen ./cmd
+	go build -ldflags "-s -w $(EXTLDFLAGS)" -o dist/lumen ./cmd
 
 # make run EXAMPLE=60_rpg
 EXAMPLE ?= 60_rpg
