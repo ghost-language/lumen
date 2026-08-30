@@ -15,7 +15,7 @@ import (
 // as they are all written by the helpers here.
 
 func at(line int, column int) token.Token {
-	return token.Token{File: "main.ghost", Line: line, Column: column, Length: 4, Lexeme: "draw"}
+	return token.Token{File: "main.gs", Line: line, Column: column, Length: 4, Lexeme: "draw"}
 }
 
 func TestArityReadsAsASentence(t *testing.T) {
@@ -93,7 +93,7 @@ func TestErrorsCarryThePositionTheyHappenedAt(t *testing.T) {
 	raised := Arity("canvas.rotate", at(7, 11), nil, 1)
 
 	if raised.Fault.Position.Line != 7 || raised.Fault.Position.Column != 11 {
-		t.Errorf("got %s, want main.ghost:7:11", raised.Fault.Position)
+		t.Errorf("got %s, want main.gs:7:11", raised.Fault.Position)
 	}
 
 	if raised.Fault.Position.Length != 4 {

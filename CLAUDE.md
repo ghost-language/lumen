@@ -19,7 +19,7 @@ is checked out there rather than the version in `require`.
 ## Architecture Overview
 
 Lumen is a game engine that runs games written in Ghost. A game is a folder with
-a `main.ghost` in it defining callbacks; Lumen drives them.
+a `main.gs` in it defining callbacks; Lumen drives them.
 
 **Ghost source → engine.Run → callbacks (load, update, draw, input) → SDL**
 

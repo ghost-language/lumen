@@ -484,7 +484,7 @@ function endBattle() {
 // Input
 
 // keypressed fires once per physical press. Menus and battles poll the shared
-// helpers in ui.ghost instead, so this only handles what is global or what
+// helpers in ui.gs instead, so this only handles what is global or what
 // belongs to walking around.
 function keypressed(key) {
   switch (key) {

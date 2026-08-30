@@ -7,7 +7,7 @@ import "lumen:window"
 import * from 'data'
 import * from 'ui'
 
-// Draws a Battle. The rules live in battle.ghost and never touch the canvas;
+// Draws a Battle. The rules live in battle.gs and never touch the canvas;
 // this reads the battle's state and paints it, which means the combat maths can
 // be reasoned about without a window open.
 class BattleView {

@@ -201,8 +201,8 @@ func subcommandArgs(name string, args []string) (string, string, error) {
 
 // readSource loads the game's entry file. Lumen looks for a game in four places,
 // in order: a game packaged into this very binary, then whatever path was given
-// on the command line, then a main.ghost next to the executable, and finally a
-// main.ghost in the working directory.
+// on the command line, then a main.gs next to the executable, and finally a
+// main.gs in the working directory.
 //
 // It hands back the source, the name to report positions against, and the
 // directory that asset and import paths resolve from.
@@ -213,7 +213,7 @@ func readSource(args []string) (string, string, string, *fault.Fault) {
 		// A fused game is unpacked somewhere temporary, and quoting that path
 		// back at a player would say nothing about their game. Reports name the
 		// entry file the way the game's author wrote it.
-		return readEntry(filepath.Join(directory, "main.ghost"), "main.ghost")
+		return readEntry(filepath.Join(directory, engine.EntryFile), engine.EntryFile)
 	}
 
 	if len(args) > 0 {
@@ -226,17 +226,17 @@ func readSource(args []string) (string, string, string, *fault.Fault) {
 		return "", "", "", fault.New(fault.System, "Lumen could not find its own executable: %s", err)
 	}
 
-	beside := filepath.Join(filepath.Dir(executable), "main.ghost")
+	beside := filepath.Join(filepath.Dir(executable), engine.EntryFile)
 
 	if _, err := os.Stat(beside); err == nil {
 		return readEntry(beside, beside)
 	}
 
-	if _, err := os.Stat("main.ghost"); err == nil {
-		return readEntry("main.ghost", "main.ghost")
+	if _, err := os.Stat(engine.EntryFile); err == nil {
+		return readEntry(engine.EntryFile, engine.EntryFile)
 	}
 
-	return "", "", "", fault.New(fault.System, "no game was given, and there is no main.ghost here").
+	return "", "", "", fault.New(fault.System, "no game was given, and there is no %s here", engine.EntryFile).
 		WithHelp("run `lumen <file|directory|archive>`, or `lumen -h` for the whole of it")
 }
 
@@ -250,14 +250,14 @@ func readTarget(target string) (string, string, string, *fault.Fault) {
 				WithHelp("a .lumen archive is built by `lumen package`; this one may be truncated or from a newer version")
 		}
 
-		return readEntry(filepath.Join(directory, "main.ghost"), "main.ghost")
+		return readEntry(filepath.Join(directory, engine.EntryFile), engine.EntryFile)
 	}
 
 	info, err := os.Stat(target)
 
 	// Naming something that is not there is nearly always a mistyped path or a
 	// subcommand that does not exist, and neither is helped by being told that
-	// a game needs a main.ghost.
+	// a game needs a main.gs.
 	if err != nil {
 		raised := fault.New(fault.System, "there is no such file or directory as `%s`", target)
 
@@ -268,9 +268,9 @@ func readTarget(target string) (string, string, string, *fault.Fault) {
 		return "", "", "", raised.WithHelp("run `lumen -h` for usage")
 	}
 
-	// A game is usually a folder with a main.ghost in it.
+	// A game is usually a folder with a main.gs in it.
 	if info.IsDir() {
-		entry := filepath.Join(target, "main.ghost")
+		entry := filepath.Join(target, engine.EntryFile)
 
 		return readEntry(entry, entry)
 	}
@@ -303,9 +303,9 @@ func readEntry(file string, name string) (string, string, string, *fault.Fault) 
 	contents, err := os.ReadFile(file)
 
 	if err != nil {
-		if strings.HasSuffix(file, "main.ghost") {
+		if strings.HasSuffix(file, engine.EntryFile) {
 			return "", "", "", fault.New(fault.System, "`%s` could not be read: %s", file, err).
-				WithHelp("a game is a folder with a main.ghost in it, and that is the file Lumen starts from")
+				WithHelp("a game is a folder with a %s in it, and that is the file Lumen starts from", engine.EntryFile)
 		}
 
 		return "", "", "", fault.New(fault.System, "`%s` could not be read: %s", file, err)
@@ -335,10 +335,10 @@ func showHelp() {
 	fmt.Println()
 	fmt.Println("Running a game:")
 	fmt.Println()
-	fmt.Println("    lumen main.ghost          run a game from its entry file")
-	fmt.Println("    lumen examples/60_rpg     run the main.ghost inside a directory")
+	fmt.Println("    lumen main.gs             run a game from its entry file")
+	fmt.Println("    lumen examples/60_rpg     run the main.gs inside a directory")
 	fmt.Println("    lumen game.lumen          run a packaged game")
-	fmt.Println("    lumen                     run the main.ghost beside the binary,")
+	fmt.Println("    lumen                     run the main.gs beside the binary,")
 	fmt.Println("                              or in the working directory")
 	fmt.Println()
 	fmt.Println("Shipping a game:")
