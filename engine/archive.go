@@ -15,9 +15,9 @@ import (
 	"strings"
 )
 
-// A packaged game is a zip archive: the game's .ghost sources and its assets,
-// with main.ghost at the root. The archive can be run directly, or appended to a
-// copy of the Lumen binary to make a single self-contained executable.
+// A packaged game is a zip archive: the game's .gs sources and its assets, with
+// main.gs at the root. The archive can be run directly, or appended to a copy of
+// the Lumen binary to make a single self-contained executable.
 //
 // At startup a packaged game is unpacked into a cache directory and run from
 // there, rather than being served out of the zip in memory. That is deliberate.
@@ -38,14 +38,24 @@ const (
 
 	// ArchiveExtension is the suffix of a standalone packaged game.
 	ArchiveExtension = ".lumen"
+
+	// SourceExtension is the suffix Ghost source files carry. Ghost renamed it
+	// from .ghost to .gs, and resolves `import "player"` to `player.gs` on its
+	// own; this is only for the names Lumen itself builds or reports.
+	SourceExtension = ".gs"
+
+	// EntryFile is the file a game starts from. Every way of finding a game —
+	// a directory, an archive, a fused binary, the working directory — looks
+	// for this one name, so it is spelled once here rather than at each of them.
+	EntryFile = "main" + SourceExtension
 )
 
 // PackageGame writes the directory at source into a .lumen archive at target.
 func PackageGame(source, target string) error {
-	entry := filepath.Join(source, "main.ghost")
+	entry := filepath.Join(source, EntryFile)
 
 	if _, err := os.Stat(entry); err != nil {
-		return fmt.Errorf("no main.ghost in %s", source)
+		return fmt.Errorf("no %s in %s", EntryFile, source)
 	}
 
 	file, err := os.Create(target)
@@ -64,8 +74,8 @@ func PackageGame(source, target string) error {
 // operating system ignores trailing bytes in an executable, so the result runs
 // as a normal program.
 func FuseGame(source, target string) error {
-	if _, err := os.Stat(filepath.Join(source, "main.ghost")); err != nil {
-		return fmt.Errorf("no main.ghost in %s", source)
+	if _, err := os.Stat(filepath.Join(source, EntryFile)); err != nil {
+		return fmt.Errorf("no %s in %s", EntryFile, source)
 	}
 
 	executable, err := os.Executable()

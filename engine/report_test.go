@@ -22,7 +22,7 @@ func reporting() (*Engine, *bytes.Buffer) {
 }
 
 func raise(line int) *fault.Fault {
-	return fault.At(fault.Type, token.Token{File: "main.ghost", Line: line, Column: 1, Length: 3, Lexeme: "sum"},
+	return fault.At(fault.Type, token.Token{File: "main.gs", Line: line, Column: 1, Length: 3, Lexeme: "sum"},
 		"cannot use `+` between number and string")
 }
 
@@ -39,7 +39,7 @@ func TestAFailureStopsTheGameAndIsWrittenOut(t *testing.T) {
 		t.Errorf("got %q, want the failure written to the console", written.String())
 	}
 
-	if !strings.Contains(written.String(), "main.ghost:4:1") {
+	if !strings.Contains(written.String(), "main.gs:4:1") {
 		t.Errorf("got %q, want the position in the report", written.String())
 	}
 }

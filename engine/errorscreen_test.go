@@ -49,9 +49,9 @@ func TestFirstParagraphLeavesTheStackOnTheConsole(t *testing.T) {
 }
 
 func TestDescribeFrameReadsTheSameAsTheConsole(t *testing.T) {
-	frame := fault.Frame{Name: "sum()", Position: fault.Position{File: "main.ghost", Line: 9, Column: 1}}
+	frame := fault.Frame{Name: "sum()", Position: fault.Position{File: "main.gs", Line: 9, Column: 1}}
 
-	if got := describeFrame(frame); got != "in sum(), called at main.ghost:9:1" {
+	if got := describeFrame(frame); got != "in sum(), called at main.gs:9:1" {
 		t.Errorf("got %q", got)
 	}
 
@@ -74,18 +74,18 @@ func TestTheErrorScreenDraws(t *testing.T) {
 
 	engine.SetReportWriter(&strings.Builder{})
 
-	source.Register("main.ghost", "function draw() {\n\tcanvas.print(score, 10, 10)\n}\n")
+	source.Register("main.gs", "function draw() {\n\tcanvas.print(score, 10, 10)\n}\n")
 
 	reports := []*fault.Fault{
-		fault.At(fault.Argument, token.Token{File: "main.ghost", Line: 2, Column: 15, Length: 5},
+		fault.At(fault.Argument, token.Token{File: "main.gs", Line: 2, Column: 15, Length: 5},
 			"`canvas.print()` expects argument 1 to be a string, got number").
 			WithHelp("did you mean `text(score)`?"),
 
 		// A failure with no source to quote, and one whose position is past the
 		// end of the line it names.
 		fault.New(fault.Internal, "Lumen stopped unexpectedly"),
-		fault.At(fault.Type, token.Token{File: "main.ghost", Line: 2, Column: 400, Length: 9}, "a long way off the end"),
-		fault.At(fault.Value, token.Token{File: "nowhere.ghost", Line: 40, Column: 1, Length: 1}, "a file that was never scanned"),
+		fault.At(fault.Type, token.Token{File: "main.gs", Line: 2, Column: 400, Length: 9}, "a long way off the end"),
+		fault.At(fault.Value, token.Token{File: "nowhere.gs", Line: 40, Column: 1, Length: 1}, "a file that was never scanned"),
 		fault.New(fault.Syntax, strings.Repeat("a very long message that has to wrap ", 20)),
 	}
 

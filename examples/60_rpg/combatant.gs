@@ -204,7 +204,7 @@ class Combatant {
   }
 }
 
-// newHero builds a party member from the table in data.ghost.
+// newHero builds a party member from the table in data.gs.
 function newHero(id) {
   template = findHero(id)
 

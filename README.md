@@ -58,10 +58,10 @@ make examples               # starts every example briefly and reports failures
 ## Running a game
 
 ```bash
-lumen main.ghost      # run a specific file
-lumen examples/60_rpg # run the main.ghost inside a directory
+lumen main.gs         # run a specific file
+lumen examples/60_rpg # run the main.gs inside a directory
 lumen game.lumen      # run a packaged game
-lumen                 # run the main.ghost beside the binary, or in the
+lumen                 # run the main.gs beside the binary, or in the
                       # working directory
 ```
 
@@ -77,7 +77,7 @@ lumen build mygame -o mygame            # a standalone executable; players just 
 lumen package mygame -o mygame.lumen    # one file; players run `lumen mygame.lumen`
 ```
 
-A `.lumen` file is a zip of the game's sources and assets with `main.ghost` at
+A `.lumen` file is a zip of the game's sources and assets with `main.gs` at
 the root. `build` appends that archive to a copy of the Lumen binary, so the
 result is one file with both the engine and the game in it. `lumen fuse` is an
 older name for the same command and still works.
@@ -669,12 +669,12 @@ what was in flight at the time, and what to do about it.
 
 ```
 argument error: `canvas.print()` expects argument 1 to be a string, got number
- --> main.ghost:12:5
+ --> main.gs:12:5
    |
 12 |     canvas.print(score, 10, 10)
    |     ^^^^^^^^^^^^
    |
-   = in drawScore(), called at main.ghost:30:3
+   = in drawScore(), called at main.gs:30:3
    = in draw()
    = help: did you mean `text(score)`?
 ```
@@ -721,7 +721,7 @@ or axis name with the nearest real one:
 
 ```
 system error: `Image()` could not load `playr.png`: No such file or directory
- --> main.ghost:2:20
+ --> main.gs:2:20
   |
 2 |     player = new Image("playr.png")
   |                    ^^^^

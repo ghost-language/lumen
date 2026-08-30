@@ -35,21 +35,21 @@ lumen examples/60_rpg
 
 | File | |
 | --- | --- |
-| `main.ghost` | game state, callbacks, encounters, transitions, interaction, saving, depth sorting |
-| `data.ghost` | every item, spell, monster, and hero in one table |
-| `combatant.ghost` | shared stats for heroes and monsters, damage, levelling |
-| `party.ghost` | the party, the purse, the pack, and equipping |
-| `battle.ghost` | the turn-based battle state machine and combat arithmetic |
-| `battleview.ghost` | drawing a battle, with no rules in it |
-| `ui.ghost` | the panel, bar, and scrolling menu every screen is built from |
-| `fieldmenu.ghost` | pack, equipment, status sheets, resting, saving |
-| `tilemap.ghost` | loading a Tiled JSON map, per-layer collision, bridges, culling |
-| `camera.ghost` | smoothed following, map bounds, zoom, screen shake |
-| `player.ghost` | dt-scaled movement, axis-separated collision, walk cycles |
-| `npc.ghost` | characters that talk and hand over items |
-| `dialogue.ghost` | typewriter text, wrapping, paging |
-| `hud.ghost` | party health and gold while walking |
-| `sounds.ghost` | a small sound bank |
+| `main.gs` | game state, callbacks, encounters, transitions, interaction, saving, depth sorting |
+| `data.gs` | every item, spell, monster, and hero in one table |
+| `combatant.gs` | shared stats for heroes and monsters, damage, levelling |
+| `party.gs` | the party, the purse, the pack, and equipping |
+| `battle.gs` | the turn-based battle state machine and combat arithmetic |
+| `battleview.gs` | drawing a battle, with no rules in it |
+| `ui.gs` | the panel, bar, and scrolling menu every screen is built from |
+| `fieldmenu.gs` | pack, equipment, status sheets, resting, saving |
+| `tilemap.gs` | loading a Tiled JSON map, per-layer collision, bridges, culling |
+| `camera.gs` | smoothed following, map bounds, zoom, screen shake |
+| `player.gs` | dt-scaled movement, axis-separated collision, walk cycles |
+| `npc.gs` | characters that talk and hand over items |
+| `dialogue.gs` | typewriter text, wrapping, paging |
+| `hud.gs` | party health and gold while walking |
+| `sounds.gs` | a small sound bank |
 
 ## The window
 
@@ -94,7 +94,7 @@ never a lost save.
 Encounters are rolled from a weighted table gated on party level, so a level-one
 party meets cutpurses and never an ogre.
 
-A fight never simply appears. `beginTransition()` in `main.ghost` freezes the
+A fight never simply appears. `beginTransition()` in `main.gs` freezes the
 field, flashes the screen three times, knocks the camera, and closes black bars
 in from alternating sides; the battle is built behind the closed bars and fades
 up out of them, and the same bars open again on the way back. Two things are
@@ -110,7 +110,7 @@ three slots per hero, and the item list shows what each piece would do to that
 hero's attack and defence **before** it is equipped, which is the question the
 player is actually asking. Taking something off puts it back in the pack.
 
-Everything is built from one `Menu` in `ui.ghost`: rows with a cursor, disabled
+Everything is built from one `Menu` in `ui.gs`: rows with a cursor, disabled
 entries that grey out and are skipped, a detail panel alongside, and scrolling
 once a list outgrows its panel.
 
@@ -139,8 +139,8 @@ drawn last, so they overlap whoever is behind them.
 `camera.attach()` / `camera.detach()`; the HUD, dialogue, and menus are drawn
 outside, in screen coordinates, unaffected by zoom.
 
-**The battle rules never touch the canvas.** `battle.ghost` decides what
-happens; `battleview.ghost` draws it. Combat can be reasoned about, and changed,
+**The battle rules never touch the canvas.** `battle.gs` decides what
+happens; `battleview.gs` draws it. Combat can be reasoned about, and changed,
 without a window open.
 
 **Everything the player reads goes through a message queue.** A battle sits on

@@ -221,7 +221,7 @@ class Party {
   //
   // Only what cannot be derived is written out: levels, current health, the
   // pack, and what each hero is wearing. Everything else comes back from the
-  // tables in data.ghost.
+  // tables in data.gs.
 
   toSave() {
     saved = []

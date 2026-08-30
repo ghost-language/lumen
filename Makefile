@@ -27,7 +27,7 @@ run: build
 examples: build
 	@for dir in examples/*/; do \
 		name=$$(basename $$dir); \
-		[ -f "$$dir/main.ghost" ] || continue; \
+		[ -f "$$dir/main.gs" ] || continue; \
 		printf '%-24s' "$$name"; \
 		output=$$(SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy timeout 3 ./dist/lumen "$$dir" 2>&1 | grep -Ei 'error|syntax' | head -3); \
 		if [ -n "$$output" ]; then echo "FAIL"; echo "$$output"; else echo "ok"; fi; \
