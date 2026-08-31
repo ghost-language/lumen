@@ -360,13 +360,17 @@ jobs:
         mkdir -p tap/Casks
         cp cask/lumen.rb tap/Casks/lumen.rb
         cd tap
-        if git diff --quiet -- Casks/lumen.rb; then
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        # Stage first, then compare against the index. `git diff` on its own
+        # ignores untracked files, so on the release that first adds the cask
+        # it reports no change and skips the push - silently, and green. That
+        # is what v0.2.0 did.
+        git add Casks/lumen.rb
+        if git diff --cached --quiet; then
           echo "the cask is already up to date"
           exit 0
         fi
-        git config user.name "github-actions[bot]"
-        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-        git add Casks/lumen.rb
         git commit -m "Cask update for lumen version $TAG"
         git push
         echo "pushed Casks/lumen.rb for $TAG" >> "$GITHUB_STEP_SUMMARY"
