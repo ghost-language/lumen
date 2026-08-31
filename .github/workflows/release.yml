@@ -204,8 +204,50 @@ jobs:
         # Editing a Mach-O binary invalidates its signature, and Apple Silicon
         # refuses to run an unsigned one. Ad-hoc signing is enough for that;
         # it is not notarisation, so Gatekeeper will still warn on first run.
+        # Homebrew's sdl2 is sdl2_compat: the SDL2 API reimplemented over SDL3,
+        # which it dlopen()s at runtime rather than linking against. There is
+        # no LC_LOAD_DYLIB entry for it, so dylibbundler - which walks static
+        # link references - cannot see it, and the archive comes out looking
+        # self-contained while aborting with "Failed loading SDL3 library" on
+        # any machine without Homebrew. That is what v0.2.0 shipped.
+        # libSDL2 searches @loader_path first, so SDL3 goes beside it.
+        if strings "stage/$STAGE/libs/libSDL2-2.0.0.dylib" | grep -q SDL2_COMPAT; then
+          sdl3="$(brew --prefix sdl3)/lib/libSDL3.dylib"
+          if [ ! -f "$sdl3" ]; then
+            echo "::error::libSDL2 is sdl2_compat but $sdl3 does not exist"
+            exit 1
+          fi
+          # -L because Homebrew's libSDL3.dylib is a symlink into the Cellar.
+          cp -L "$sdl3" "stage/$STAGE/libs/libSDL3.dylib"
+          echo "bundled $(basename "$sdl3") for sdl2_compat"
+        fi
         find "stage/$STAGE/libs" -name '*.dylib' -exec codesign --force --sign - {} +
         codesign --force --sign - "stage/$STAGE/lumen"
+
+    # The bundling above is only believable if the result runs somewhere the
+    # libraries it was built against are not on the search path. Emptying the
+    # fallback library path takes /usr/local/lib out of dyld's reach, which is
+    # the only reason a v0.2.0 binary appeared to work on the runner: every
+    # reference resolves through @executable_path or it does not resolve.
+    - name: Check the bundle runs without Homebrew (macOS)
+      if: runner.os == 'macOS'
+      env:
+        STAGE: ${{ steps.version.outputs.stage }}
+      run: |
+        output=$(DYLD_FALLBACK_LIBRARY_PATH=/var/empty \
+          SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
+          "stage/$STAGE/lumen" -h 2>&1) && status=0 || status=$?
+        echo "$output"
+        # -h exits non-zero on some paths; what matters is that it got far
+        # enough to print its own help rather than dying in the loader.
+        if printf '%s' "$output" | grep -qiE 'SDL3 library|image not found|Library not loaded'; then
+          echo "::error::the bundle cannot run without Homebrew - a library is missing from libs/"
+          exit 1
+        fi
+        if [ -z "$output" ]; then
+          echo "::error::lumen produced no output at all (exit $status) - it aborted in the loader"
+          exit 1
+        fi
 
     - name: Bundle the SDL2 libraries (Windows)
       if: runner.os == 'Windows'
@@ -360,13 +402,17 @@ jobs:
         mkdir -p tap/Casks
         cp cask/lumen.rb tap/Casks/lumen.rb
         cd tap
-        if git diff --quiet -- Casks/lumen.rb; then
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        # Stage first, then compare against the index. `git diff` on its own
+        # ignores untracked files, so on the release that first adds the cask
+        # it reports no change and skips the push - silently, and green. That
+        # is what v0.2.0 did.
+        git add Casks/lumen.rb
+        if git diff --cached --quiet; then
           echo "the cask is already up to date"
           exit 0
         fi
-        git config user.name "github-actions[bot]"
-        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-        git add Casks/lumen.rb
         git commit -m "Cask update for lumen version $TAG"
         git push
         echo "pushed Casks/lumen.rb for $TAG" >> "$GITHUB_STEP_SUMMARY"

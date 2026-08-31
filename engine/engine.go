@@ -16,7 +16,7 @@ import (
 var Lumen *Engine
 
 // Version is the engine version reported to games through lumen.version.
-const Version = "0.2.0"
+const Version = "0.2.1"
 
 // maximumDelta caps the delta time handed to update(). Without it, a frame that
 // stalls (a breakpoint, a window drag, a slow asset load) would hand the game a
