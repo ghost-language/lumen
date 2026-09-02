@@ -40,9 +40,11 @@ var errorScreen = struct {
 	help       sdl.Color
 	footer     sdl.Color
 	rule       sdl.Color
+	card       sdl.Color
 }{
 	background: sdl.Color{R: 24, G: 22, B: 37, A: 255},
 	panel:      sdl.Color{R: 34, G: 31, B: 52, A: 255},
+	card:       sdl.Color{R: 30, G: 27, B: 46, A: 255},
 	heading:    sdl.Color{R: 255, G: 106, B: 106, A: 255},
 	message:    sdl.Color{R: 238, G: 238, B: 245, A: 255},
 	location:   sdl.Color{R: 130, G: 170, B: 255, A: 255},
@@ -55,10 +57,16 @@ var errorScreen = struct {
 	rule:       sdl.Color{R: 70, G: 66, B: 96, A: 255},
 }
 
-// headingSize is how much taller the heading is than the body. A report that is
-// all one size is a wall of text, and the first thing a reader needs from it is
-// the two words saying what sort of failure this is.
-const headingSize = 1.6
+// headingScale is how much taller the heading is than the body. A report that
+// is all one size is a wall of text, and the first thing a reader needs from it
+// is the two words saying what sort of failure this is.
+//
+// It is a whole multiple rather than a ratio on purpose. The built-in font is a
+// pixel font drawn on a 100-unit grid over a 1900-unit em: at 19px one design
+// pixel is one screen pixel, and at a whole multiple of that it stays whole. The
+// old 1.6 gave a 30px heading, which is not a multiple of anything, so the two
+// most important words on the screen were the only fuzzy ones on it.
+const headingScale = 2
 
 // drawReport paints the error screen for the failure the game stopped on.
 func (engine *Engine) drawReport() {
@@ -100,40 +108,120 @@ func (engine *Engine) drawReport() {
 	engine.Renderer.SetDrawColor(errorScreen.background.R, errorScreen.background.G, errorScreen.background.B, 255)
 	engine.Renderer.Clear()
 
-	cursor := engine.drawReportHeading(font, raised, width, margin)
+	top := engine.drawReportHeading(font, raised, width, margin)
 	footer := height - margin - line
 
 	limit := float64(width - margin*2)
 
-	// Every write below stops at the footer, so a long message runs out of room
-	// rather than running over the line that says how to get out of here.
-	write := func(text string, color sdl.Color) {
-		if cursor+line > footer {
-			return
+	// The report is composed before it is drawn: laying the rows out first
+	// means the block can be placed as a whole rather than poured from the top
+	// of the screen, and a short report - which is most of them - sits in the
+	// space instead of clinging to the header with a dead half-screen below.
+	rows := engine.layoutReport(font, raised, limit)
+
+	total := int32(0)
+
+	for _, row := range rows {
+		total += row.height
+	}
+
+	cursor := top + margin
+	available := footer - top - margin
+
+	if total < available {
+		cursor = top + (available-total)/2
+	}
+
+	for _, row := range rows {
+		if cursor+row.height > footer {
+			break
 		}
 
-		engine.drawReportText(font, text, margin, cursor, color)
+		switch row.kind {
+		case rowGap:
+			// nothing to draw; the gap is its height
 
-		cursor += line
+		case rowSnippet:
+			engine.drawSnippetCard(font, raised, row, margin, cursor, width)
+
+		case rowHelp:
+			// A bar in the help colour marks the one line that says what to do
+			// about any of this, so the eye finds it without reading first.
+			engine.fillReportRect(margin-spacing, cursor, 2, row.height, errorScreen.help)
+			engine.drawReportText(font, row.text, margin+spacing, cursor, row.color)
+
+		default:
+			engine.drawReportText(font, row.text, margin, cursor, row.color)
+		}
+
+		cursor += row.height
+	}
+
+	engine.drawReportFooter(font, width, height, margin)
+
+	engine.Renderer.Present()
+}
+
+// The kinds of row a report is made of. Everything is a row so that the whole
+// block can be measured before any of it is drawn.
+const (
+	rowText    = ""
+	rowGap     = "gap"
+	rowSnippet = "snippet"
+	rowHelp    = "help"
+)
+
+// reportRow is one laid-out line of the report.
+type reportRow struct {
+	text   string
+	color  sdl.Color
+	kind   string
+	height int32
+	number string
+}
+
+// layoutReport turns a fault into the rows that represent it, in order.
+func (engine *Engine) layoutReport(font *Font, raised *fault.Fault, limit float64) []reportRow {
+	line := int32(font.Family.Height())
+	spacing := line / 3
+
+	rows := []reportRow{}
+
+	add := func(text string, color sdl.Color, kind string, height int32) {
+		rows = append(rows, reportRow{text: text, color: color, kind: kind, height: height})
 	}
 
 	wrap := func(text string, color sdl.Color) {
 		for _, wrapped := range font.wrapText(text, limit) {
-			write(wrapped, color)
+			add(wrapped, color, rowText, line)
 		}
 	}
 
+	// What went wrong, first and on its own.
 	wrap(raised.Message, errorScreen.message)
 
 	if raised.Position.Known() {
-		cursor += spacing
+		add("", errorScreen.message, rowGap, spacing)
+		add(raised.Position.String(), errorScreen.location, rowText, line)
 
-		write(raised.Position.String(), errorScreen.location)
+		if text, ok := source.Line(raised.Position.File, raised.Position.Line); ok {
+			add("", errorScreen.message, rowGap, spacing)
 
-		engine.drawSnippet(font, raised, margin, &cursor, footer)
+			row := reportRow{
+				text:   strings.ReplaceAll(text, "\t", "    "),
+				color:  errorScreen.snippet,
+				kind:   rowSnippet,
+				height: line + spacing*2,
+				number: fmt.Sprintf("%d", raised.Position.Line),
+			}
+
+			rows = append(rows, row)
+		}
 	}
 
-	cursor += spacing
+	if len(raised.Trace) > 0 || raised.Hidden > 0 {
+		add("", errorScreen.message, rowGap, spacing)
+	}
 
 	for _, frame := range raised.Trace {
 		wrap(describeFrame(frame), errorScreen.note)
@@ -144,14 +232,20 @@ func (engine *Engine) drawReport() {
 	}
 
 	if raised.Help != "" {
-		cursor += spacing
+		add("", errorScreen.message, rowGap, spacing)
 
-		wrap("help: "+firstParagraph(raised.Help), errorScreen.help)
+		for index, wrapped := range font.wrapText("help: "+firstParagraph(raised.Help), limit) {
+			kind := rowHelp
+
+			if index > 0 {
+				kind = rowText
+			}
+
+			add(wrapped, errorScreen.help, kind, line)
+		}
 	}
 
-	engine.drawReportFooter(font, width, height, margin)
-
-	engine.Renderer.Present()
+	return rows
 }
 
 // drawReportHeading paints the bar across the top and returns the line the
@@ -182,7 +276,7 @@ func (engine *Engine) headingFont() *Font {
 		return engine.reportFont
 	}
 
-	font, err := NewDefaultFont(int(float64(engine.DefaultFont.Size) * headingSize))
+	font, err := NewDefaultFont(engine.DefaultFont.Size * headingScale)
 
 	if err != nil {
 		return engine.DefaultFont
@@ -193,64 +287,52 @@ func (engine *Engine) headingFont() *Font {
 	return font
 }
 
-// drawSnippet quotes the line the failure happened on and marks the part of it
-// that failed, with a bar under the lexeme rather than a row of carets: the bar
-// is measured in the same font the line is drawn in, so it lands under the
-// right characters whatever their widths.
-func (engine *Engine) drawSnippet(font *Font, raised *fault.Fault, margin int32, cursor *int32, footer int32) {
-	text, ok := source.Line(raised.Position.File, raised.Position.Line)
-
-	if !ok {
-		return
-	}
-
+// drawSnippetCard quotes the line the failure happened on, in a framed card
+// with its own gutter, and marks the part of it that failed with a bar under
+// the lexeme rather than a row of carets: the bar is measured in the same font
+// the line is drawn in, so it lands under the right characters whatever their
+// widths.
+func (engine *Engine) drawSnippetCard(font *Font, raised *fault.Fault, row reportRow, margin int32, cursor int32, width int32) {
 	line := int32(font.Family.Height())
 	spacing := line / 3
 
-	if *cursor+line*2+spacing > footer {
-		return
-	}
-
-	*cursor += spacing
-
-	number := fmt.Sprintf("%d", raised.Position.Line)
-	gutter, _, err := font.Family.SizeUTF8(number + "   ")
+	gutter, _, err := font.Family.SizeUTF8(row.number + "   ")
 
 	if err != nil {
 		return
 	}
 
-	// Tabs are expanded before anything is measured. A tab drawn as a glyph is
-	// a box of unknown width, and everything to the right of it — including the
-	// bar — would be placed against a line the reader is not seeing.
-	text = strings.ReplaceAll(text, "\t", "    ")
-
 	left := margin + int32(gutter)
 
-	// A rule down the left of the quoted line, where the console report has its
-	// gutter pipe. It is what makes the line read as quoted source rather than
-	// as another sentence of the message.
-	engine.fillReportRect(margin-spacing, *cursor, 2, line, errorScreen.rule)
+	// A card with a gutter strip, the way a code block reads everywhere else a
+	// reader has seen one. A bare line of source with a rule beside it reads as
+	// another sentence of the message; a framed one reads as the program's own
+	// text, which is what it is.
+	card := sdl.Rect{X: margin - spacing, Y: cursor, W: width - (margin-spacing)*2, H: row.height}
 
-	engine.drawReportText(font, number, margin+spacing, *cursor, errorScreen.gutter)
-	engine.drawReportText(font, text, left, *cursor, errorScreen.snippet)
+	engine.fillReportRect(card.X, card.Y, card.W, card.H, errorScreen.card)
+	engine.fillReportRect(card.X, card.Y, int32(gutter)+spacing, card.H, errorScreen.panel)
+	engine.fillReportRect(card.X, card.Y, 2, card.H, errorScreen.rule)
 
-	start, end := markedSpan(text, raised.Position)
+	text := cursor + spacing
 
-	before, _, beforeErr := font.Family.SizeUTF8(text[:start])
-	marked, _, markedErr := font.Family.SizeUTF8(text[start:end])
+	engine.drawReportText(font, row.number, margin+spacing, text, errorScreen.gutter)
+	engine.drawReportText(font, row.text, left, text, errorScreen.snippet)
+
+	start, end := markedSpan(row.text, raised.Position)
+
+	before, _, beforeErr := font.Family.SizeUTF8(row.text[:start])
+	marked, _, markedErr := font.Family.SizeUTF8(row.text[start:end])
 
 	if beforeErr == nil && markedErr == nil && marked > 0 {
 		engine.fillReportRect(
 			left+int32(before),
-			*cursor+line-3,
+			text+line-2,
 			int32(marked),
 			2,
 			errorScreen.marker,
 		)
 	}
-
-	*cursor += line + spacing
 }
 
 // markedSpan converts a position's column and width, which are counted in

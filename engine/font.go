@@ -18,14 +18,25 @@ type Font struct {
 	Size       int
 	LineHeight float64
 	Family     *ttf.Font
-	cache      map[textKey]*textTexture
+
+	// Smooth selects SDL_ttf's blended rasteriser over its solid one.
+	//
+	// Blended antialiases, which is right for a typeface with curves and wrong
+	// for a pixel font: a pixel font's glyphs are already made of whole pixels,
+	// so blending them only adds grey where the design has none, and does it at
+	// every size that is not an exact multiple of the font's own grid. Solid
+	// rendering keeps the edges hard.
+	Smooth bool
+
+	cache map[textKey]*textTexture
 }
 
 // textKey identifies a cached run of rendered text.
 type textKey struct {
-	text  string
-	wrap  int
-	style int
+	text   string
+	wrap   int
+	style  int
+	smooth bool
 }
 
 // textTexture is one cached, rasterised string.
@@ -93,8 +104,25 @@ func newFontFromFamily(family *ttf.Font, path string, size int) *Font {
 		Size:       size,
 		LineHeight: float64(family.LineSkip()),
 		Family:     family,
-		cache:      make(map[textKey]*textTexture),
+
+		// A font loaded from disk is assumed to have curves worth smoothing.
+		// The built-in one is a pixel font and turns this off - see
+		// NewDefaultFont.
+		Smooth: true,
+
+		cache: make(map[textKey]*textTexture),
 	}
+}
+
+// SetSmooth switches between the antialiased and the hard-edged rasteriser,
+// dropping any text already rendered the other way.
+func (font *Font) SetSmooth(smooth bool) {
+	if font.Smooth == smooth {
+		return
+	}
+
+	font.Smooth = smooth
+	font.clearCache()
 }
 
 // String represents the font object's value as a string.
@@ -130,6 +158,10 @@ func (font *Font) Method(method string, tok token.Token, args []object.Object) (
 		return object.NewInt(int64(font.Family.Ascent())), true
 	case "getWrap":
 		return font.getWrap(tok, args)
+	case "setSmooth":
+		return font.setSmooth(tok, args)
+	case "isSmooth":
+		return &object.Boolean{Value: font.Smooth}, true
 	case "getSize":
 		return object.NewInt(int64(font.Size)), true
 	case "toString":
@@ -248,6 +280,22 @@ func (font *Font) getWidth(tok token.Token, args []object.Object) (object.Object
 }
 
 // setLineHeight overrides the vertical distance between wrapped lines.
+func (font *Font) setSmooth(tok token.Token, args []object.Object) (object.Object, bool) {
+	if err := Arity("font.setSmooth", tok, args, 1); err != nil {
+		return err, true
+	}
+
+	smooth, err := Boolean("font.setSmooth", tok, args, 0)
+
+	if err != nil {
+		return err, true
+	}
+
+	font.SetSmooth(smooth)
+
+	return value.NULL, true
+}
+
 func (font *Font) setLineHeight(tok token.Token, args []object.Object) (object.Object, bool) {
 	if err := Arity("font.setLineHeight", tok, args, 1); err != nil {
 		return err, true
@@ -359,7 +407,7 @@ func (font *Font) drawText(text string, wrap int, arguments DrawArguments) {
 // Text is always rendered white so the draw color can tint it, which means one
 // cache entry serves every color the game draws that string in.
 func (font *Font) texture(text string, wrap int) *textTexture {
-	key := textKey{text: text, wrap: wrap, style: font.Family.GetStyle()}
+	key := textKey{text: text, wrap: wrap, style: font.Family.GetStyle(), smooth: font.Smooth}
 
 	if cached, ok := font.cache[key]; ok {
 		cached.usedAt = Lumen.FrameCount
@@ -372,10 +420,19 @@ func (font *Font) texture(text string, wrap int) *textTexture {
 	var surface *sdl.Surface
 	var err error
 
-	if wrap > 0 {
+	if font.Smooth {
+		if wrap > 0 {
+			surface, err = font.Family.RenderUTF8BlendedWrapped(text, white, wrap)
+		} else {
+			surface, err = font.Family.RenderUTF8Blended(text, white)
+		}
+	} else if wrap > 0 {
+		// SDL_ttf has no solid wrapped renderer exposed here, so wrapped text
+		// keeps its smoothing. Everything that lays out its own lines - the UI
+		// chrome, the error report - takes the hard-edged path above.
 		surface, err = font.Family.RenderUTF8BlendedWrapped(text, white, wrap)
 	} else {
-		surface, err = font.Family.RenderUTF8Blended(text, white)
+		surface, err = font.Family.RenderUTF8Solid(text, white)
 	}
 
 	if err != nil {
@@ -416,6 +473,17 @@ func (font *Font) evict() {
 	}
 }
 
+// clearCache drops every rendered string. Switching rasteriser invalidates all
+// of them at once, since the same text now rasterises differently.
+func (font *Font) clearCache() {
+	for key, cached := range font.cache {
+		Lumen.FlushTexture(cached.texture)
+		cached.texture.Destroy()
+
+		delete(font.cache, key)
+	}
+}
+
 // PruneCache drops rendered strings that have not been drawn recently. Without
 // it, text that changes every frame (a clock, a score) would grow the cache
 // without bound.
@@ -448,5 +516,19 @@ func (font *Font) Release() {
 // NewDefaultFont loads Lumen's built-in font at a given size, so a game can use
 // it at more than one size without shipping a font file of its own.
 func NewDefaultFont(size int) (*Font, error) {
-	return NewFontFromMemory("lumen:silver.ttf", defaultFontData, size)
+	font, err := NewFontFromMemory("lumen:silver.ttf", defaultFontData, size)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// silver.ttf is a pixel font. Its glyphs are drawn on a 100-unit grid over
+	// a 1900-unit em, so one design pixel is one screen pixel at 19px and every
+	// whole multiple of it. Antialiasing a design like that never improves it:
+	// at an exact multiple there is nothing to smooth, and at any other size
+	// blending turns a crisp glyph into grey mush. Hard edges are the correct
+	// default here, and a game that wants the other behaviour can ask for it.
+	font.SetSmooth(false)
+
+	return font, nil
 }
